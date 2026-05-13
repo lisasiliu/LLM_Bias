@@ -1,0 +1,21 @@
+name: my_experiment
+n_players: 7
+n_games: 1
+seeds: [101, 102, 103]
+model: Qwen/Qwen3.5-27B
+
+baseline_rewriter: null
+
+replays:
+  - rewriter_class: MyRewriter
+    rewriter_params: {}
+    scope: all
+    inject_at: day_start
+
+  - rewriter_class: MyRewriter
+    rewriter_params: {}
+    scope: self
+    inject_at: day_start
+    rotate_self: true
+
+metrics: [skill, vote, reliability]

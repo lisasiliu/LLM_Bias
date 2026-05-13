@@ -1,0 +1,78 @@
+======================================================================
+P1's statement (registered as s1):
+  estimate(D1, P1, P3, werewolf)
+======================================================================
+
+  P1 NL: I have a strong feeling that P3 might be a werewolf based on their behavior.
+
+----------------------------------------------------------------------
+P2's responses (all predicates):
+----------------------------------------------------------------------
+
+agree(D1, P2, s1)              | 5/10       | I completely agree with you that P3 is likely a werewolf.
+                               | 2/10       | I completely agree with you that P3 seems to be a werewolf.
+                               | 1/10       | I completely agree with you; I also think P3 is likely a werewolf.
+                               | 1/10       | I completely agree with you that P3 seems to be a werewolf based on their behavior.
+                               | 1/10       | I completely agree with P1's assessment that P3 is likely a werewolf.
+disagree(D1, P2, s1)           | 10/10      | I don't think P3 is a werewolf at all; that assessment seems off to me.
+answer(D1, P2, s1)             | 4/10       | I think P1's assessment of P3 as a werewolf is off base and doesn't align with what I've observed.
+                               | 2/10       | I don't think P3 is a werewolf; I see them as more likely to be on our side.
+                               | 2/10       | I don't think P3 is a werewolf; I have a different read on them.
+                               | 1/10       | I don't think P3 is a werewolf; I see them as more trustworthy than that.
+                               | 1/10       | I think P1's assessment of P3 as a werewolf is off base and doesn't align with what I've seen.
+question(D1, P2, P1, s1)       | 9/10       | Why do you think P3 is a werewolf? I’d like to understand your reasoning better.
+                               | 1/10       | Why do you think P3 is a werewolf? What makes you so sure about that?
+agree(D1, P2, s1)              | 5/10       | I completely agree with you that P3 is likely a werewolf.
+                               | 2/10       | I completely agree with you that P3 seems to be a werewolf.
+                               | 1/10       | I completely agree with you; I also think P3 is likely a werewolf.
+                               | 1/10       | I completely agree with you that P3 seems to be a werewolf based on their behavior.
+                               | 1/10       | I completely agree with P1's assessment that P3 is likely a werewolf.
+disagree(D1, P2, s1)           | 10/10      | I don't think P3 is a werewolf at all; that assessment seems off to me.
+answer(D1, P2, s1)             | 4/10       | I think P1's assessment of P3 as a werewolf is off base and doesn't align with what I've observed.
+                               | 2/10       | I don't think P3 is a werewolf; I see them as more likely to be on our side.
+                               | 2/10       | I don't think P3 is a werewolf; I have a different read on them.
+                               | 1/10       | I don't think P3 is a werewolf; I see them as more trustworthy than that.
+                               | 1/10       | I think P1's assessment of P3 as a werewolf is off base and doesn't align with what I've seen.
+question(D1, P2, P1, s1)       | 9/10       | Why do you think P3 is a werewolf? I’d like to understand your reasoning better.
+                               | 1/10       | Why do you think P3 is a werewolf? What makes you so sure about that?
+answer(D1, P2, s1)             | 4/10       | I think P1's assessment of P3 as a werewolf is off base and doesn't align with what I've observed.
+                               | 2/10       | I don't think P3 is a werewolf; I see them as more likely to be on our side.
+                               | 2/10       | I don't think P3 is a werewolf; I have a different read on them.
+                               | 1/10       | I don't think P3 is a werewolf; I see them as more trustworthy than that.
+                               | 1/10       | I think P1's assessment of P3 as a werewolf is off base and doesn't align with what I've seen.
+question(D1, P2, P1, s1)       | 9/10       | Why do you think P3 is a werewolf? I’d like to understand your reasoning better.
+                               | 1/10       | Why do you think P3 is a werewolf? What makes you so sure about that?
+                               | 1/10       | I don't think P3 is a werewolf; I see them as more trustworthy than that.
+                               | 1/10       | I think P1's assessment of P3 as a werewolf is off base and doesn't align with what I've seen.
+question(D1, P2, P1, s1)       | 9/10       | Why do you think P3 is a werewolf? I’d like to understand your reasoning better.
+                               | 1/10       | Why do you think P3 is a werewolf? What makes you so sure about that?
+question(D1, P2, P1, s1)       | 9/10       | Why do you think P3 is a werewolf? I’d like to understand your reasoning better.
+                               | 1/10       | Why do you think P3 is a werewolf? What makes you so sure about that?
+                               | 1/10       | Why do you think P3 is a werewolf? What makes you so sure about that?
+estimate(D1, P2, P1, werewolf) | 10/10      | I have a strong feeling that P1 might be a werewolf based on their behavior.
+estimate(D1, P2, P1, seer)     | 4/10       | I think P1 is likely the seer based on their behavior and the information they've shared.
+                               | 3/10       | I believe P1 is likely the seer based on their actions and statements so far.
+                               | 1/10       | I have a strong feeling that P1 is the seer based on their behavior.
+                               | 1/10       | I think P1 is likely the seer based on their actions so far.
+                               | 1/10       | I think P1 is likely the seer based on their behavior so far.
+estimate(D1, P2, P1, guard)    | 10/10      | I think P1 is likely the guard based on their actions so far.
+estimate(D1, P2, P1, villager) | 7/10       | I believe P1 is a villager based on their actions so far.
+                               | 3/10       | I believe P1 is a villager just like me.
+estimate(D1, P2, P1, witch)    | 6/10       | I have a feeling that P1 might be the witch.
+                               | 4/10       | I have a feeling that P1 might be the witch based on their behavior.
+estimate(D1, P2, P1, hunter)   | 10/10      | I think P1 is likely a hunter based on their actions so far.
+roleclaim(D1, P2, villager)    | 7/10       | I want everyone to know that I'm a villager in this game.
+                               | 2/10       | I want everyone to know that I am a villager.
+                               | 1/10       | I want to be clear that I am a villager in this game.
+roleclaim(D1, P2, seer)        | 10/10      | I want to let everyone know that I am the seer in this game.
+allied(D1, P2, P1, P3)         | 5/10       | I believe that P1 and P3 are working together as part of the same team.
+                               | 3/10       | I believe that P1 and P3 are working together as a team.
+                               | 2/10       | I believe that P1 and P3 are working together as allies in this game.
+unallied(D1, P2, P1, P3)       | 10/10      | I believe P1 and P3 are not on the same team and have different goals in this game.
+dissociate(D1, P2, P1)         | 7/10       | I find it hard to agree with what P1 just said; it doesn't seem to add up to me.
+                               | 1/10       | I have to say, P1, your reasoning doesn't quite add up for me.
+                               | 1/10       | I have to say, I really don't see how your reasoning adds up, P1; it feels off to me.
+                               | 1/10       | I find it hard to agree with what P1 just said; it doesn't seem to align with the facts we've been discussing.
+fluff(D1, P2)                  | 7/10       | I think we should all just take a moment to consider our options carefully.
+                               | 2/10       | I think we should just take a moment to consider all the possibilities here.
+                               | 1/10       | I think we should just take a moment to consider all the possibilities before jumping to conclusions.

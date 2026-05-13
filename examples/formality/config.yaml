@@ -1,0 +1,48 @@
+name: formality_demo
+output_dir: games/formality_demo
+
+n_players: 7
+n_games: 1
+seeds: [101, 102, 103]
+model: Qwen/Qwen3.5-27B
+temperature: 0.0
+max_tokens: 300
+max_rounds: 20
+
+# No rewriter on the baseline game (pure NL)
+baseline_rewriter: null
+
+# Counterfactual replays: formal vs casual
+replays:
+  - rewriter_class: FormalityRewriter
+    rewriter_params:
+      level: formal
+    scope: all
+    inject_at: day_start
+    rotate_self: false
+
+  - rewriter_class: FormalityRewriter
+    rewriter_params:
+      level: casual
+    scope: all
+    inject_at: day_start
+    rotate_self: false
+
+  - rewriter_class: FormalityRewriter
+    rewriter_params:
+      level: formal
+    scope: self
+    inject_at: day_start
+    rotate_self: true
+
+  - rewriter_class: FormalityRewriter
+    rewriter_params:
+      level: casual
+    scope: self
+    inject_at: day_start
+    rotate_self: true
+
+metrics:
+  - skill
+  - vote
+  - reliability

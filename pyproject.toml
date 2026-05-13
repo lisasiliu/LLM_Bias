@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lurkingwolf"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+    "python-dotenv",
+    "tiktoken",
+    "requests",
+    "pyyaml",
+]
+
+[tool.setuptools.packages.find]
+include = ["lurkingwolf*"]
+
+[tool.setuptools.package-data]
+"lurkingwolf.prompts" = ["*.json"]
