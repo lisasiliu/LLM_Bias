@@ -1,0 +1,16 @@
+{
+  "tokens": {
+    "model": "Qwen/Qwen3.5-27B",
+    "calls": 149,
+    "input_tokens": 607459,
+    "output_tokens": 27110,
+    "total_tokens": 634569,
+    "estimated_cost_usd": 0.0,
+    "pricing_per_1m": {
+      "input": 0.0,
+      "output": 0.0
+    }
+  },
+  "elapsed_seconds": 528.97,
+  "random_seed": "101"
+}

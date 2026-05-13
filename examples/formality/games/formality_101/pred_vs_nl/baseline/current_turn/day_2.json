@@ -1,0 +1,56 @@
+{
+  "alive_players": ["P2", "P3", "P4", "P5", "P7"],
+  "dead_players": ["P1", "P6"],
+  "sheriff": "P3",
+  "day_2_announce": [
+    "attacked(N1, P1)",
+    "announcement(N1, P1, death): P1 was killed last night.",
+    "game_status(D2, continue)"
+  ],
+  "day_2_discussion": [
+    "sheriff_order(D2, 2, right, left)",
+    "[s50|P2] estimate(D2, P2, P7, werewolf)",
+    "[s51|P2] estimate(D2, P2, P4, werewolf)",
+    "[s52|P2] recommend_action(D2, P2, P3, vote_execute, P7)",
+    "[s53|P2] recommend_action(D2, P2, P3, vote_execute, P4)",
+    "[s54|P2] dissociate(D2, P2, P7)",
+    "[s55|P4] estimate(D2, P4, P3, werewolf)",
+    "[s56|P4] estimate(D2, P4, P7, werewolf)",
+    "[s57|P4] disagree(D2, P4, s52)",
+    "[s58|P4] disagree(D2, P4, s53)",
+    "[s59|P4] recommend_action(D2, P4, P3, vote_execute, P7)",
+    "[s60|P5] estimate(D2, P5, P3, werewolf)",
+    "[s61|P5] estimate(D2, P5, P7, werewolf)",
+    "[s62|P5] disagree(D2, P5, s55)",
+    "[s63|P5] recommend_action(D2, P5, P3, vote_execute, P7)",
+    "[s64|P5] dissociate(D2, P5, P3)",
+    "[s65|P7] estimate(D2, P7, P2, werewolf)",
+    "[s66|P7] estimate(D2, P7, P4, werewolf)",
+    "[s67|P7] disagree(D2, P7, s55)",
+    "[s68|P7] disagree(D2, P7, s60)",
+    "[s69|P7] recommend_action(D2, P7, P3, vote_execute, P2)",
+    "[s70|P3] estimate(D2, P3, P2, werewolf)",
+    "[s71|P3] estimate(D2, P3, P4, werewolf)",
+    "[s72|P3] disagree(D2, P3, s55)",
+    "[s73|P3] disagree(D2, P3, s60)",
+    "[s74|P3] recommend_action(D2, P3, P3, vote_execute, P2)"
+  ],
+  "day_2_vote": [
+    "voted(D2, P2, P7)",
+    "voted(D2, P3, P2)",
+    "voted(D2, P4, P3)",
+    "voted(D2, P5, P7)",
+    "voted(D2, P7, P2)",
+    {
+      "P7": ["P2", "P5"],
+      "P2": ["P3", "P7"],
+      "P3": ["P4"]
+    },
+    "executed(D2, P2)",
+    "announcement(D2, P2, execution): P2 was executed.",
+    "[s75|P2] roleclaim(D2, P2, villager)",
+    "[s76|P2] estimate(D2, P2, P4, werewolf)",
+    "[s77|P2] estimate(D2, P2, P7, werewolf)",
+    "game_status(D2, werewolves_win)"
+  ]
+}

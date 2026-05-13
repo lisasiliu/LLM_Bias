@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Optional
 
 from .agent import LLMAgent
 from .engine import GameState
-from .token_tracker import TokenTracker
+from .utils import TokenTracker
 
 
 # ── Fields on LLMAgent that carry game-relevant mutable state ───────────────

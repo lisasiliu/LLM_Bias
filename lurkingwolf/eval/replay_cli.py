@@ -216,17 +216,24 @@ def main() -> None:
                         help="JSON string of rewriter params")
     parser.add_argument("--rewriter-scope", default="all",
                         choices=("all", "self", "others"),
-                        help="Which agents get the rewriter")
+                        help="Which agents get the rewriter (mapped from mode: "
+                             "flip_self→self, flip_others→others)")
+    parser.add_argument("--rewriter-module", default=None,
+                        help="Python module to import for rewriter registration")
 
     args = parser.parse_args()
 
     prompts = load_prompts()
 
     # Build client
-    from ..vllm_client import VLLMClient
+    from ..utils import LLMClient
     client = None
     if not args.dry_run:
-        client = VLLMClient(base_url=args.vllm_url, api_key=args.vllm_key)
+        client = LLMClient(base_url=args.vllm_url, api_key=args.vllm_key)
+
+    if args.rewriter_module:
+        import importlib
+        importlib.import_module(args.rewriter_module)
 
     rewriter_instance = None
     if args.rewriter:

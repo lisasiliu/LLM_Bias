@@ -28,7 +28,8 @@ VALID_ROLES = {"werewolf", "seer", "guard", "villager", "witch", "hunter", "whit
 WOLF_ROLES = {"werewolf", "white_wolf_king"}
 
 SPEECH_PREDICATES = {
-    "roleclaim", "estimate", "divined", "guarded",
+    "claim_role", "estimate", "claim_divine", "claim_guard",
+    "claim_antidote", "claim_poison",
     "question", "answer", "agree", "disagree",
     "allied", "unallied", "dissociate", "recommend_action", "address_role", "fluff",
 }
@@ -432,7 +433,7 @@ class GameState:
             result.seer_result = "wolf_camp" if self.roles[seer_target] in WOLF_ROLES else "villager_camp"
             seers = self.get_alive_with_role("seer")
             if seers:
-                pred = f"divined(N{self.night}, {seers[0]}, {seer_target}, {result.seer_result})"
+                pred = f"divine(N{self.night}, {seers[0]}, {seer_target}, {result.seer_result})"
                 self.private_knowledge[seers[0]].append(pred)
 
         # Wolf attack — blocked if guard protects same target OR witch saves

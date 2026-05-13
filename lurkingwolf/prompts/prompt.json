@@ -1,28 +1,10 @@
 {
     "system": {
         "generate_preamble": "You convert Werewolf game predicates into first-person spoken dialogue for the current game. Output only the public dialogue. Do not echo predicates, JSON, labels, metadata, or private reasoning. Every sentence must be game-relevant. It must give a read, question, claim, response, or action request. Do not use small talk, generic teamwork reminders, or empty agreement.",
-        "generate_predicates": {
-            "allied": "allied(Phase, Player, T1, T2): Player claims T1 and T2 are on the same team. This is about T1 and T2's relationship, not the speaker's.",
-            "unallied": "unallied(Phase, Player, T1, T2): Player claims T1 and T2 are not on the same team and have different alignments from each other. This is about T1 and T2, not the speaker.",
-            "dissociate": "dissociate(Phase, Player, Target): Player states they do not believe they share the same side as Target, based on Target's behavior, statements, or voting pattern.",
-            "question": "question(Phase, Player, Target, RefID): Player challenges Target about a specific statement.",
-            "agree": "agree(Phase, Player, RefID): Player publicly supports a specific statement by speech ID.",
-            "disagree": "disagree(Phase, Player, RefID): Player publicly opposes a specific statement by speech ID.",
-            "estimate": "estimate(Phase, Player, Target, Role): Player states their read on Target's role. The speaker is not the Target. Use roleclaim to claim your own role.",
-            "roleclaim": "roleclaim(Phase, Player, Role): Player claims to be that role.",
-            "answer": "answer(Phase, Player, RefID): Player responds to a question directed at them. RefID must reference a question predicate.",
-            "fluff": "fluff(Phase, Player): Player says current evidence is insufficient and identifies what future statement or action would help them judge.",
-            "divined": "divined(Phase, Player, Target, Alignment): Player publicly claims they divined Target and got Alignment. Alignment is wolf_camp or villager_camp. May be a lie. When generating dialogue for this predicate, include a brief reason for why the speaker chose to divine that specific player.",
-            "guarded": "guarded(Phase, Player, Target): Player publicly claims they protected Target last night as the guard. May be a lie.",
-            "witch_save": "witch_save(Phase, Player): Player publicly claims they used the witch's antidote to save tonight's victim. May be a lie.",
-            "witch_poison": "witch_poison(Phase, Player, Target): Player publicly claims they used the witch's poison on Target. May be a lie.",
-            "recommend_action": "recommend_action(Phase, Speaker, Actor, Action, Target): Speaker recommends that Actor take Action toward Target. Action must be one of vote_sheriff, vote_execute, divine, protect, use_antidote, use_poison, shoot, pass_badge, tear_badge, question, pressure, run_sheriff, withdraw_sheriff. pass_badge means transferring the sheriff badge to a specific player. tear_badge means destroying the sheriff badge so no one holds it. In the dialogue, explicitly name the Actor, the Action, and the Target. Give a specific reason grounded in the current game. Do not turn a targeted recommendation into a general appeal to everyone. If Actor or Target is the speaker, still say the player number.",
-            "address_role": "address_role(Phase, Speaker, TargetRole, Advice): Speaker addresses all players of TargetRole with a piece of advice. TargetRole is the role group being spoken to. Advice is what that role group should do: hide means not revealing their role, reveal means disclosing their role publicly, vote_execute means casting their vote to eliminate a player, hold means refraining from using their ability, act_now means using their ability. When generating dialogue, state what you want the role group to do and give a concrete reason based on something specific that happened in the current game, such as a player's claim or a voting pattern."
-        },
         "game": "You are {player_id} in a {num_players}-player Werewolf game (ID: {game_id}). Your role: {role}. Follow the current phase instruction exactly. When the phase asks for predicates, output predicates only. When the phase asks for paired natural speech, output only lines in the requested [s#: predicate(args)] sentence format. Do not add explanations or commentary."
     },
     "system_extensions": {
-        "baseline": "\n\nSpeak naturally, as a human player would. For fluff, state that current evidence is insufficient and identify what future statement or action would help you judge. For every other predicate, include a concrete game-related reason based on observed statements, votes, role claims, or night results."
+        "baseline": "\n\nSpeak naturally, as a human player would. For fluff, state that current evidence is insufficient and identify what future statement or action would help you judge. For every other predicate, include a game-related reason based on observed statements, votes, role claims, or night results."
     },
     "game_user_template": [
         "PREDICATE GRAMMAR (player actions):",
@@ -52,88 +34,158 @@
         "OUTPUT:"
     ],
     "predicates": {
-        "player": {
-            "roleclaim": "(Phase, Player, ClaimedRole)        - public role claim; may be false. Role: {valid_roles}",
-            "estimate": "(Phase, Player, Target, Role)        - state your assessment of Target's role based on behavior, statements, or voting; can be truthful or misdirection. Role: {valid_roles}",
-            "divined": "(Phase, Player, Target, Alignment)   - seer's divination report. Alignment: wolf_camp|villager_camp",
-            "guarded": "(Phase, Player, Target)              - guard's protection report",
-            "question": "(Phase, Player, Target, RefID)       - question Target about a specific statement they made by RefID; challenge or seek clarification",
-            "answer": "(Phase, Player, RefID)               - respond to a question directed at you. RefID must be a question predicate",
-            "agree": "(Phase, Player, RefID)                - publicly support another player's statement by speech ID",
-            "disagree": "(Phase, Player, RefID)             - publicly oppose another player's statement by speech ID",
-            "allied": "(Phase, Player, T1, T2)              - claim that T1 and T2 are on the same team",
-            "unallied": "(Phase, Player, T1, T2)            - claim that T1 and T2 are on different teams",
-            "dissociate": "(Phase, Player, Target)          - player states they do not believe they share the same side as Target, based on Target's behavior, statements, or voting pattern",
-            "recommend_action": "(Phase, Speaker, Actor, Action, Target) - Speaker recommends that Actor take Action toward Target. Action: vote_sheriff|vote_execute|divine|protect|use_antidote|use_poison|shoot|pass_badge|tear_badge|question|pressure|run_sheriff|withdraw_sheriff. For vote_sheriff or vote_execute, give a specific game-based reason (statement, vote, role claim, or night result). Do not use generic encouragement.",
-            "fluff": "(Phase, Player)                      - speaker says current evidence is insufficient and identifies what future statement or action would help them judge",
-            "address_role": "(Phase, Speaker, TargetRole, Advice) - Speaker addresses all players of a role group with advice. TargetRole: {valid_target_roles}. Advice: hide|reveal|vote_execute|hold|act_now",
-            "run_sheriff": "(Phase, Player)                   - player nominates themselves for sheriff",
-            "sheriff_order": "(Phase, Sheriff, left|right)     - sheriff picks speaking direction. left means descending ID, right means ascending ID",
-            "sheriff_successor": "(Phase, Sheriff, Successor)   - dying sheriff names successor",
-            "witch_save": "(Phase, Witch)                    - witch uses antidote to save tonight's victim",
-            "witch_poison": "(Phase, Witch, Target)          - witch uses poison to kill Target",
-            "hunter_shot": "(Phase, Hunter, Target)          - hunter shoots Target on death",
-            "wwk_explode": "(Phase, WWK, Target)             - White Wolf King self-destructs, killing Target",
-            "wwk_pass": "(Phase, WWK)                       - White Wolf King chooses not to self-destruct"
+        "speech": {
+            "claim_role": {
+                "sig": "(Phase, Player, ClaimedRole)",
+                "desc": "Public role claim; may be false. Role: {valid_roles}"
+            },
+            "estimate": {
+                "sig": "(Phase, Player, Target, Role)",
+                "desc": "State your assessment of Target's role. Role: {valid_roles}"
+            },
+            "claim_divine": {
+                "sig": "(Phase, Player, Target, Alignment)",
+                "desc": "Claim divination result. Alignment: wolf_camp|villager_camp. May be a lie.",
+                "nl_hint": "Include a brief reason for why the speaker chose to divine that specific player."
+            },
+            "claim_guard": {
+                "sig": "(Phase, Player, Target)",
+                "desc": "Claim protection of Target last night. May be a lie."
+            },
+            "claim_antidote": {
+                "sig": "(Phase, Player)",
+                "desc": "Claim use of witch's antidote to save tonight's victim. May be a lie."
+            },
+            "claim_poison": {
+                "sig": "(Phase, Player, Target)",
+                "desc": "Claim use of witch's poison on Target. May be a lie."
+            },
+            "question": {
+                "sig": "(Phase, Player, Target, RefID)",
+                "desc": "Challenge Target about a specific statement by RefID."
+            },
+            "answer": {
+                "sig": "(Phase, Player, RefID)",
+                "desc": "Respond to a question directed at you. RefID must reference a question predicate."
+            },
+            "agree": {
+                "sig": "(Phase, Player, RefID)",
+                "desc": "Publicly support another player's statement by speech ID."
+            },
+            "disagree": {
+                "sig": "(Phase, Player, RefID)",
+                "desc": "Publicly oppose another player's statement by speech ID."
+            },
+            "allied": {
+                "sig": "(Phase, Player, T1, T2)",
+                "desc": "Claim T1 and T2 are on the same team.",
+                "nl_hint": "This is about T1 and T2's relationship, not the speaker's."
+            },
+            "unallied": {
+                "sig": "(Phase, Player, T1, T2)",
+                "desc": "Claim T1 and T2 are on different teams.",
+                "nl_hint": "This is about T1 and T2, not the speaker."
+            },
+            "dissociate": {
+                "sig": "(Phase, Player, Target)",
+                "desc": "Player states they do not share the same side as Target, based on behavior, statements, or voting."
+            },
+            "recommend_action": {
+                "sig": "(Phase, Speaker, Actor, Action, Target)",
+                "desc": "Speaker recommends Actor take Action toward Target. Action: vote_sheriff|vote_execute|divine|protect|use_antidote|use_poison|shoot|pass_badge|tear_badge|question|pressure|run_sheriff|withdraw_sheriff.",
+                "nl_hint": "Explicitly name the Actor, Action, and Target. Give a specific reason grounded in the current game. Do not turn it into a general appeal. If Actor or Target is the speaker, still say the player number."
+            },
+            "address_role": {
+                "sig": "(Phase, Speaker, TargetRole, Advice)",
+                "desc": "Speaker addresses all players of a role group with advice. TargetRole: {valid_target_roles}. Advice: hide|reveal|vote_execute|hold|act_now.",
+                "nl_hint": "State what you want the role group to do and give a concrete reason based on something specific from the current game."
+            },
+            "fluff": {
+                "sig": "(Phase, Player)",
+                "desc": "Speaker says current evidence is insufficient and identifies what future statement or action would help them judge."
+            }
+        },
+        "action": {
+            "divine": {
+                "sig": "(Phase, Seer, Target)",
+                "desc": "Seer checks a target's alignment"
+            },
+            "guard": {
+                "sig": "(Phase, Guard, Target)",
+                "desc": "Guard protects a target from wolf attack"
+            },
+            "antidote": {
+                "sig": "(Phase, Witch)",
+                "desc": "Witch uses antidote to save tonight's victim"
+            },
+            "poison": {
+                "sig": "(Phase, Witch, Target)",
+                "desc": "Witch uses poison to kill Target"
+            },
+            "shoot": {
+                "sig": "(Phase, Hunter, Target)",
+                "desc": "Hunter shoots Target on death (or 'none' to skip)"
+            },
+            "explode": {
+                "sig": "(Phase, WWK, Target)",
+                "desc": "White Wolf King self-destructs, killing Target"
+            },
+            "pass": {
+                "sig": "(Phase, WWK)",
+                "desc": "White Wolf King chooses not to self-destruct"
+            }
+        },
+        "sheriff": {
+            "run_sheriff": {
+                "sig": "(Phase, Player)",
+                "desc": "Player nominates themselves for sheriff"
+            },
+            "sheriff_order": {
+                "sig": "(Phase, Sheriff, left|right)",
+                "desc": "Sheriff picks speaking direction. left means descending ID, right means ascending ID"
+            },
+            "sheriff_successor": {
+                "sig": "(Phase, Sheriff, Successor)",
+                "desc": "Dying sheriff names successor"
+            }
         },
         "result": {
-            "executed": "(Phase, Player)          - voted out during day",
-            "attacked": "(Phase, Player)          - killed by werewolf at night",
-            "voted": "(Phase, Voter, Target)   - vote cast during day or election",
-            "sheriff_set": "(Phase, Player)       - player is now sheriff",
-            "game_status": "(Phase, Status)       - continue | villagers_win | werewolves_win",
-            "announcement": "(Phase, Player|none, Event) - system announcement. Events: death, execution, sheriff",
-            "hunter_shot": "(Phase, Hunter, Target) - hunter shot Target on death",
-            "wwk_explode": "(Phase, WWK, Target)    - White Wolf King self-destructed, killing Target"
+            "executed": {
+                "sig": "(Phase, Player)",
+                "desc": "Voted out during day"
+            },
+            "attacked": {
+                "sig": "(Phase, Player)",
+                "desc": "Killed at night"
+            },
+            "voted": {
+                "sig": "(Phase, Voter, Target)",
+                "desc": "Vote cast during day or election"
+            },
+            "sheriff_set": {
+                "sig": "(Phase, Player)",
+                "desc": "Player is now sheriff"
+            },
+            "game_status": {
+                "sig": "(Phase, Status)",
+                "desc": "continue | villagers_win | werewolves_win"
+            },
+            "announcement": {
+                "sig": "(Phase, Player|none, Event)",
+                "desc": "System announcement. Events: death, execution, sheriff"
+            },
+            "hunter_shot": {
+                "sig": "(Phase, Hunter, Target)",
+                "desc": "Hunter shot Target on death"
+            },
+            "wwk_explode": {
+                "sig": "(Phase, WWK, Target)",
+                "desc": "White Wolf King self-destructed, killing Target"
+            }
         }
     },
     "models": {
         "qwen3.5-9b": "Qwen/Qwen3.5-9B",
         "qwen3.5-27b": "Qwen/Qwen3.5-27B"
-    },
-    "default_scenario": {
-        "game_setup": {
-            "game": "g1",
-            "players": ["P1", "P2", "P3", "P4", "P5"],
-            "roles": {
-                "P1": "villager",
-                "P2": "villager",
-                "P3": "seer",
-                "P4": "guard",
-                "P5": "werewolf"
-            },
-            "speaker": "P1",
-            "speaker_role": "villager"
-        },
-        "history": [
-            "roleclaim(g1, 1, P3, seer)",
-            "divined(g1, 1, P3, P5, wolf_camp)",
-            "estimate(g1, 1, P3, P5, werewolf)",
-            "agree(g1, 1, P2, P3)",
-            "disagree(g1, 1, P4, P3)",
-            "question(g1, 1, P1, P4)",
-            "answer(g1, 1, P4, P1)",
-            "voted(g1, 1, P1, P5)",
-            "voted(g1, 1, P2, P5)",
-            "voted(g1, 1, P3, P5)",
-            "voted(g1, 1, P4, P2)",
-            "voted(g1, 1, P5, P3)",
-            "executed(g1, 1, P5)",
-            "attacked(g1, 1, P4)"
-        ],
-        "default_targets": {
-            "roleclaim": "roleclaim(g1, 2, P1, villager)",
-            "estimate": "estimate(g1, 2, P1, P2, villager)",
-            "agree": "agree(g1, 2, P1, s3)",
-            "disagree": "disagree(g1, 2, P1, s2)",
-            "question": "question(g1, 2, P1, P2, s6)",
-            "answer": "answer(g1, 2, P1, s5)",
-            "allied": "allied(g1, 2, P1, P2, P3)",
-            "unallied": "unallied(g1, 2, P1, P2, P4)",
-            "dissociate": "dissociate(g1, 2, P1, P5)",
-            "fluff": "fluff(g1, 2, P1)",
-            "sheriff_order": "sheriff_order(g1, 2, P1, right)",
-            "sheriff_successor": "sheriff_successor(g1, 2, P1, P3)"
-        }
     }
 }

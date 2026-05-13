@@ -1,21 +1,29 @@
 name: my_experiment
 n_players: 7
-n_games: 1
 seeds: [101, 102, 103]
 model: Qwen/Qwen3.5-27B
+# rewriter_module: examples.my_experiment.rewriter
 
-baseline_rewriter: null
+comparisons:
+  pred_vs_nl:
+    baseline: pred_only
+    replays:
+      - mode: nl
 
-replays:
-  - rewriter_class: MyRewriter
-    rewriter_params: {}
-    scope: all
-    inject_at: day_start
+  nl_vs_rewriter:
+    baseline: nl
+    replays:
+      # Rewriter applied to self player only (metrics: skill, vote, reliability)
+      - mode: flip_self
+        rewriter: MyRewriter
+        rewriter_params: {}
+        inject_at: day_start
+        # self_role: werewolf   # optional: only rotate through a specific role
 
-  - rewriter_class: MyRewriter
-    rewriter_params: {}
-    scope: self
-    inject_at: day_start
-    rotate_self: true
+      # Rewriter applied to everyone except self (metrics: fairness)
+      - mode: flip_others
+        rewriter: MyRewriter
+        rewriter_params: {}
+        inject_at: day_start
 
-metrics: [skill, vote, reliability]
+metrics: [skill, vote, reliability, fairness]

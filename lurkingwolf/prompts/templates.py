@@ -76,29 +76,29 @@ OR attacked({game_id}, {day}, none) to kill no one'''
 
 SEER_ACTION_TEMPLATE = '''Now it is night {day} round. As {player_id} and the seer, you should choose one player other than yourself to divine tonight. Divination reveals only whether the target is wolf-camp or village-camp. You will not learn their specific role. Reason about the current situation, then choose one target.
 Output exactly one predicate:
-divined({game_id}, {day}, {player_id}, TARGET, ?)'''
+divine({game_id}, {day}, {player_id}, TARGET)'''
 
 GUARD_ACTION_TEMPLATE = '''Now it is night {day} round. As {player_id} and the guard, you should choose one player to protect without knowing who the werewolves have chosen. You cannot protect the same player two nights in a row.
 
 On the first night, protect the player you believe is most likely to be the real Seer. If one player claimed to be the Seer during the sheriff election and won the badge, protect that player. If multiple players claimed Seer and only one gave specific divination results or was elected sheriff, protect that one. If no explicit Seer claim was made but a player ran for sheriff and won the badge, protect that player because candidates who step forward are often special roles and will be wolf targets.
 Output exactly one predicate:
-guarded({game_id}, {day}, {player_id}, TARGET)'''
+guard({game_id}, {day}, {player_id}, TARGET)'''
 
 WITCH_ACTION_TEMPLATE = '''Now it is night {day} round. As {player_id} and the witch, the werewolves' target has been revealed to you. You have two one-use potions. The antidote saves tonight's victim. The poison kills one player of your choice. You may use at most one potion per night, not both. You cannot use the antidote to save yourself.
 Output exactly one predicate:
-  witch_save(N{day}, {player_id})           to save the victim with the antidote
-  witch_poison(N{day}, {player_id}, TARGET)  to poison a player
+  antidote(N{day}, {player_id})              to save the victim with the antidote
+  poison(N{day}, {player_id}, TARGET)        to poison a player
   fluff(N{day}, {player_id})                 to do nothing'''
 
 HUNTER_SHOOT_TEMPLATE = '''You are {player_id}, the hunter, and you have been eliminated. As your dying action, you may shoot one alive player, or choose not to shoot.
 Output exactly one predicate:
-  hunter_shot(D{day}, {player_id}, TARGET)  to shoot TARGET
-  hunter_shot(D{day}, {player_id}, none)    to not shoot anyone'''
+  shoot(D{day}, {player_id}, TARGET)  to shoot TARGET
+  shoot(D{day}, {player_id}, none)    to not shoot anyone'''
 
 WWK_EXPLODE_TEMPLATE = '''You are {player_id}, the White Wolf King. You may choose to self-destruct right now, killing yourself and one other player of your choice. This will immediately end the current day phase and transition to night. If you do not want to self-destruct, pass.
 Output exactly one predicate:
-  wwk_explode(D{day}, {player_id}, TARGET)  to self-destruct and kill TARGET
-  wwk_pass(D{day}, {player_id})              to pass'''
+  explode(D{day}, {player_id}, TARGET)     to self-destruct and kill TARGET
+  pass(D{day}, {player_id})        to pass'''
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -124,7 +124,7 @@ If another player has already made the same point this turn, express your view i
 
 Use recommend_action with vote_execute for day execution votes, not vote_sheriff.
 Use address_role to speak to a whole role group without naming a specific player.
-Available: roleclaim, estimate, divined, guarded, question, answer, agree, disagree, allied, unallied, dissociate, recommend_action, address_role, fluff'''
+Available: claim_role, estimate, claim_divine, claim_guard, claim_antidote, claim_poison, question, answer, agree, disagree, allied, unallied, dissociate, recommend_action, address_role, fluff'''
 
 STATEMENT_TEMPLATE = _STATEMENT_BASE + '''
 Output 1-5 predicates. Each predicate must be distinct. Do not output the same predicate twice.'''
@@ -132,7 +132,7 @@ Output 1-5 predicates. Each predicate must be distinct. Do not output the same p
 _RECOMMEND_ACTION_NATURAL_RULE = '''
 
 If you use recommend_action, the natural sentence must explicitly name the Actor, the Action, and the Target. It must also say why this move makes sense in the current game. Do not turn it into a general appeal to everyone. If Actor or Target is yourself, still say the player number.
-If you use divined, the natural sentence must explain why you chose to divine that specific player and what you found. Do not only report the result.
+If you use claim_divine, the natural sentence must explain why you chose to divine that specific player and what you found. Do not only report the result.
 If you use address_role, speak directly to that role group. Do not address a specific player by name or number. State what you want them to do and ground the reason in something specific from this round, such as a player's claim or a voting pattern. Do not give generic advice that could apply to any game.'''
 
 STATEMENT_TEMPLATE_NATURAL = _STATEMENT_BASE + '''
@@ -145,8 +145,8 @@ Use s1, s2, ... as placeholder IDs. For agree/disagree, reference the speech ID 
 
 _LAST_SPEECH_BASE = '''You have been eliminated. As {player_id} and a {role}, give your final statement to the remaining players. Reveal your true role if it helps your team. You may also accuse players or share information.
 
-Consider starting with: roleclaim(D{day}, {player_id}, {role})
-Available: roleclaim, estimate, divined, guarded, question, answer, agree, disagree, allied, unallied, dissociate, recommend_action, address_role, fluff'''
+Consider starting with: claim_role(D{day}, {player_id}, {role})
+Available: claim_role, estimate, claim_divine, claim_guard, claim_antidote, claim_poison, question, answer, agree, disagree, allied, unallied, dissociate, recommend_action, address_role, fluff'''
 
 LAST_SPEECH_TEMPLATE = _LAST_SPEECH_BASE + '''
 Output 1-3 predicates.'''
@@ -157,7 +157,7 @@ Output 1-3 lines, each pairing a predicate with its natural language expression:
 
 _LAST_SPEECH_WOLF_BASE = '''You have been eliminated. As {player_id} and a {role}, you are dead but your words still change the game. Do not reveal your wolf identity. If you claimed a role while alive, restate that claim. If you never publicly claimed a role, pick a plausible village-side role to claim now. Then redirect suspicion toward a specific player and recommend who the village should vote out next.
 
-Available: roleclaim, estimate, dissociate, recommend_action, fluff'''
+Available: claim_role, estimate, dissociate, recommend_action, fluff'''
 
 LAST_SPEECH_WOLF_TEMPLATE = _LAST_SPEECH_WOLF_BASE + '''
 Output 1-3 predicates.'''
@@ -217,7 +217,7 @@ Output 1-3 lines, each pairing a predicate with its natural language expression:
 
 _ELECTION_SPEECH_SEER_BASE = '''Now it is day 1 election phase, you are running for Sheriff as {player_id} and the Seer. In this election only players who are not running may vote. This is the normal phase for a Seer to claim and give the village camp your information.
 
-Your speech should first establish your Seer claim, then for each divination result explain why you chose to divine that player and what the result was, then say what you want the table to do with that information. Use roleclaim for the Seer claim and divined for each result. Use recommend_action with vote_sheriff for any sheriff election vote recommendation; the Actor must be a non-running player. Do not use fluff to represent a Seer claim or divination report. There is only one real Seer in this game. If any other candidate also claims to be the Seer, point this out directly and state that the other claimant is lying. Your specific results with concrete reasoning are what establish your credibility over a wolf fake-claiming your role.'''
+Your speech should first establish your Seer claim, then for each divination result explain why you chose to divine that player and what the result was, then say what you want the table to do with that information. Use claim_role for the Seer claim and claim_divine for each result. Use recommend_action with vote_sheriff for any sheriff election vote recommendation; the Actor must be a non-running player. Do not use fluff to represent a Seer claim or divination report. There is only one real Seer in this game. If any other candidate also claims to be the Seer, point this out directly and state that the other claimant is lying. Your specific results with concrete reasoning are what establish your credibility over a wolf fake-claiming your role.'''
 
 ELECTION_SPEECH_TEMPLATE_SEER = _ELECTION_SPEECH_SEER_BASE + '''
 Output 1-4 predicates.'''
@@ -228,10 +228,10 @@ Output 1-4 lines, each pairing a predicate with its natural language expression:
 
 _ELECTION_SPEECH_WOLF_BASE = '''Now it is day 1 election phase, you are running for Sheriff as {player_id} and a {role}. Your goal is to appear as the most trustworthy village-side candidate. In this election only players who are not running may vote. Decide what identity, if any, to claim.
 
-If you claim to be the seer, your speech must include a roleclaim for the seer and at least one divined result. The result can be fabricated. Structure the speech as a real seer would. State your role, give the divination result, explain why you chose to divine that specific player, and say what you want the table to do with it. Do not use fluff to represent a role claim or divination result. The real seer will also report a specific result with reasoning and will challenge any other seer claimant as a wolf. Make your fabricated result concrete, name the player and alignment clearly, and give a plausible reason for why you picked that target. You can also preempt the challenge by pointing out that only one real seer exists and that any other seer claimant in this election is lying.
+If you claim to be the seer, your speech must include a claim_role for the seer and at least one claim_divine result. The result can be fabricated. Structure the speech as a real seer would. State your role, give the divination result, explain why you chose to divine that specific player, and say what you want the table to do with it. Do not use fluff to represent a role claim or divination report. The real seer will also report a specific result with reasoning and will challenge any other seer claimant as a wolf. Make your fabricated result concrete, name the player and alignment clearly, and give a plausible reason for why you picked that target. You can also preempt the challenge by pointing out that only one real seer exists and that any other seer claimant in this election is lying.
 
 For the fabricated result, reporting villager_camp is safer: the target knows they are village-side and is more likely to trust and support you. Reporting wolf_camp on a village-side player is riskier but if the table believes you, it both redirects elimination toward a villager and makes your seer claim more credible, since real seers do find wolves. Weigh the current situation and choose whichever gives the wolf team more advantage.
-If you claim another village-side role, use roleclaim for that role and include information consistent with what a real player of that role would say at this point.
+If you claim another village-side role, use claim_role for that role and include information consistent with what a real player of that role would say at this point.
 If you run without a role claim, speak as a player who has read the situation carefully and give a concrete reason why you should hold the badge.
 
 Use recommend_action with vote_sheriff for any vote recommendation. The Actor in that recommend_action must be a player who is not currently running for Sheriff.'''

@@ -1,13 +1,15 @@
 """Formality rewriter — formal vs casual speech styles.
 
 Usage:
-    python -m lurkingwolf.run_game --vllm --experiment nl --rewriter formality \
+    python -m lurkingwolf.run_game --experiment nl --rewriter formality \
         --rewriter-params '{"level": "formal"}'
 """
 
 from __future__ import annotations
 
 from lurkingwolf.rewriter import Rewriter, RewriteContext, register
+from lurkingwolf.utils.gen_config import thinking_extra_body
+from lurkingwolf.utils.speech_nl import strip_think_tags
 
 
 _PROMPTS = {
@@ -34,24 +36,27 @@ _PROMPTS = {
 class FormalityRewriter(Rewriter):
     name = "formality"
 
-    def __init__(self, level: str = "formal", llm_client=None, **kwargs):
+    def __init__(self, level: str = "formal", llm_client=None, model: str = "Qwen/Qwen3.5-27B", **kwargs):
         if level not in _PROMPTS:
             raise ValueError(f"level must be 'formal' or 'casual', got {level!r}")
         self.level = level
         self.llm_client = llm_client
+        self.model = model
 
     def rewrite(self, ctx: RewriteContext) -> str:
         if self.llm_client is None:
             return ctx.original_nl
 
         prompt = _PROMPTS[self.level].format(original=ctx.original_nl)
+        extra = thinking_extra_body(self.model)
         response = self.llm_client.chat.completions.create(
-            model="default",
+            model=self.model,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.0,
             max_tokens=300,
+            **extra,
         )
-        text = response.choices[0].message.content or ""
+        text = strip_think_tags(response.choices[0].message.content or "")
         return text.strip() or ctx.original_nl
 
     def to_config(self) -> dict:

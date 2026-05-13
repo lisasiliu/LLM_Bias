@@ -26,14 +26,14 @@ import random
 from typing import Dict, List, Optional
 
 from .engine import GameState, SPEECH_PREDICATES, NO_SHERIFF, ROLE_CONFIGS, WOLF_ROLES
-from .token_tracker import TokenTracker
+from .utils import TokenTracker
 from .prompts.templates import (
     REASONING_TEMPLATE, RELATIONSHIP_ESTIMATE_TEMPLATE,
     get_phase_template, normalize_recommend_action, normalize_role_name,
     RECOMMEND_ACTIONS, ADDRESS_ROLE_TARGETS, ADDRESS_ROLE_ADVICE,
     STRATEGY_HINTS, SHARED_VOTING_GUIDANCE,
 )
-from .speech_nl import clean_natural_text
+from .utils import clean_natural_text
 
 from pathlib import Path as _Path
 _RULES_GUIDE_DIR = _Path(__file__).resolve().parent / "rules_guides"
@@ -91,12 +91,15 @@ def parse_action(action: str) -> Dict[str, object]:
 
 def _format_predicate_defs(predicates: dict, **subs) -> str:
     lines = []
-    for name, sig in predicates["player"].items():
-        try:
-            sig = sig.format(**subs)
-        except KeyError:
-            pass
-        lines.append(f"  {name}{sig}")
+    for category in ("speech", "action", "sheriff"):
+        for name, entry in predicates.get(category, {}).items():
+            sig = entry["sig"]
+            desc = entry["desc"]
+            try:
+                desc = desc.format(**subs)
+            except KeyError:
+                pass
+            lines.append(f"  {name}{sig} - {desc}")
     return "\n".join(lines)
 
 
@@ -138,8 +141,8 @@ def _close_json(s: str) -> str:
 
 def _format_result_defs(predicates: dict) -> str:
     lines = []
-    for name, sig in predicates["result"].items():
-        lines.append(f"  {name}{sig}")
+    for name, entry in predicates.get("result", {}).items():
+        lines.append(f"  {name}{entry['sig']} - {entry['desc']}")
     return "\n".join(lines)
 
 
@@ -329,7 +332,7 @@ class LLMAgent:
             if not isinstance(entry, str):
                 continue
             for match in re.finditer(
-                r"\[s\d+\|(\w+)\]\s*(roleclaim|divined)\([^)]+\)", entry
+                r"\[s\d+\|(\w+)\]\s*(claim_role|claim_divine|roleclaim|divined)\([^)]+\)", entry
             ):
                 claim = match.group(0).split("] ", 1)[1].strip()
                 if claim not in seen_claims:
@@ -375,7 +378,7 @@ class LLMAgent:
 
     def _thinking_kwargs(self) -> dict:
         """Return extra kwargs to enable thinking for thinking models on vLLM."""
-        from .gen_config import thinking_extra_body
+        from .utils.gen_config import thinking_extra_body
         return thinking_extra_body(self.model)
 
     # ── Main action method ──
@@ -395,7 +398,7 @@ class LLMAgent:
         saved_tokens = self.max_tokens
 
         # Boost max_tokens for thinking models so they can reason + answer
-        from .gen_config import stage1_max_tokens
+        from .utils.gen_config import stage1_max_tokens
         self.max_tokens = stage1_max_tokens(self.model, self.max_tokens)
 
         think_kw = self._thinking_kwargs()
@@ -519,9 +522,14 @@ class LLMAgent:
     def _build_nl_system(self) -> str:
         """Build the Stage 2 NL system prompt."""
         preamble = self.prompts["system"]["generate_preamble"]
-        pred_defs = self.prompts["system"]["generate_predicates"]
-        pred_lines = "\n".join(f"- {v}" for v in pred_defs.values())
-        base = f"{preamble}\n\nPredicate meanings (the speaker is always the Player argument):\n{pred_lines}\n"
+        speech_preds = self.prompts["predicates"].get("speech", {})
+        pred_lines = []
+        for name, entry in speech_preds.items():
+            parts = [entry["desc"]]
+            if "nl_hint" in entry:
+                parts.append(entry["nl_hint"])
+            pred_lines.append(f"- {name}{entry['sig']}: {' '.join(parts)}")
+        base = f"{preamble}\n\nPredicate meanings (the speaker is always the Player argument):\n" + "\n".join(pred_lines) + "\n"
         ext = self.prompts.get("system_extensions", {})
         out = base
         if "baseline" in ext:
@@ -539,7 +547,7 @@ class LLMAgent:
         existing_nls: NL strings already in the turn buffer. When provided,
         Stage 2 is prompted to phrase the point differently.
         """
-        from .gen_config import deterministic_kwargs
+        from .utils.gen_config import deterministic_kwargs
 
         saved_temp = self.temperature
         saved_max = self.max_tokens
@@ -1110,6 +1118,24 @@ class LLMAgent:
             name = parsed["name"]
             args = parsed["args"]
 
+            _PREDICATE_ALIASES = {
+                "roleclaim": "claim_role",
+                "witch_save": "antidote",
+                "witch_poison": "poison",
+                "hunter_shot": "shoot",
+                "wwk_explode": "explode",
+                "wwk_pass": "pass",
+            }
+            if name in _PREDICATE_ALIASES:
+                name = _PREDICATE_ALIASES[name]
+                line = self._rebuild_predicate(name, args)
+            if name == "divined":
+                name = "divine" if phase.startswith("night_") else "claim_divine"
+                line = self._rebuild_predicate(name, args)
+            if name == "guarded":
+                name = "guard" if phase.startswith("night_") else "claim_guard"
+                line = self._rebuild_predicate(name, args)
+
             if not args:
                 continue
 
@@ -1123,14 +1149,14 @@ class LLMAgent:
                 "shooter": "hunter", "gunner": "hunter",
                 "wwk": "white_wolf_king", "wolf_king": "white_wolf_king",
             }
-            if name in ("estimate", "roleclaim") and len(args) >= 3:
+            if name in ("estimate", "claim_role") and len(args) >= 3:
                 role_arg = args[-1].strip().lower()
                 if role_arg not in set(state.roles.values()):
                     role_arg = _ROLE_ALIASES.get(role_arg, "villager")
                 args[-1] = role_arg
                 line = self._rebuild_predicate(name, args)
 
-            if name == "divined" and len(args) >= 4:
+            if name == "claim_divine" and len(args) >= 4:
                 align_arg = args[-1].strip().lower().replace("-", "_").replace(" ", "_")
                 _ALIGNMENT_ALIASES = {
                     "wolf": "wolf_camp",
@@ -1165,8 +1191,9 @@ class LLMAgent:
                     "dissociate": 3,
                     "question": 4,
                     "agree": 3, "disagree": 3,
-                    "estimate": 4, "divined": 4,
-                    "roleclaim": 3, "guarded": 3,
+                    "estimate": 4, "claim_divine": 4,
+                    "claim_role": 3, "claim_guard": 3,
+                    "claim_antidote": 2, "claim_poison": 3,
                     "answer": 3,
                     "recommend_action": 5,
                     "address_role": 4,
@@ -1223,7 +1250,7 @@ class LLMAgent:
                         has_withdrawn = any(withdraw_pred in h for h in state.public_history)
                         if has_run and not has_withdrawn:
                             continue
-                if name == "roleclaim" and len(args) >= 3:
+                if name == "claim_role" and len(args) >= 3:
                     claimed = args[2].strip().lower()
                     # Wolves must not publicly claim their wolf identity
                     if self.role in WOLF_ROLES and claimed in WOLF_ROLES:
@@ -1297,11 +1324,10 @@ class LLMAgent:
                 skip_auto_correct = True
 
             elif phase == "night_seer":
-                if name != "divined":
+                if name != "divine":
                     continue
-                # divined(phase, seer, target, role?) — target at args[2]
+                # divine(phase, seer, target) — target at args[2]
                 # Find the first arg (after phase label) that is a valid target.
-                # This handles both new format (args[2]) and old format (args[3]).
                 target = None
                 for a in args[1:]:
                     if not valid_targets or a in valid_targets:
@@ -1321,9 +1347,9 @@ class LLMAgent:
                     continue
 
             elif phase == "night_guard":
-                if name != "guarded":
+                if name != "guard":
                     continue
-                # guarded(phase, guard, target) — target at args[2]
+                # guard(phase, guard, target) — target at args[2]
                 # Find the first arg (after phase+guard) that is a valid target.
                 target = None
                 for a in args[1:]:
@@ -1342,11 +1368,11 @@ class LLMAgent:
                     continue
 
             elif phase == "night_witch":
-                if name == "witch_save":
-                    line = f"witch_save(N{state.night}, {self.player_id})"
+                if name == "antidote":
+                    line = f"antidote(N{state.night}, {self.player_id})"
                     skip_auto_correct = True
-                elif name == "witch_poison":
-                    # witch_poison(phase, witch, target)
+                elif name == "poison":
+                    # poison(phase, witch, target)
                     target = args[2] if len(args) >= 3 else None
                     if not target:
                         for a in args[1:]:
@@ -1356,7 +1382,7 @@ class LLMAgent:
                     if target and valid_targets and target not in valid_targets:
                         target = random.choice(valid_targets) if valid_targets else None
                     if target:
-                        line = f"witch_poison(N{state.night}, {self.player_id}, {target})"
+                        line = f"poison(N{state.night}, {self.player_id}, {target})"
                         skip_auto_correct = True
                     else:
                         continue
@@ -1366,13 +1392,13 @@ class LLMAgent:
                     continue
 
             elif phase == "hunter_shoot":
-                if name != "hunter_shot":
+                if name != "shoot":
                     continue
-                # hunter_shot(phase, hunter, target) — target can be "none"
+                # shoot(phase, hunter, target) — target can be "none"
                 target = args[2] if len(args) >= 3 else None
                 # Allow "none"/"null" as explicit no-shoot
                 if target and target.lower() in ("none", "null"):
-                    line = f"hunter_shot(D{state.day}, {self.player_id}, none)"
+                    line = f"shoot(D{state.day}, {self.player_id}, none)"
                     skip_auto_correct = True
                     valid.append(line)
                     continue
@@ -1385,12 +1411,12 @@ class LLMAgent:
                     continue
                 if valid_targets and target not in valid_targets:
                     target = random.choice(valid_targets)
-                line = f"hunter_shot(D{state.day}, {self.player_id}, {target})"
+                line = f"shoot(D{state.day}, {self.player_id}, {target})"
                 skip_auto_correct = True
 
             elif phase == "wwk_explode_check":
-                if name == "wwk_explode":
-                    # wwk_explode(phase, wwk, target)
+                if name == "explode":
+                    # explode(phase, wwk, target)
                     target = args[2] if len(args) >= 3 else None
                     if not target and valid_targets:
                         target = random.choice(valid_targets)
@@ -1398,10 +1424,10 @@ class LLMAgent:
                         continue
                     if valid_targets and target not in valid_targets:
                         target = random.choice(valid_targets)
-                    line = f"wwk_explode(D{state.day}, {self.player_id}, {target})"
+                    line = f"explode(D{state.day}, {self.player_id}, {target})"
                     skip_auto_correct = True
-                elif name == "wwk_pass":
-                    line = f"wwk_pass(D{state.day}, {self.player_id})"
+                elif name == "pass":
+                    line = f"pass(D{state.day}, {self.player_id})"
                     skip_auto_correct = True
                 else:
                     continue
@@ -1496,17 +1522,17 @@ class LLMAgent:
         if phase == "night_seer":
             targets = valid_targets or [t for t in state.get_alive() if t != p]
             target = random.choice(targets) if targets else state.get_alive()[0]
-            return [f"divined(N{state.night}, {p}, {target}, ?)"]
+            return [f"divine(N{state.night}, {p}, {target})"]
         if phase == "night_guard":
             targets = valid_targets or list(state.alive)
             target = random.choice(targets)
-            return [f"guarded(N{state.night}, {p}, {target})"]
+            return [f"guard(N{state.night}, {p}, {target})"]
         if phase == "night_witch":
             return [f"fluff(N{state.night}, {p})"]
         if phase == "hunter_shoot":
-            return [f"hunter_shot({ph}, {p}, none)"]
+            return [f"shoot({ph}, {p}, none)"]
         if phase == "wwk_explode_check":
-            return [f"wwk_pass({ph}, {p})"]
+            return [f"pass({ph}, {p})"]
         if phase == "sheriff_order":
             direction = random.choice(["left", "right"])
             return [f"sheriff_order({ph}, {p}, {direction})"]
@@ -1540,9 +1566,9 @@ def extract_attack_target(predicate: str) -> Optional[str]:
     return None
 
 def extract_night_target(predicate: str) -> Optional[str]:
-    """Extract target from divined(phase, seer, target, ?) or guarded(phase, guard, target)."""
+    """Extract target from divine(phase, seer, target) or guard(phase, guard, target)."""
     parsed = parse_action(predicate)
-    if parsed["name"] in ("divined", "guarded") and len(parsed["args"]) >= 3:
+    if parsed["name"] in ("divine", "guard") and len(parsed["args"]) >= 3:
         return parsed["args"][2]
     return None
 
@@ -1574,27 +1600,27 @@ def extract_withdraw_sheriff(predicate: str) -> bool:
     return parsed["name"] == "withdraw_sheriff"
 
 def extract_witch_save(predicate: str) -> bool:
-    """Returns True if the predicate is a witch_save."""
+    """Returns True if the predicate is an antidote action."""
     parsed = parse_action(predicate)
-    return parsed["name"] == "witch_save"
+    return parsed["name"] == "antidote"
 
 def extract_witch_poison_target(predicate: str) -> Optional[str]:
-    """Extract target from witch_poison(phase, witch, target)."""
+    """Extract target from poison(phase, witch, target)."""
     parsed = parse_action(predicate)
-    if parsed["name"] == "witch_poison" and len(parsed["args"]) >= 3:
+    if parsed["name"] == "poison" and len(parsed["args"]) >= 3:
         return parsed["args"][2]
     return None
 
 def extract_hunter_target(predicate: str) -> Optional[str]:
-    """Extract target from hunter_shot(phase, hunter, target)."""
+    """Extract target from shoot(phase, hunter, target)."""
     parsed = parse_action(predicate)
-    if parsed["name"] == "hunter_shot" and len(parsed["args"]) >= 3:
+    if parsed["name"] == "shoot" and len(parsed["args"]) >= 3:
         return parsed["args"][2]
     return None
 
 def extract_wwk_explode(predicate: str) -> Optional[str]:
-    """Extract target from wwk_explode(phase, wwk, target). Returns None if wwk_pass."""
+    """Extract target from explode(phase, wwk, target). Returns None if pass."""
     parsed = parse_action(predicate)
-    if parsed["name"] == "wwk_explode" and len(parsed["args"]) >= 3:
+    if parsed["name"] == "explode" and len(parsed["args"]) >= 3:
         return parsed["args"][2]
     return None

@@ -13,14 +13,16 @@ Predicates are the structured representation of player actions and game events i
 
 ## Speech predicates
 
-Used during discussion phases (day speech, election speech, last speech).
+Used during discussion phases (day speech, election speech, last speech). These are public claims — they may be true or false.
 
 | Predicate | Signature | Description |
 |-----------|-----------|-------------|
-| `roleclaim` | `(Phase, Player, ClaimedRole)` | Player claims to be a role. May be false. |
+| `claim_role` | `(Phase, Player, ClaimedRole)` | Player claims to be a role. May be false. |
 | `estimate` | `(Phase, Player, Target, Role)` | Player states their read on Target's role. Speaker is not Target. |
-| `divined` | `(Phase, Player, Target, Alignment)` | Player claims they divined Target. Alignment: `wolf_camp` or `villager_camp`. May be a lie. |
-| `guarded` | `(Phase, Player, Target)` | Player claims they protected Target last night as guard. May be a lie. |
+| `claim_divine` | `(Phase, Player, Target, Alignment)` | Player claims they divined Target. Alignment: `wolf_camp` or `villager_camp`. May be a lie. |
+| `claim_guard` | `(Phase, Player, Target)` | Player claims they protected Target last night as guard. May be a lie. |
+| `claim_antidote` | `(Phase, Player)` | Player claims they used the witch's antidote. May be a lie. |
+| `claim_poison` | `(Phase, Player, Target)` | Player claims they used the witch's poison on Target. May be a lie. |
 | `question` | `(Phase, Player, Target, RefID)` | Player challenges Target about a specific statement by RefID. |
 | `answer` | `(Phase, Player, RefID)` | Player responds to a question. RefID must reference a `question` predicate. |
 | `agree` | `(Phase, Player, RefID)` | Player publicly supports a statement by speech ID. |
@@ -31,15 +33,16 @@ Used during discussion phases (day speech, election speech, last speech).
 | `recommend_action` | `(Phase, Speaker, Actor, Action, Target)` | Speaker recommends that Actor take Action toward Target. See action table below. |
 | `address_role` | `(Phase, Speaker, TargetRole, Advice)` | Speaker addresses all players of a role group with advice. See tables below. |
 | `fluff` | `(Phase, Player)` | Player says current evidence is insufficient and identifies what would help them judge. |
-| `witch_save` | `(Phase, Player)` | Player claims they used the witch's antidote. May be a lie. |
-| `witch_poison` | `(Phase, Player, Target)` | Player claims they used the witch's poison on Target. May be a lie. |
 
 ### Examples
 
 ```
-roleclaim(D1, P3, seer)
+claim_role(D1, P3, seer)
 estimate(D1, P2, P5, werewolf)
-divined(D1, P3, P5, wolf_camp)
+claim_divine(D1, P3, P5, wolf_camp)
+claim_guard(D2, P4, P3)
+claim_antidote(D2, P6)
+claim_poison(D2, P6, P5)
 question(D1, P1, P4, s6)
 agree(D1, P2, s3)
 recommend_action(D1, P3, P1, vote_execute, P5)
@@ -81,23 +84,28 @@ fluff(D1, P1)
 
 ---
 
-## Action predicates
+## Night action predicates
 
-Used in specific game phases (night actions, sheriff election, death triggers).
+Used by agents during their role-specific night phases. These are game-mechanical actions, not public claims.
 
 | Predicate | Signature | Phase | Description |
 |-----------|-----------|-------|-------------|
-| `run_sheriff` | `(Phase, Player)` | Sheriff nomination | Player nominates themselves for sheriff. |
+| `divine` | `(Phase, Seer, Target)` | `night_seer` | Seer checks a target's alignment. |
+| `guard` | `(Phase, Guard, Target)` | `night_guard` | Guard protects a target. |
+| `antidote` | `(Phase, Witch)` | `night_witch` | Witch uses antidote to save tonight's victim. |
+| `poison` | `(Phase, Witch, Target)` | `night_witch` | Witch uses poison on Target. |
+| `shoot` | `(Phase, Hunter, Target)` | `hunter_shoot` | Hunter shoots Target on death (or `none` to skip). |
+| `explode` | `(Phase, WWK, Target)` | `wwk_explode_check` | White Wolf King self-destructs, killing Target. |
+| `pass` | `(Phase, WWK)` | `wwk_explode_check` | White Wolf King chooses not to self-destruct. |
+
+### Other action predicates
+
+| Predicate | Signature | Phase | Description |
+|-----------|-----------|-------|-------------|
+| `attacked` | `(Phase, Target)` | `night_wolf` | Wolves choose a target to kill (or `none`). |
+| `run_sheriff` | `(Phase, Player)` | `sheriff_nominate` | Player nominates themselves for sheriff. |
 | `sheriff_order` | `(Phase, Sheriff, left\|right)` | Day start | Sheriff picks speaking direction. `left` = descending ID, `right` = ascending ID. |
 | `sheriff_successor` | `(Phase, Sheriff, Successor)` | On death | Dying sheriff names successor or `NO_SHERIFF` to tear the badge. |
-| `hunter_shot` | `(Phase, Hunter, Target)` | On elimination | Hunter shoots Target (or `none` to skip). |
-| `wwk_explode` | `(Phase, WWK, Target)` | Day phase | White Wolf King self-destructs, killing Target. |
-| `wwk_pass` | `(Phase, WWK)` | Day phase | White Wolf King chooses not to self-destruct. |
-| `attacked` | `(Phase, Player)` | Wolf night action | Wolves choose a target to kill (or `none`). |
-| `divined` | `(Phase, Player, Target, Alignment)` | Seer night action | Seer checks a target's alignment. |
-| `guarded` | `(Phase, Player, Target)` | Guard night action | Guard protects a target. |
-| `witch_save` | `(Phase, Witch)` | Witch night action | Witch uses antidote to save tonight's victim. |
-| `witch_poison` | `(Phase, Witch, Target)` | Witch night action | Witch uses poison on Target. |
 
 ---
 

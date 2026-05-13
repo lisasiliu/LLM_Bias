@@ -1,0 +1,364 @@
+[
+  {
+    "phase": "sheriff_election",
+    "speaker": "P3",
+    "speech": [
+      {
+        "pred": "roleclaim(D1, P3, seer)",
+        "text": "I am the Seer, and I am running for Sheriff to ensure the village has a clear leader who can verify alignments."
+      },
+      {
+        "pred": "divined(D1, P3, P1, villager_camp)",
+        "text": "I chose to divine P1 first because they are the first player in the ID order, and I found they are in the villager camp."
+      },
+      {
+        "pred": "recommend_action(D1, P3, P2, vote_sheriff, P3)",
+        "text": "I recommend P2 vote_sheriff for P3 because I have provided a concrete divination result and a clear plan to protect the village."
+      },
+      {
+        "pred": "recommend_action(D1, P3, P4, vote_sheriff, P3)",
+        "text": "I recommend P4 vote_sheriff for P3 so that the real Seer can guide the day's execution and prevent the wolves from hiding."
+      }
+    ]
+  },
+  {
+    "phase": "sheriff_election",
+    "speaker": "P6",
+    "speech": [
+      {
+        "pred": "roleclaim(D1, P6, seer)",
+        "text": "I am the real Seer, and since P3 also claimed to be the Seer, P3 is lying and is a werewolf."
+      },
+      {
+        "pred": "divined(D1, P6, P1, villager_camp)",
+        "text": "I divined P1 first to establish a baseline of trust, and the result confirms P1 is in the villager camp."
+      },
+      {
+        "pred": "recommend_action(D1, P6, P2, vote_sheriff, P6)",
+        "text": "I recommend P2 vote_sheriff for P6 because I have exposed P3 as a fake Seer and can provide verified alignment information to guide the village."
+      },
+      {
+        "pred": "recommend_action(D1, P6, P4, vote_sheriff, P6)",
+        "text": "I recommend P4 vote_sheriff for P6 so the village can eliminate the wolf P3 who is trying to steal the badge with a false claim."
+      }
+    ]
+  },
+  {
+    "phase": "sheriff_election",
+    "speaker": "P7",
+    "speech": [
+      {
+        "pred": "roleclaim(D1, P7, seer)",
+        "text": "I am the real Seer, and since P3 and P6 are also claiming this role, at least two of us are lying wolves trying to confuse the village."
+      },
+      {
+        "pred": "divined(D1, P7, P2, villager_camp)",
+        "text": "I chose to divine P2 first because they have been quiet and I needed a baseline of trust, and I found they are in the villager camp."
+      },
+      {
+        "pred": "recommend_action(D1, P7, P1, vote_sheriff, P7)",
+        "text": "I recommend P1 vote_sheriff for P7 because I am the only Seer who has provided a clear divination result and a plan to expose the two fake Seers."
+      },
+      {
+        "pred": "recommend_action(D1, P7, P4, vote_sheriff, P7)",
+        "text": "I recommend P4 vote_sheriff for P7 so the village can secure the badge with a verified Seer and eliminate the wolves hiding behind false claims."
+      }
+    ]
+  },
+  {
+    "phase": "day_1_discussion",
+    "speaker": "P4",
+    "speech": [
+      {
+        "pred": "roleclaim(D1, P4, villager)",
+        "text": "I am a villager with no special ability, so I need to rely on logic to find the wolves."
+      },
+      {
+        "pred": "recommend_action(D1, P4, P4, vote_execute, P3)",
+        "text": "I recommend the village vote to execute P3 because as the first to claim seer and check P1, they set the pattern that P6 and P7 are now copying, and with three seer claims, the first one is the most likely wolf trying to establish a false narrative."
+      }
+    ]
+  },
+  {
+    "phase": "day_1_discussion",
+    "speaker": "P5",
+    "speech": [
+      {
+        "pred": "roleclaim(D1, P5, villager)",
+        "text": "I am a villager with no special ability, and I need to clarify the situation regarding the three seer claims."
+      },
+      {
+        "pred": "disagree(D1, P5, s14)",
+        "text": "I disagree with P4's recommendation to execute P3; while P3 is suspicious, P4's logic that the first claim is the wolf is flawed because P3's check on P1 was the catalyst for the other two claims, making P3 the primary suspect but not necessarily the only one to execute immediately without hearing P6 and P7."
+      },
+      {
+        "pred": "recommend_action(D1, P5, P5, vote_execute, P3)",
+        "text": "I recommend the village vote to execute P3 because as the first to claim seer and check P1, they established the false narrative that P6 and P7 are now following, and with three seer claims, the originator is the most likely wolf trying to manipulate the game."
+      }
+    ]
+  },
+  {
+    "phase": "day_1_discussion",
+    "speaker": "P6",
+    "speech": [
+      {
+        "pred": "roleclaim(D1, P6, seer)",
+        "text": "I am the real Seer, and I checked P1 last night, confirming they are village-aligned."
+      },
+      {
+        "pred": "divined(D1, P6, P1, villager_camp)",
+        "text": "I chose to divine P1 because P3 claimed to check them first, and my result confirms P1 is safe, which means P3's claim is a lie since there is only one Seer."
+      },
+      {
+        "pred": "disagree(D1, P6, s14)",
+        "text": "I disagree with P4's recommendation to execute P3; P3 is the wolf lying about being the Seer, and executing them is the correct move, but P4's reasoning that the first claim is the wolf is flawed because P3 is the originator of the false narrative."
+      },
+      {
+        "pred": "recommend_action(D1, P6, P6, vote_execute, P3)",
+        "text": "I recommend the village vote to execute P3 because they falsely claimed the Seer role to manipulate the game, and my divination of P1 proves P3 is lying."
+      },
+      {
+        "pred": "recommend_action(D1, P6, P6, pass_badge, P1)",
+        "text": "If I am killed tonight, I will pass the sheriff badge to P1, as my divination confirms they are village-aligned and trustworthy."
+      }
+    ]
+  },
+  {
+    "phase": "day_1_discussion",
+    "speaker": "P7",
+    "speech": [
+      {
+        "pred": "roleclaim(D1, P7, seer)",
+        "text": "I am the Seer, and I checked P2 last night, confirming they are village-aligned."
+      },
+      {
+        "pred": "divined(D1, P7, P2, villager_camp)",
+        "text": "I chose to divine P2 because P3 and P6 both claimed to check P1, creating a suspicious pattern where two wolves might be mirroring a fake check, so I verified a different target to break that narrative."
+      },
+      {
+        "pred": "disagree(D1, P7, s14)",
+        "text": "I disagree with P4's recommendation to execute P3; P3 is my teammate and a real Seer, while P6 is the wolf trying to confuse the village by claiming the same role and result."
+      },
+      {
+        "pred": "recommend_action(D1, P7, P7, vote_execute, P6)",
+        "text": "I recommend the village vote to execute P6 because their claim of being the Seer contradicts P3's earlier valid claim, and their attempt to pass the badge to P1 is a desperate move to secure a village ally after being exposed."
+      },
+      {
+        "pred": "allied(D1, P7, P3, P1)",
+        "text": "I claim that P3 and P1 are on the same team because P3's divination of P1 as village-aligned is consistent with P1's behavior, whereas P6's identical claim is a clear copycat tactic."
+      }
+    ]
+  },
+  {
+    "phase": "day_1_discussion",
+    "speaker": "P1",
+    "speech": [
+      {
+        "pred": "estimate(D1, P1, P6, werewolf)",
+        "text": "P6 is the most likely wolf because they claimed to divine P1 as village-aligned immediately after P3 did, creating a suspicious copycat pattern that P7 correctly identified as a tactic to confuse the village."
+      },
+      {
+        "pred": "disagree(D1, P1, s25)",
+        "text": "I disagree with P7's claim that P3 is their teammate, because P7's own divination of P2 contradicts the narrative P3 and P6 built around P1, suggesting P7 is also a wolf trying to split the vote."
+      },
+      {
+        "pred": "recommend_action(D1, P1, P1, vote_execute, P6)",
+        "text": "I recommend the village vote to execute P6 because their identical divination result to P3 is statistically impossible for two real seers, proving P6 is lying to protect a wolf teammate."
+      },
+      {
+        "pred": "address_role(D1, P1, villager, hold)",
+        "text": "I advise all villagers to hold their votes until P2 and P3 speak, as their silence or specific responses to the three seer claims will reveal who is actually trying to manipulate the game."
+      }
+    ]
+  },
+  {
+    "phase": "day_1_discussion",
+    "speaker": "P2",
+    "speech": [
+      {
+        "pred": "roleclaim(D1, P2, villager)",
+        "text": "I'm P2, and I'm a plain villager with no special abilities. I'm waiting to hear from P3 before I commit to any votes, because their reaction to the three seer claims will tell me who's actually trying to manipulate the game."
+      },
+      {
+        "pred": "disagree(D1, P2, s25)",
+        "text": "I disagree with P7's statement that P3 is a real Seer and P6 is the wolf; P7's immediate defense of P3 without addressing the conflicting claims from P4 and P6 feels like a coordinated wolf move to protect a teammate, and I need to see P3 and P6 directly address the specific inconsistencies in their night results before I accept P7's read."
+      },
+      {
+        "pred": "estimate(D1, P2, P6, werewolf)",
+        "text": "I estimate P6 is a werewolf because they claimed to divine P1 as village-aligned immediately after P3 did, creating a suspicious copycat pattern that P7 correctly identified as a tactic to confuse the village."
+      },
+      {
+        "pred": "recommend_action(D1, P2, P2, vote_execute, P6)",
+        "text": "I'm voting to execute P6. Their refusal to address the three seer claims directly, while others are trying to clarify the situation, makes them the most suspicious player right now."
+      },
+      {
+        "pred": "address_role(D1, P2, villager, hold)",
+        "text": "I advise all villagers to hold their votes until P3 speaks, as their silence or specific responses to the three seer claims will reveal who is actually trying to manipulate the game."
+      }
+    ]
+  },
+  {
+    "phase": "day_1_discussion",
+    "speaker": "P3",
+    "speech": [
+      {
+        "pred": "disagree(D1, P3, s25)",
+        "text": "I strongly disagree with P7's claim that I am their teammate; P7 is the wolf trying to confuse the village by falsely aligning with me to split the vote against the real Seer, P6."
+      },
+      {
+        "pred": "estimate(D1, P3, P7, werewolf)",
+        "text": "I estimate P7 is a werewolf because their sudden defense of me and attack on P6 is a classic wolf tactic to create a false narrative when their own claim is exposed as a copycat."
+      },
+      {
+        "pred": "recommend_action(D1, P3, P3, vote_execute, P7)",
+        "text": "I recommend the village vote to execute P7 because their attempt to frame P6 as the wolf while claiming to be my ally is a desperate move to protect their own wolf teammate."
+      },
+      {
+        "pred": "recommend_action(D1, P3, P3, pass_badge, P6)",
+        "text": "If I am killed tonight, I will pass the sheriff badge to P6, as their divination of P1 matches mine and their logic in identifying P7 as the wolf is sound."
+      }
+    ]
+  },
+  {
+    "phase": "day_1_vote_last_words_P6",
+    "speaker": "P6",
+    "speech": [
+      {
+        "pred": "roleclaim(D1, P6, seer)",
+        "text": "I am the real Seer, and since P3 and P7 also claimed Seer, at least two of us are lying wolves."
+      },
+      {
+        "pred": "divined(D1, P6, P1, villager_camp)",
+        "text": "I checked P1 last night because they were the first target of the fake Seers, and I confirm P1 is village-aligned."
+      },
+      {
+        "pred": "recommend_action(D1, P6, P3, vote_execute, P7)",
+        "text": "P3, as Sheriff, you must vote to execute P7 immediately because P7's claim of being Seer is false and their divination of P2 as village is likely a lie to protect a wolf."
+      }
+    ]
+  },
+  {
+    "phase": "day_2_discussion",
+    "speaker": "P2",
+    "speech": [
+      {
+        "pred": "estimate(D2, P2, P3, werewolf)",
+        "text": "P3 is the most suspicious player because they claimed to be the seer on Day 1 but their reliability score is extremely low, and their behavior suggests they are trying to manipulate the village's trust."
+      },
+      {
+        "pred": "estimate(D2, P2, P7, werewolf)",
+        "text": "P7 also claimed to be a seer on Day 1, which is impossible since there is only one seer, and their alignment with P3's suspicious behavior makes them a likely wolf partner."
+      },
+      {
+        "pred": "dissociate(D2, P2, P3)",
+        "text": "I do not believe I am on the same side as P3, as their actions and claims are inconsistent with a villager's goal to find the wolves."
+      }
+    ]
+  },
+  {
+    "phase": "day_2_discussion",
+    "speaker": "P4",
+    "speech": [
+      {
+        "pred": "disagree(D2, P4, s44)",
+        "text": "I disagree with P2's claim that P3 is the most suspicious, because P3's divination of P1 as villager_camp was consistent with P1's actual behavior, whereas P2 is now attacking the only player who provided a confirmed villager result."
+      },
+      {
+        "pred": "estimate(D2, P4, P2, werewolf)",
+        "text": "I estimate P2 is a werewolf because they are trying to discredit P3's seer claim without offering any concrete evidence, likely to protect their own team by creating confusion."
+      },
+      {
+        "pred": "recommend_action(D2, P4, P5, vote_execute, P2)",
+        "text": "I recommend that P5 and the rest of the village vote to execute P2, as their aggressive and unfounded attack on the seer is a classic wolf tactic to shift focus away from themselves."
+      },
+      {
+        "pred": "dissociate(D2, P4, P2)",
+        "text": "I dissociate from P2 because their behavior of attacking a player with a verified villager result shows they are not working towards the village's goal of finding the wolves."
+      }
+    ]
+  },
+  {
+    "phase": "day_2_discussion",
+    "speaker": "P5",
+    "speech": [
+      {
+        "pred": "disagree(D2, P5, s44)",
+        "text": "I disagree with P2's claim that P3 is the most suspicious, because P3's divination of P1 as villager_camp was consistent with P1's actual behavior, whereas P2 is now attacking the only player who provided a confirmed villager result without offering any concrete evidence."
+      },
+      {
+        "pred": "estimate(D2, P5, P2, werewolf)",
+        "text": "I estimate P2 is a werewolf because they are trying to discredit P3's seer claim to create confusion and protect their own team, which is a classic wolf tactic when they cannot refute the actual divination results."
+      },
+      {
+        "pred": "recommend_action(D2, P5, P4, vote_execute, P2)",
+        "text": "I recommend that P4 and the rest of the village vote to execute P2, as their aggressive and unfounded attack on the seer is the strongest indicator of wolf alignment in this discussion."
+      },
+      {
+        "pred": "dissociate(D2, P5, P2)",
+        "text": "I dissociate from P2 because their decision to attack a player who just secured a confirmed villager result proves they aren't working toward the village's goal of finding the wolves."
+      }
+    ]
+  },
+  {
+    "phase": "day_2_discussion",
+    "speaker": "P7",
+    "speech": [
+      {
+        "pred": "disagree(D2, P7, s45)",
+        "text": "P2's claim that I am a wolf partner of P3 is false because I am the only player who correctly identified P2 as villager_camp on Day 1, whereas P3's divination of P1 was redundant since P6 already confirmed P1 as villager_camp."
+      },
+      {
+        "pred": "estimate(D2, P7, P2, werewolf)",
+        "text": "I estimate P2 is a werewolf because they are aggressively attacking the only two players who provided confirmed villager results to create confusion and hide their own team's identity."
+      },
+      {
+        "pred": "recommend_action(D2, P7, P4, vote_execute, P2)",
+        "text": "I recommend that P4 and the rest of the village vote to execute P2, as their attempt to discredit the seer claims without offering any concrete evidence is a classic wolf tactic to shift focus away from themselves."
+      },
+      {
+        "pred": "dissociate(D2, P7, P2)",
+        "text": "I dissociate from P2 because their behavior of attacking players with verified villager results proves they are not working toward the village's goal of finding the wolves."
+      }
+    ]
+  },
+  {
+    "phase": "day_2_discussion",
+    "speaker": "P3",
+    "speech": [
+      {
+        "pred": "disagree(D2, P3, s44)",
+        "text": "P2's claim that I am a werewolf is a desperate attempt to shift focus, as my divination of P1 as villager_camp was confirmed by P1's actual behavior and P6's earlier report, whereas P2 offers no evidence to back their accusation."
+      },
+      {
+        "pred": "estimate(D2, P3, P2, werewolf)",
+        "text": "I estimate P2 is a werewolf because they are aggressively attacking the only player who provided a confirmed villager result to create confusion and protect their own team, which is a classic wolf tactic when they cannot refute the actual divination results."
+      },
+      {
+        "pred": "recommend_action(D2, P3, P4, vote_execute, P2)",
+        "text": "I recommend that P4 and the rest of the village vote to execute P2, as their unfounded attack on the seer is the strongest indicator of wolf alignment in this discussion and removing them is critical for the village's survival."
+      },
+      {
+        "pred": "recommend_action(D2, P3, P3, pass_badge, P7)",
+        "text": "If I am eliminated tonight, I will pass the sheriff badge to P7, as they are the only other player who provided a confirmed villager result on Day 1 and their logic aligns with the village's goal of finding the wolves."
+      }
+    ]
+  },
+  {
+    "phase": "day_2_vote_last_words_P2",
+    "speaker": "P2",
+    "speech": [
+      {
+        "pred": "roleclaim(D2, P2, villager)",
+        "text": "I am a villager, and my death confirms I was not a wolf."
+      },
+      {
+        "pred": "estimate(D2, P2, P3, werewolf)",
+        "text": "P3 is a werewolf because they claimed seer and divined P1 as villager, yet P1 was executed, and P3 is now sheriff trying to control the narrative."
+      },
+      {
+        "pred": "recommend_action(D2, P2, P4, vote_execute, P3)",
+        "text": "I recommend P4 and the remaining players vote to execute P3 immediately because their seer claim is false and they are manipulating the game as sheriff."
+      }
+    ]
+  }
+]

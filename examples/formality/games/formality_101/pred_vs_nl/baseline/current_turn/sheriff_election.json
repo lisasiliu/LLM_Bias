@@ -1,0 +1,31 @@
+{
+  "alive_players": ["P1", "P2", "P3", "P4", "P5", "P6", "P7"],
+  "dead_players": [],
+  "sheriff": "P3",
+  "sheriff_election": [
+    "run_sheriff(D1, P3)",
+    "run_sheriff(D1, P6)",
+    "run_sheriff(D1, P7)",
+    "[s1|P3] roleclaim(D1, P3, seer)",
+    "[s2|P3] divined(D1, P3, P2, villager_camp)",
+    "[s3|P3] recommend_action(D1, P3, P1, vote_sheriff, P3)",
+    "[s4|P3] recommend_action(D1, P3, P4, vote_sheriff, P3)",
+    "[s5|P6] roleclaim(D1, P6, seer)",
+    "[s6|P6] divined(D1, P6, P1, villager_camp)",
+    "[s7|P6] recommend_action(D1, P6, P1, vote_sheriff, P6)",
+    "[s8|P6] recommend_action(D1, P6, P2, vote_sheriff, P6)",
+    "[s9|P7] roleclaim(D1, P7, seer)",
+    "[s10|P7] divined(D1, P7, P4, villager_camp)",
+    "[s11|P7] recommend_action(D1, P7, P1, vote_sheriff, P7)",
+    "[s12|P7] recommend_action(D1, P7, P2, vote_sheriff, P7)",
+    "voted(D1, P1, P3)",
+    "voted(D1, P2, P3)",
+    "voted(D1, P4, P3)",
+    "voted(D1, P5, P3)",
+    {
+      "P3": ["P1", "P2", "P4", "P5"]
+    },
+    "sheriff_set(D1, P3)",
+    "announcement(D1, P3, sheriff): P3 is now sheriff."
+  ]
+}

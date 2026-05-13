@@ -50,8 +50,8 @@ from .schemas import (
     build_public_history, build_agent_memory, build_game_record,
     capture_group_header,
 )
-from .token_tracker import TokenTracker, TokenBudgetExceeded
-from .vllm_client import VLLMClient
+from .utils import TokenTracker, TokenBudgetExceeded
+from .utils import LLMClient
 from .checkpointing import save_checkpoint, phase_checkpoint_name
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -513,7 +513,7 @@ def run_night_phase(
             seer_target = random.choice(targets)
         if verbose:
             print(f"  Seer {seer} divines: {seer_target}")
-        agents[seer].record_own_action(f"divined(N{night}, {seer}, {seer_target})")
+        agents[seer].record_own_action(f"divine(N{night}, {seer}, {seer_target})")
 
     # Guard protect (cannot protect same player as last night)
     guards = state.get_alive_with_role("guard")
@@ -531,7 +531,7 @@ def run_night_phase(
             guard_target = random.choice(targets)
         if verbose:
             print(f"  Guard {guard} protects: {guard_target}")
-        agents[guard].record_own_action(f"guarded(N{night}, {guard}, {guard_target})")
+        agents[guard].record_own_action(f"guard(N{night}, {guard}, {guard_target})")
 
     # Witch action (after wolf/seer/guard, witch sees who was attacked)
     witch_save = False
@@ -567,9 +567,9 @@ def run_night_phase(
             if not witch_save and not witch_poison:
                 print(f"  Witch {witch} does nothing.")
         if witch_save:
-            agents[witch].record_own_action(f"witch_save(N{night}, {witch})")
+            agents[witch].record_own_action(f"antidote(N{night}, {witch})")
         if witch_poison:
-            agents[witch].record_own_action(f"witch_poison(N{night}, {witch}, {witch_poison})")
+            agents[witch].record_own_action(f"poison(N{night}, {witch}, {witch_poison})")
 
     # Resolve night. Engine records hidden results and mutates deaths, then the
     # experiment restores pending deaths so morning reveal follows platform flow.
@@ -591,7 +591,7 @@ def run_night_phase(
     if night_result.seer_result and seers:
         seer = seers[0]
         agents[seer].receive_fact(
-            f"divined(N{night}, {seer}, {seer_target}, {night_result.seer_result})"
+            f"divine(N{night}, {seer}, {seer_target}, {night_result.seer_result})"
         )
 
     night_dead = []
@@ -621,7 +621,7 @@ def run_night_phase(
 def run_single_game(
     game_id: str,
     model: str,
-    client,  # VLLMClient | None
+    client,  # LLMClient | None
     prompts: dict,
     *,
     num_players: int = 7,
@@ -753,8 +753,6 @@ def run_single_game(
 
         # ════════════ DAY PHASE ════════════
         day = state.start_day()
-        if verbose:
-            print(f"\n--- Day {day} ---")
 
         # ── Sheriff election on Day 1 (before night-death announcements) ──
         if day == 1:
@@ -762,7 +760,7 @@ def run_single_game(
             timeline_order.append(el_timeline)
             group_headers[el_timeline] = capture_group_header(state)
             if verbose:
-                print(f"\n  == Sheriff Election ==")
+                print(f"\n--- Sheriff Election ---")
 
             candidates: List[str] = []
             for p in state.get_alive():
@@ -1012,6 +1010,7 @@ def run_single_game(
         discussion_timeline = f"day_{day}_discussion"
         timeline_order.append(discussion_timeline)
         if verbose:
+            print(f"\n--- Day {day} ---")
             print(f"\n  == Day {day} Discussion ==")
         wwk_exploded = False
         for speaker_idx, speaker in enumerate(order):
@@ -1411,7 +1410,7 @@ def main():
         description="Run predicate-only Werewolf games with LLM agents.",
     )
     parser.add_argument("--model", default=None,
-                        help="Model name (default: $VLLM_MODEL or Qwen/Qwen3.5-27B)")
+                        help="Model name (default: $LLM_MODEL or Qwen/Qwen3.5-27B)")
     parser.add_argument("--players", type=int, default=7, choices=range(7, 13),
                         help="Number of players (7-12, default: 7)")
     parser.add_argument("--games", type=int, default=1)
@@ -1433,9 +1432,9 @@ def main():
     parser.add_argument("--no-thinking", action="store_true",
                         help="Disable thinking on thinking models (faster; sets DISABLE_THINKING=1)")
     parser.add_argument("--url", default=None,
-                        help="Model server URL (default: $VLLM_BASE_URL or http://localhost:8000)")
+                        help="Model server URL (default: $LLM_BASE_URL or http://localhost:8000)")
     parser.add_argument("--api-key", default=None,
-                        help="Model server API key (default: $VLLM_API_KEY or EMPTY)")
+                        help="Model server API key (default: $LLM_API_KEY or EMPTY)")
     parser.add_argument("--save-checkpoints", action="store_true",
                         help="Save state snapshots to <game_dir>/checkpoints/ at each "
                              "phase boundary. Required for eval replays.")
@@ -1443,6 +1442,9 @@ def main():
                         help="Rewriter name from the registry (e.g. 'formality')")
     parser.add_argument("--rewriter-params", default="{}",
                         help="JSON string of rewriter parameters")
+    parser.add_argument("--rewriter-module", default=None,
+                        help="Python module to import for rewriter registration "
+                             "(e.g. 'examples.formality.rewriter')")
     parser.add_argument("--config", default=None,
                         help="Path to YAML experiment config (overrides CLI flags)")
 
@@ -1450,31 +1452,32 @@ def main():
 
     if args.config:
         from .config import load_config as _load_config
+        from .eval.runner import run_experiment
         _cfg = _load_config(args.config)
-        args.model = _cfg.model
-        args.players = _cfg.n_players
-        args.games = _cfg.n_games
-        args.temperature = _cfg.temperature
-        args.max_tokens = _cfg.max_tokens
-        args.max_rounds = _cfg.max_rounds
-        args.experiment = "nl"
-        if not args.seed:
-            args.seed = _cfg.seeds[0]
-        if not args.output:
-            args.output = _cfg.output_dir
-        if _cfg.baseline_rewriter and not args.rewriter:
-            args.rewriter = _cfg.baseline_rewriter["class"]
-            args.rewriter_params = str(_cfg.baseline_rewriter.get("params", {})).replace("'", '"')
+        config_dir = Path(args.config).resolve().parent
+        _seed = args.seed or _cfg.seeds[0]
+        output_root = Path(args.output) if args.output else (
+            config_dir / "games" / f"{_cfg.name}_{_seed}"
+        )
+        run_experiment(
+            _cfg,
+            seed=_seed,
+            url=args.url,
+            api_key=args.api_key,
+            token_budget=args.token_budget,
+            output_root=output_root,
+        )
+        return
 
     if args.no_thinking:
         os.environ["DISABLE_THINKING"] = "1"
 
     prompts = load_prompts()
 
-    model = args.model or os.getenv("VLLM_MODEL", "Qwen/Qwen3.5-27B")
+    model = args.model or os.getenv("LLM_MODEL", "Qwen/Qwen3.5-27B")
     client = None
     if not args.dry_run:
-        client = VLLMClient(base_url=args.url, api_key=args.api_key)
+        client = LLMClient(base_url=args.url, api_key=args.api_key)
 
     model_slug = model.rsplit("/", 1)[-1].replace("@", "").replace(" ", "_").lower()
     exp_slug = args.experiment
@@ -1493,6 +1496,9 @@ def main():
     rewriter_instance = None
     if args.rewriter:
         import json as _json
+        import importlib as _importlib
+        if args.rewriter_module:
+            _importlib.import_module(args.rewriter_module)
         from .rewriter import get_rewriter
         rewriter_cls = get_rewriter(args.rewriter)
         rewriter_params = _json.loads(args.rewriter_params)

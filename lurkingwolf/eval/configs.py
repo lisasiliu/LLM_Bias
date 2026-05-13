@@ -4,6 +4,12 @@ Experiment 1  (--mode pred_vs_nl):  Does language matter?
   Baseline: pred-only game.  Replay: NL baseline (1 per day).
 
 Custom rewriter experiments can be built with ``rewriter_configs()``.
+
+Modes:
+  pred_only    — predicate-only baseline (no NL)
+  nl           — NL baseline (no rewriter)
+  flip_self    — rewriter on self player only, rotate through all players
+  flip_others  — rewriter on everyone except self, rotate through all players
 """
 
 from __future__ import annotations
@@ -31,7 +37,16 @@ class PhaseConfig:
     self_dependent: bool
     rewriter_factory: Optional[Callable[..., object]] = None
     rewriter_params: Optional[Dict] = None
-    scope: str = "all"
+    mode: str = "nl"
+
+    @property
+    def scope(self) -> str:
+        """Map mode to internal scope for _apply_overrides."""
+        if self.mode == "flip_self":
+            return "self"
+        elif self.mode == "flip_others":
+            return "others"
+        return "all"
 
     def make_rewriter(self, llm_client=None):
         if self.rewriter_factory is None:
@@ -47,6 +62,7 @@ def pred_vs_nl_configs() -> List[PhaseConfig]:
         experiment_type="nl",
         description="Replay pred-only checkpoint with NL baseline.",
         self_dependent=False,
+        mode="nl",
     )]
 
 
@@ -55,7 +71,7 @@ def rewriter_configs(
     params_variants: List[Dict],
     *,
     family: str = "rewriter",
-    scopes: Optional[List[str]] = None,
+    modes: Optional[List[str]] = None,
 ) -> List[PhaseConfig]:
     """Build PhaseConfig list for a rewriter with multiple param variants.
 
@@ -63,29 +79,29 @@ def rewriter_configs(
         rewriter_class: A Rewriter subclass (has .name attribute).
         params_variants: List of param dicts, e.g. [{"level": "formal"}, {"level": "casual"}].
         family: Config family name.
-        scopes: List of scopes ("all", "self", "others"). Default: ["all"].
+        modes: List of modes ("flip_self", "flip_others"). Default: ["flip_self"].
 
     Returns:
-        List of PhaseConfig, one per (variant, scope) combination.
-        Scope "self" configs are self_dependent=True.
+        List of PhaseConfig, one per (variant, mode) combination.
+        flip_self and flip_others configs are self_dependent=True.
     """
-    if scopes is None:
-        scopes = ["all"]
+    if modes is None:
+        modes = ["flip_self"]
 
     configs: List[PhaseConfig] = []
     for params in params_variants:
         tag = "_".join(f"{k}={v}" for k, v in sorted(params.items()))
-        for scope in scopes:
-            name = f"{rewriter_class.name}__{tag}__{scope}"
+        for mode in modes:
+            name = f"{rewriter_class.name}__{tag}__{mode}"
             configs.append(PhaseConfig(
                 name=name,
                 family=family,
                 experiment_type="nl",
-                description=f"{rewriter_class.name} ({tag}, scope={scope})",
-                self_dependent=(scope == "self"),
+                description=f"{rewriter_class.name} ({tag}, mode={mode})",
+                self_dependent=(mode in ("flip_self", "flip_others")),
                 rewriter_factory=rewriter_class,
                 rewriter_params=params,
-                scope=scope,
+                mode=mode,
             ))
     return configs
 
@@ -117,7 +133,7 @@ def expand_phase_runs(
     self_players: List[str],
     days: List[int],
 ) -> List[PhaseRunSpec]:
-    """Cross configs × self_players × days, deduplicating self-independent configs."""
+    """Cross configs x self_players x days, deduplicating self-independent configs."""
     runs: List[PhaseRunSpec] = []
     seen_independent: set = set()
 

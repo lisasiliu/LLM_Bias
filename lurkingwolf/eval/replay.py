@@ -227,7 +227,7 @@ def _run_vote(
 def replay_phase(
     checkpoint_path: Path,
     prompts: dict,
-    client,  # VLLMClient | None
+    client,  # LLMClient | None
     *,
     agent_settings: Optional[Dict[str, Dict[str, Optional[str]]]] = None,
     experiment_type: str,

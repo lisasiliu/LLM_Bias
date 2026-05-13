@@ -1,0 +1,57 @@
+{
+  "random_seed": "101",
+  "game_id": "g1",
+  "experiment_type": "natural_language",
+  "model": "Qwen/Qwen3.5-27B",
+  "num_players": 7,
+  "hidden_info": {
+    "role_distribution": {
+      "P6": "seer",
+      "P7": "werewolf",
+      "P4": "villager",
+      "P5": "villager",
+      "P3": "werewolf",
+      "P2": "villager",
+      "P1": "guard"
+    },
+    "night_actions": [
+      {
+        "night": "N0",
+        "wolf_target": "P1",
+        "seer_target": "P1",
+        "seer_result": "villager_camp",
+        "guard_target": "P1",
+        "killed": []
+      },
+      {
+        "night": "N1",
+        "wolf_target": "P1",
+        "seer_target": null,
+        "seer_result": null,
+        "guard_target": "P3",
+        "killed": ["P1"]
+      }
+    ],
+    "day_actions": [
+      {
+        "day": "D1",
+        "sheriff": "P3",
+        "votes": {
+          "P6": ["P1", "P2", "P3", "P7"],
+          "P7": ["P4", "P5"],
+          "P3": ["P6"]
+        },
+        "executed": "P6"
+      },
+      {
+        "day": "D2",
+        "sheriff": "P3",
+        "votes": {
+          "P3": ["P2", "P4"],
+          "P2": ["P3", "P5", "P7"]
+        },
+        "executed": "P2"
+      }
+    ]
+  }
+}

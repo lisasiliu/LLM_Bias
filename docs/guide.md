@@ -135,76 +135,94 @@ python -m lurkingwolf.run_game --experiment nl --rewriter verbose \
     --rewriter-params '{"factor": 3}'
 ```
 
-See `examples/formality_rewriter.py` for a complete working example (formal vs. casual speech).
+See `examples/formality/rewriter.py` for a complete working example (formal vs. casual speech).
 
 ## 4. YAML experiment configs
 
-For reproducible experiments, define everything in a YAML file:
+For reproducible experiments, define everything in a YAML file with named comparisons:
 
 ```yaml
 name: verbosity_experiment
-output_dir: games/verbosity
-
 n_players: 7
-n_games: 1
 seeds: [101, 102, 103]
 model: Qwen/Qwen3.5-27B
+rewriter_module: examples.verbosity.rewriter
 
-replays:
-  - rewriter_class: VerboseRewriter
-    rewriter_params:
-      factor: 2
-    scope: all          # apply to all players
-    inject_at: day_start
+comparisons:
+  pred_vs_nl:
+    baseline: pred_only
+    replays:
+      - mode: nl
 
-  - rewriter_class: VerboseRewriter
-    rewriter_params:
-      factor: 2
-    scope: self          # apply only to one player, rotated
-    inject_at: day_start
-    rotate_self: true
+  nl_vs_verbose:
+    baseline: nl
+    replays:
+      - mode: flip_self
+        rewriter: VerboseRewriter
+        rewriter_params: {factor: 2}
+        inject_at: day_start
 
-metrics: [skill, vote, reliability]
+      - mode: flip_others
+        rewriter: VerboseRewriter
+        rewriter_params: {factor: 2}
+        inject_at: day_start
+
+metrics: [skill, vote, reliability, fairness]
 ```
 
 Run it:
 ```bash
-python -m lurkingwolf.run_game --config path/to/experiment.yaml
+python -m lurkingwolf.run_game --config path/to/experiment.yaml --seed 101
 ```
+
+Output: `lurkingwolf/games/verbosity_experiment_101/`
 
 ### Config fields
 
 | Field | Default | Description |
 |-------|---------|-------------|
 | `name` | (required) | Experiment name |
-| `output_dir` | `games/<name>` | Where output goes |
+| `comparisons` | (required) | Named comparison blocks |
 | `n_players` | 7 | 7 to 12 |
-| `n_games` | 1 | Games per seed |
 | `seeds` | `[101]` | Random seeds for reproducibility |
 | `model` | `Qwen/Qwen3.5-27B` | Model name |
 | `temperature` | 0.0 | LLM sampling temperature |
-| `scope` | `all` | `all`, `self`, or `others` |
+| `rewriter_module` | none | Python module to import for rewriter registration |
+
+### Comparison fields
+
+| Field | Description |
+|-------|-------------|
+| `baseline` | `pred_only` or `nl` — the baseline game type |
+| `replays` | List of replay specs to run against the baseline |
+
+### Replay spec fields
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `mode` | (required) | `pred_only`, `nl`, `flip_self`, or `flip_others` |
+| `rewriter` | none | Rewriter class name (required for flip modes) |
+| `rewriter_params` | `{}` | Parameters passed to the rewriter |
 | `inject_at` | `day_start` | `day_start` or `election_start` |
-| `rotate_self` | false | Rotate the "self" player across all players |
+| `self_role` | none | Only rotate through players with this role |
 
-## 5. Counterfactual evaluation
+## 5. How it works
 
-The eval system lets you ask: "what would have happened if the text had been different?"
+One command runs the full experiment:
 
-### Step 1: Run a baseline game with checkpoints
-
-```bash
-python -m lurkingwolf.run_game --experiment nl --seed 101 --save-checkpoints --verbose
+1. For each comparison, run the baseline game with checkpoints
+2. Expand replays: `flip_self`/`flip_others` modes rotate through all players x days
+3. Run replays in parallel (4 workers by default)
+4. Output tree:
 ```
-
-This saves game state snapshots at each day boundary in `checkpoints/`.
-
-### Step 2: Replay with modifications
-
-```bash
-python -m lurkingwolf.eval --mode pred_vs_nl \
-    --url http://localhost:8000/ --model Qwen/Qwen3.5-27B \
-    --seed 101
+lurkingwolf/games/{name}_{seed}/
+  {comparison}/
+    baseline/          # full game output + checkpoints
+    replays/
+      day_1/
+        {run_id}/      # phase_result.json + agent_memory/ + game.out
+      day_2/
+        ...
 ```
 
 This loads each day's checkpoint and replays with different settings, measuring what changed.

@@ -18,3 +18,9 @@ include = ["lurkingwolf*"]
 
 [tool.setuptools.package-data]
 "lurkingwolf.prompts" = ["*.json"]
+
+[project.scripts]
+lurk = "lurkingwolf.cli:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
