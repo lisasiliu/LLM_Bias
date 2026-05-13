@@ -1,6 +1,0 @@
-{
-  "alive_players": ["P1", "P2", "P3", "P4", "P5", "P7"],
-  "dead_players": ["P6"],
-  "sheriff": "P3",
-  "night_1": []
-}
