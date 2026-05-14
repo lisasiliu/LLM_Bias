@@ -66,7 +66,7 @@ comparisons:
         rewriter_params: {level: casual}
 ```
 
-Output: `examples/formality/games/run_qwen3.5-27b_formality_101/{comparison}/baseline/` + `replays/`
+Output: `examples/formality/games/eval_qwen3.5-27b_101/{comparison}/baseline/` + `replays/`
 
 ## Backend
 
@@ -90,7 +90,7 @@ games/run_qwen3.5-27b_nl_101/
 
 ### Config-driven experiment
 ```
-examples/formality/games/run_qwen3.5-27b_formality_101/
+examples/formality/games/eval_qwen3.5-27b_101/
   pred_vs_nl/
     baseline/               pred_only game + checkpoints
     replays/
