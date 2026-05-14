@@ -31,24 +31,20 @@ from .prompts.templates import (
     REASONING_TEMPLATE, RELATIONSHIP_ESTIMATE_TEMPLATE,
     get_phase_template, normalize_recommend_action, normalize_role_name,
     RECOMMEND_ACTIONS, ADDRESS_ROLE_TARGETS, ADDRESS_ROLE_ADVICE,
-    STRATEGY_HINTS, SHARED_VOTING_GUIDANCE,
+    STRATEGY_HINTS, SHARED_VOTING_GUIDANCE, VILLAGE_SHARED_GUIDANCE, WOLF_SHARED_GUIDANCE,
 )
 from .utils import clean_natural_text
 
-from pathlib import Path as _Path
-_RULES_GUIDE_DIR = _Path(__file__).resolve().parent / "rules_guides"
-_RULES_GUIDE_CACHE: Dict[int, str] = {}
+from .prompts.rules_guides import RULES_GUIDES as _RULES_GUIDES
 
 def _load_rules_guide(num_players: int) -> str:
-    if num_players in _RULES_GUIDE_CACHE:
-        return _RULES_GUIDE_CACHE[num_players]
-    path = _RULES_GUIDE_DIR / f"player_rules_guide_{num_players}p.txt"
-    try:
-        rules_text = path.read_text(encoding="utf-8").strip()
-    except FileNotFoundError:
-        rules_text = ""
-    _RULES_GUIDE_CACHE[num_players] = rules_text
-    return rules_text
+    if num_players not in _RULES_GUIDES:
+        supported = ", ".join(str(n) for n in sorted(_RULES_GUIDES))
+        raise ValueError(
+            f"Unsupported player count for rules guide: {num_players}. "
+            f"Supported player counts are: {supported}."
+        )
+    return _RULES_GUIDES[num_players]
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -221,7 +217,9 @@ class LLMAgent:
         if strategy and "{special_roles}" in strategy:
             village_special = sorted(r for r in roles if r not in WOLF_ROLES and r != "villager")
             strategy = strategy.format(special_roles=", ".join(village_special) if village_special else "special roles")
-        base += grammar + strategy + SHARED_VOTING_GUIDANCE
+        village_guidance = VILLAGE_SHARED_GUIDANCE if self.role not in WOLF_ROLES else ""
+        wolf_guidance = WOLF_SHARED_GUIDANCE if self.role in WOLF_ROLES else ""
+        base += grammar + strategy + village_guidance + wolf_guidance + SHARED_VOTING_GUIDANCE
         return base
 
     def _format_beliefs(self) -> str:
@@ -459,22 +457,11 @@ class LLMAgent:
                 texts.append(bucket.pop(0) if bucket else "")
                 thinkings.append("")
 
-            # Collect NL already in the turn buffer so Stage 2 avoids verbatim repetition
-            existing_nls: set = set()
-            for entry in state.current_turn_buffer:
-                if ": " in entry:
-                    existing_nls.add(entry.split(": ", 1)[1].strip())
-            # Stage-1 texts that duplicate a previous speaker's exact words → regenerate
-            for idx, text in enumerate(texts):
-                if text and text in existing_nls:
-                    texts[idx] = ""
-
             missing = [idx for idx, text in enumerate(texts) if not text]
             if missing:
                 generated_texts, generated_thinkings = self._generate_nl_speech(
                     [predicates[idx] for idx in missing],
                     state,
-                    existing_nls=existing_nls,
                 )
                 for idx, text, thinking in zip(missing, generated_texts, generated_thinkings):
                     texts[idx] = text
@@ -537,15 +524,11 @@ class LLMAgent:
         return out
 
     def _generate_nl_speech(self, predicates: List[str],
-                            state: GameState,
-                            existing_nls: Optional[set] = None) -> tuple:
+                            state: GameState) -> tuple:
         """Stage 2: generate natural language per predicate.
 
         Returns (texts, thinkings), a list of NL strings and a parallel list
         of thinking trace strings (empty string if no thinking).
-
-        existing_nls: NL strings already in the turn buffer. When provided,
-        Stage 2 is prompted to phrase the point differently.
         """
         from .utils.gen_config import deterministic_kwargs
 
@@ -576,21 +559,11 @@ class LLMAgent:
                         f"\nReferenced speech [{ref_id}|{ref_speaker}]: {ref_text}\n"
                     )
 
-            # Build variation context when other speakers have already said similar things
-            variation_context = ""
-            if existing_nls:
-                samples = sorted(existing_nls)[:3]
-                variation_context = (
-                    "\n\nOther players have already said:\n"
-                    + "\n".join(f'"{s}"' for s in samples)
-                    + "\nSay this point in your own words."
-                )
-
             prompt = (
                 f"You are {self.player_id}, a {self.role} in a Werewolf game.\n"
                 f"{ref_context}\n"
                 f"[{pred}] → Speak this in character as natural game dialogue. "
-                f"Refer to players by their player number.{variation_context}"
+                f"Refer to players by their player number."
             )
             raw = self.call_llm(self._build_nl_system(), prompt, **det_kw)
             think = self._extract_think_tags(raw)

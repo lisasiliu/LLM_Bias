@@ -13,7 +13,7 @@ System prompts and predicate grammar remain in prompt.json (structured data,
 not agent prompts).
 """
 
-from .strategy_guides import DEFAULT_STRATEGY_GUIDES as STRATEGY_HINTS, SHARED_VOTING_GUIDANCE
+from .strategy_guides import DEFAULT_STRATEGY_GUIDES as STRATEGY_HINTS, SHARED_VOTING_GUIDANCE, VILLAGE_SHARED_GUIDANCE, WOLF_SHARED_GUIDANCE
 
 
 # recommend_action uses a fixed action vocabulary so the predicate stays
@@ -65,9 +65,9 @@ def normalize_recommend_action(action: str) -> str:
 
 WEREWOLF_ACTION_TEMPLATE = '''Now it is night {day} round. As {player_id} and a werewolf, you should choose one player to kill. Wolves win when the number of wolves alive is equal to or greater than the number of non-wolf players alive, so every eliminated non-wolf player moves your team closer to victory regardless of their specific role. Killing any non-wolf reduces the village's voting power and tightens the win condition.
 
-Count the alive wolves and alive non-wolves before choosing. If killing one non-wolf right now would make wolves >= non-wolves, that kill ends the game in your favor. In that case choose a non-wolf target. Do not choose yourself or a wolf teammate when a winning kill is available.
+Count the alive wolves and alive non-wolves before choosing. If killing one non-wolf right now would make wolves >= non-wolves, that kill ends the game in your favor. In that case a non-wolf target is strongly recommended. Choosing yourself or a wolf teammate when a winning kill is available would waste the opportunity.
 
-God roles have special abilities that make the village more likely to win, so removing one is generally higher value than removing a plain villager when you can identify them. If a player publicly claimed the Seer role or reported a divination result during the previous day's speeches, that player is the highest-priority kill target. A revealed Seer will identify another wolf each night until they are dead. Kill them immediately. If you do not know any god identities yet, pick whichever non-wolf player you judge most worth removing based on the day's discussion and trust patterns. On the very first night before any public discussion has happened, choose any non-wolf player rather than skipping the kill. In games with a Witch, consider that targeting a teammate as bait can be used to draw out the antidote in some situations.
+God roles have special abilities that make the village more likely to win, so removing one is generally higher value than removing a plain villager when you can identify them. If a player publicly claimed the Seer role or reported a divination result during the previous day's speeches, that player is the highest-priority kill target. A revealed Seer will identify another wolf each night until they are dead. It is strongly recommended to target them this night. If you do not know any god identities yet, pick whichever non-wolf player you judge most worth removing based on the day's discussion and trust patterns. On the very first night before any public discussion has happened, choose any non-wolf player rather than skipping the kill. In games with a Witch, consider that targeting a teammate as bait can be used to draw out the antidote in some situations.
 
 If your choice does not match your teammate's, no one dies, so agree on a target.
 Output exactly one predicate:
@@ -80,7 +80,7 @@ divine({game_id}, {day}, {player_id}, TARGET)'''
 
 GUARD_ACTION_TEMPLATE = '''Now it is night {day} round. As {player_id} and the guard, you should choose one player to protect without knowing who the werewolves have chosen. You cannot protect the same player two nights in a row.
 
-On the first night, protect the player you believe is most likely to be the real Seer. If one player claimed to be the Seer during the sheriff election and won the badge, protect that player. If multiple players claimed Seer and only one gave specific divination results or was elected sheriff, protect that one. If no explicit Seer claim was made but a player ran for sheriff and won the badge, protect that player because candidates who step forward are often special roles and will be wolf targets.
+On the first night, it is recommended to protect the player you believe is most likely to be the real Seer. If one player claimed to be the Seer during the sheriff election and won the badge, that player is a strong choice. If multiple players claimed Seer and only one gave specific divination results or was elected sheriff, that one is likely the higher-value target. If no explicit Seer claim was made but a player ran for sheriff and won the badge, consider protecting that player because candidates who step forward are often special roles and will be wolf targets.
 Output exactly one predicate:
 guard({game_id}, {day}, {player_id}, TARGET)'''
 
@@ -95,7 +95,7 @@ Output exactly one predicate:
   shoot(D{day}, {player_id}, TARGET)  to shoot TARGET
   shoot(D{day}, {player_id}, none)    to not shoot anyone'''
 
-WWK_EXPLODE_TEMPLATE = '''You are {player_id}, the White Wolf King. You may choose to self-destruct right now, killing yourself and one other player of your choice. This will immediately end the current day phase and transition to night. If you do not want to self-destruct, pass.
+WWK_EXPLODE_TEMPLATE = '''You are {player_id}, the White Wolf King. You may choose to self-destruct right now, naming one other player to kill. You die as well and the current phase ends immediately with no result. If you do not want to self-destruct, pass.
 Output exactly one predicate:
   explode(D{day}, {player_id}, TARGET)     to self-destruct and kill TARGET
   pass(D{day}, {player_id})        to pass'''
@@ -155,7 +155,7 @@ LAST_SPEECH_TEMPLATE_NATURAL = _LAST_SPEECH_BASE + '''
 Output 1-3 lines, each pairing a predicate with its natural language expression:
 [s1: predicate(args)] Your natural language sentence for this point.''' + _RECOMMEND_ACTION_NATURAL_RULE
 
-_LAST_SPEECH_WOLF_BASE = '''You have been eliminated. As {player_id} and a {role}, you are dead but your words still change the game. Do not reveal your wolf identity. If you claimed a role while alive, restate that claim. If you never publicly claimed a role, pick a plausible village-side role to claim now. Then redirect suspicion toward a specific player and recommend who the village should vote out next.
+_LAST_SPEECH_WOLF_BASE = '''You have been eliminated. As {player_id} and a {role}, you are dead but your words still change the game. Revealing your wolf identity would damage your team. If you claimed a role while alive, restating that claim is recommended. If you never publicly claimed a role, claiming a plausible village-side role can help. Consider redirecting suspicion toward a specific player and recommending who the village should vote out next.
 
 Available: claim_role, estimate, dissociate, recommend_action, fluff'''
 
@@ -171,13 +171,13 @@ Output 1-3 lines, each pairing a predicate with its natural language expression:
 # Voting templates (role-specific, adapted from codebase/prompt.py)
 # ═══════════════════════════════════════════════════════════════
 
-WEREWOLF_VOTE_TEMPLATE = '''Now it is day {day} voting phase, you should vote to eliminate one player or do not vote to maximize the Werewolves' benefit. As {player_id} and a werewolf, you should first reason about the current situation, and then choose from the alive players.
+WEREWOLF_VOTE_TEMPLATE = '''Now it is day {day} voting phase, you should vote to eliminate one player, or abstain, to maximize the Werewolves' benefit. As {player_id} and a werewolf, you should first reason about the current situation, and then choose from the alive players.
 Output exactly one predicate:
 voted({game_id}, {day}, {player_id}, TARGET)'''
 
 VILLAGER_VOTE_TEMPLATE = '''Now it is day {day} voting phase. As {player_id} and a {role}, voting someone out is the primary way the village camp progresses toward winning. Vote to eliminate the player you believe is most likely to be a werewolf. Reason about the current situation, then choose from the alive players.
 
-Check the speeches from this round. If any player referred to wolf allies or placed themselves in the wolf camp in their own words, vote for that player regardless of anything else said this round.
+Check the speeches from this round. If any player referred to wolf allies or placed themselves in the wolf camp in their own words, it is strongly recommended to vote for that player. This is a near-certain indicator of wolf alignment.
 Output exactly one predicate:
 voted({game_id}, {day}, {player_id}, TARGET)'''
 
@@ -190,21 +190,21 @@ SHERIFF_NOMINATE_TEMPLATE = '''Now it is day 1 election phase. You can decide wh
 
 Running for Sheriff forfeits your vote in this election. This applies whether or not you later withdraw. If you do not run, you keep your vote and may vote for any candidate.
 
-If you choose to run as a non-Seer, running gives you an extra speech turn before the vote. You can withdraw before voting begins if you only wanted that turn. If a White Wolf King is in the game, running and claiming to be the Seer can pressure them into self-destructing. Only do this when removing the White Wolf King is worth more than keeping your real identity hidden. Either way your team gains something.
+If you choose to run as a non-Seer, running gives you an extra speech turn before the vote. You can withdraw before voting begins if you only wanted that turn.
 
 If you run, output: run_sheriff({game_id}, {day}, {player_id})
 If not, output: fluff({game_id}, {day}, {player_id})'''
 
 SHERIFF_NOMINATE_WOLF_TEMPLATE = '''Now it is day 1 election phase. Decide whether to run for Sheriff. Running forfeits your vote in this election even if you later withdraw.
 
-As a werewolf, the wolf team needs at least one wolf running and claiming Seer. A wolf Seer claimant forces the real Seer into a direct conflict, confuses the village, and gives your team a shot at the badge. You should run. Both wolves running is acceptable and can be resolved at the withdrawal window after speeches.
+As a werewolf, it is strongly recommended that at least one wolf consider running and claiming Seer. A wolf Seer claimant forces the real Seer into a direct conflict, confuses the village, and gives your team a shot at the badge. Both wolves running is acceptable and can be resolved at the withdrawal window after speeches.
 
-If you run, commit to staying in the race. You can decide at the withdrawal window whether to step back after seeing all the speeches. Do not withdraw before your campaign speech.
+If you run, it is recommended to stay in the race through your campaign speech. You can decide at the withdrawal window whether to step back after seeing all the speeches. Withdrawing before your campaign speech would waste the opportunity to present your case.
 
 If you run, output: run_sheriff({game_id}, {day}, {player_id})
 If not, output: fluff({game_id}, {day}, {player_id})'''
 
-_ELECTION_SPEECH_BASE = '''Now it is day 1 election phase, you are running for Sheriff. As {player_id} and a {role}, convince other players to vote for you. Explain why you would be a good Sheriff. Do not reveal your role unless your role strategy says it is useful in this phase. In this election only players who are not running may vote.
+_ELECTION_SPEECH_BASE = '''Now it is day 1 election phase, you are running for Sheriff. As {player_id} and a {role}, convince other players to vote for you. Explain why you would be a good Sheriff. It is recommended not to reveal your role unless your role strategy says it is useful in this phase. In this election only players who are not running may vote.
 
 Use recommend_action with vote_sheriff for any sheriff election vote recommendation. The Actor in that recommend_action must be a player who is not currently running for Sheriff, since candidates cannot vote.'''
 
@@ -217,7 +217,7 @@ Output 1-3 lines, each pairing a predicate with its natural language expression:
 
 _ELECTION_SPEECH_SEER_BASE = '''Now it is day 1 election phase, you are running for Sheriff as {player_id} and the Seer. In this election only players who are not running may vote. This is the normal phase for a Seer to claim and give the village camp your information.
 
-Your speech should first establish your Seer claim, then for each divination result explain why you chose to divine that player and what the result was, then say what you want the table to do with that information. Use claim_role for the Seer claim and claim_divine for each result. Use recommend_action with vote_sheriff for any sheriff election vote recommendation; the Actor must be a non-running player. Do not use fluff to represent a Seer claim or divination report. There is only one real Seer in this game. If any other candidate also claims to be the Seer, point this out directly and state that the other claimant is lying. Your specific results with concrete reasoning are what establish your credibility over a wolf fake-claiming your role.'''
+Your speech should first establish your Seer claim, then for each divination result explain why you chose to divine that player and what the result was, then say what you want the table to do with that information. Use claim_role for the Seer claim and claim_divine for each result. Use recommend_action with vote_sheriff for any sheriff election vote recommendation; the Actor must be a non-running player. Do not use fluff to represent a Seer claim or divination report. There is only one real Seer in this game. If any other candidate also claims to be the Seer, it is strongly recommended that you address this conflict directly. Use your specific divination results and concrete reasoning to establish your credibility over the other claimant.'''
 
 ELECTION_SPEECH_TEMPLATE_SEER = _ELECTION_SPEECH_SEER_BASE + '''
 Output 1-4 predicates.'''
@@ -228,9 +228,9 @@ Output 1-4 lines, each pairing a predicate with its natural language expression:
 
 _ELECTION_SPEECH_WOLF_BASE = '''Now it is day 1 election phase, you are running for Sheriff as {player_id} and a {role}. Your goal is to appear as the most trustworthy village-side candidate. In this election only players who are not running may vote. Decide what identity, if any, to claim.
 
-If you claim to be the seer, your speech must include a claim_role for the seer and at least one claim_divine result. The result can be fabricated. Structure the speech as a real seer would. State your role, give the divination result, explain why you chose to divine that specific player, and say what you want the table to do with it. Do not use fluff to represent a role claim or divination report. The real seer will also report a specific result with reasoning and will challenge any other seer claimant as a wolf. Make your fabricated result concrete, name the player and alignment clearly, and give a plausible reason for why you picked that target. You can also preempt the challenge by pointing out that only one real seer exists and that any other seer claimant in this election is lying.
+If you claim to be the seer, your speech needs to include a claim_role for the seer and at least one claim_divine result. The result can be fabricated. Structure the speech as a real seer would. State your role, give the divination result, explain why you chose to divine that specific player, and say what you want the table to do with it. Do not use fluff to represent a role claim or divination report. The real seer will also report a specific result with reasoning and will challenge any other seer claimant as a wolf. Make your fabricated result concrete, name the player and alignment clearly, and give a plausible reason for why you picked that target. You can also preempt the challenge by pointing out that only one real seer exists and that any other seer claimant in this election is lying.
 
-For the fabricated result, reporting villager_camp is safer: the target knows they are village-side and is more likely to trust and support you. Reporting wolf_camp on a village-side player is riskier but if the table believes you, it both redirects elimination toward a villager and makes your seer claim more credible, since real seers do find wolves. Weigh the current situation and choose whichever gives the wolf team more advantage.
+For the fabricated result, reporting villager_camp is safer. The target knows they are village-side and is more likely to trust and support you. Reporting wolf_camp on a village-side player is riskier but if the table believes you, it both redirects elimination toward a villager and makes your seer claim more credible, since real seers do find wolves. Weigh the current situation and choose whichever gives the wolf team more advantage.
 If you claim another village-side role, use claim_role for that role and include information consistent with what a real player of that role would say at this point.
 If you run without a role claim, speak as a player who has read the situation carefully and give a concrete reason why you should hold the badge.
 
@@ -261,7 +261,7 @@ Output exactly one predicate:
   withdraw_sheriff({game_id}, {day}, {player_id})  to withdraw your candidacy
   fluff({game_id}, {day}, {player_id})              to stay in the race'''
 
-SHERIFF_WITHDRAW_SEER_TEMPLATE = '''All sheriff campaign speeches are finished. You are {player_id} and the Seer, and you have run for Sheriff. Do not withdraw. Backing down after claiming the Seer role undermines your credibility with the village and hands the badge to another candidate who may be a wolf. Staying in keeps your name on the ballot and, if you win, gives you a speaking platform to share divination results each day while you are alive.
+SHERIFF_WITHDRAW_SEER_TEMPLATE = '''All sheriff campaign speeches are finished. You are {player_id} and the Seer, and you have run for Sheriff. It is strongly recommended to stay in the race. The Seer is the village's strongest role. Your divination results are the primary confirmed information the village camp has to identify wolves. Withdrawing undermines your credibility and hands the badge to a candidate who may be a wolf. The village camp will be at a severe disadvantage if this information platform is lost. Staying in keeps your name on the ballot and, if you win, gives you a speaking platform to share divination results each day while you are alive.
 
 Only withdraw if a candidate in these speeches has made a concrete, specific Seer claim that you judge to be a real village-side Seer, and supporting that player benefits the village more than holding the badge yourself. That bar is high.
 Output exactly one predicate:
@@ -271,7 +271,7 @@ Output exactly one predicate:
 
 SHERIFF_WITHDRAW_WOLF_TEMPLATE = '''All sheriff campaign speeches are finished. You are {player_id} and a {role}, currently running for Sheriff. Decide whether to withdraw or stay in.
 
-If you claimed to be the Seer in your campaign speech, do not withdraw. A wolf who claimed Seer and then withdrew immediately signals to the village that the claim was false. Stay in and maintain the Seer identity through the vote.
+If you claimed to be the Seer in your campaign speech, it is strongly advised not to withdraw. A wolf who claimed Seer and then withdrew immediately signals to the village that the claim was false. Maintaining the Seer identity through the vote is essential to keeping your cover.
 
 If your wolf partner is also still running and made a more convincing speech than you, you may withdraw to consolidate wolf votes behind them. Only do this if you judge their chance of winning is clearly higher than yours and the badge will go to a wolf. If withdrawing would hand the badge to a village-side candidate, stay in.
 Output exactly one predicate:
@@ -381,7 +381,7 @@ Response Format:
     "{}": {{
         "role": select the most likely hidden role of this player from this game's role set: {},
         "reasoning": your reflection and reasoning,
-        "confidence": an integer from 1 to 10. Start at 5 (no evidence, pure guess). Increase with concrete evidence (e.g. seer result, contradictory claims, voting patterns). 10 = absolute certainty with hard proof. Lower below 5 if evidence suggests the opposite of your guess.
+        "confidence": an integer from 0 to 10. Start at 5 (no information). Increase as you become more sure based on what you have observed. Decrease if your observations point away from your guess. 10 = completely certain.
     }}
 }}
 Ensure the response can be parsed by Python json.loads.
@@ -405,8 +405,8 @@ Response Format:
         {{
             "target_player": "player_j",
             "relation": "allied" if they seem to be on the same team, or "unallied" if they seem to be working against each other,
-            "confidence": an integer from 1 to 10. Start at 5 (no evidence). Only increase with concrete evidence (voting alignment, coordinated accusations, etc.). 10 = absolute certainty,
-            "reasoning": "brief explanation of why you think this relationship exists"
+            "confidence": an integer from 0 to 10. Start at 5 (no information). Increase as you become more sure based on what you have observed. Decrease if your observations point away from your guess. 10 = completely certain,
+            "reasoning": "your reflection and reasoning of why you think this relationship exists"
         }}
     ]
 }}
