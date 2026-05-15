@@ -133,7 +133,7 @@ lurkingwolf/          Core engine, agents, eval framework
   eval/               Per-phase replay evaluation system
 examples/             Demo rewriters + experiment configs
 docs/                 User guide + predicate reference
-slurm_scripts/        SLURM templates (adapt to your cluster)
+scripts/              Job submission templates (adapt to your cluster)
 ```
 
 ## Evaluation
@@ -150,10 +150,6 @@ The replay system lets you run counterfactual experiments: take a completed game
 python -m lurkingwolf.eval --mode pred_vs_nl \
     --url http://localhost:8000/ --model Qwen/Qwen3.5-9B
 ```
-
-## SLURM
-
-The `slurm_scripts/` directory has job submission templates. These are cluster-specific -- copy `slurm_conf_template.yaml` to `slurm_conf.yaml` and edit it for your cluster (account name, conda env path, GPU type).
 
 ## License
 
