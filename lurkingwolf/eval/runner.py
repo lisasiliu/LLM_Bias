@@ -26,12 +26,7 @@ from ..config import ExperimentConfig, ReplaySpec
 _HERE = Path(__file__).resolve()
 PROJECT_ROOT = _HERE.parent.parent.parent
 
-_WEREWOLF_ENV = Path("/scratch/ll5937/envs/werewolf/bin/python")
-
-
 def _python() -> str:
-    if _WEREWOLF_ENV.exists():
-        return str(_WEREWOLF_ENV)
     return sys.executable
 
 
