@@ -44,3 +44,29 @@ def clean_natural_text(text: str) -> str:
         if inner:
             cleaned = inner
     return cleaned
+
+
+def strip_reasoning(text: str) -> str:
+    """Return only what a reasoning model emitted AFTER its reasoning.
+
+    ``strip_think_tags`` removes a CLOSED ``<think>...</think>`` pair, which
+    assumes the opening tag is present in the response.  Many chat templates
+    pre-open the tag for the model, so the reply starts mid-reasoning and the
+    ONLY tag that ever appears is the closing one.  The reasoning then survives
+    every cleanup and is treated as the answer.
+
+    Rule: a closed reasoning block ends at its LAST ``</think>`` and everything
+    before that is discarded reasoning -- including drafts the model went on to
+    revise.  If an UNTERMINATED ``<think>`` remains afterwards the response was
+    cut off mid-reasoning; the tag is left in place so the caller can recognise
+    the truncation rather than silently receiving a fragment.
+
+    Additive helper: nothing in the game engine calls it, so game behaviour is
+    unchanged.
+    """
+    if not isinstance(text, str):
+        return ""
+    closes = list(re.finditer(r"</think\s*>", text, flags=re.IGNORECASE))
+    if closes:
+        text = text[closes[-1].end():]
+    return text.strip()
