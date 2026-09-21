@@ -1188,6 +1188,10 @@ def run_single_game(
         "timeline_order": timeline_order,
         "reasoning_timeline": reasoning_timeline,
         "nl_log": nl_log,
+        # Treatment provenance: which rewriter (if any) produced the NL in this run.
+        # Downstream source collection needs this to avoid reusing TREATED speech
+        # as untreated source material.
+        "rewriter": rewriter.to_config() if rewriter is not None else None,
     }
 
 
@@ -1374,6 +1378,8 @@ def save_game_output(result: dict, out_dir: Path,
         manifest["random_seed"] = seed
     if nl_log:
         manifest["files"]["game_nl"] = "game_nl.json"
+    # Null when the run is untreated; a config dict when a rewriter rewrote the NL.
+    manifest["rewriter"] = result.get("rewriter")
     with open(out_dir / "manifest.json", "w", encoding="utf-8") as f:
         json.dump(manifest, f, ensure_ascii=False, indent=2)
 

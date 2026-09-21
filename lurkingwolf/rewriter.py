@@ -42,7 +42,11 @@ class Rewriter(ABC):
 
     @classmethod
     def from_config(cls, cfg: Dict[str, Any], **kwargs) -> "Rewriter":
-        klass = _REGISTRY.get(cfg["class"])
+        # ``register`` keys the registry by ``cls.name`` while ``to_config``
+        # writes ``type(self).__name__``, so accept either spelling.
+        klass = _REGISTRY.get(cfg["class"]) or next(
+            (k for k in _REGISTRY.values() if k.__name__ == cfg["class"]), None
+        )
         if not klass:
             raise ValueError(f"Unknown rewriter: {cfg['class']}")
         return klass(**cfg.get("params", {}), **kwargs)

@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["lurkingwolf*"]
+include = ["lurkingwolf*", "components*"]
 
 [tool.setuptools.package-data]
 "lurkingwolf.prompts" = ["*.json"]
@@ -22,5 +22,3 @@ include = ["lurkingwolf*"]
 [project.scripts]
 lurk = "lurkingwolf.cli:main"
 
-[tool.pytest.ini_options]
-testpaths = ["tests"]

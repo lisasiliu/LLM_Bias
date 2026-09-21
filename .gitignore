@@ -216,11 +216,25 @@ lurkingwolf/test/
 lurkingwolf/mockup/
 
 CLAUDE.md
+AGENTS.md
+research/
 ref/
 .claude/
+run_overnight.sh
+pyproject.toml
 
 # Local evaluation outputs
 lurkingwolf/runs/
 
 .DS_Store
 
+
+# Scratch output of the default --out-dir; the curated copy is offline_fixture/.
+research/validation_runs/latest/
+
+# Raw LURK game runs used as fresh validation sources: regenerate with
+# lurkingwolf.run_game rather than versioning transcripts. The derived sample
+# and its provenance are committed under experiments/politeness_validation/data/.
+games_fresh/
+__pycache__/
+*.pyc
