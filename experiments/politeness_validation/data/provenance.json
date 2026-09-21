@@ -38,7 +38,6 @@
       }
     },
     "annotation": {
-      "annotator": "the study author (single annotator)",
       "blind": true,
       "hidden_during_annotation": [
         "the requested politeness strategy",
@@ -64,7 +63,36 @@
         "note"
       ],
       "primary_semantic_field": "meaning",
-      "limitation": "single annotator who is an author of the study; no second rater"
+      "limitation": "researcher_1 is an author of the study; a second, independent annotation of the same 48 items is prepared but not yet collected, so all reported manual numbers currently rest on one rater",
+      "annotators": {
+        "researcher_1": {
+          "role": "primary",
+          "is_author": true,
+          "items": 48,
+          "collected": true,
+          "fields_prefix": "researcher_1_",
+          "worksheet": "data/researcher_1_worksheet.md (as returned, with answers)",
+          "key": "data/researcher_1_key.json",
+          "blind_to": [
+            "the requested politeness strategy",
+            "every automatic verdict"
+          ]
+        },
+        "researcher_2": {
+          "role": "independent reliability rater",
+          "is_author": false,
+          "items": 48,
+          "collected": false,
+          "fields_prefix": "researcher_2_",
+          "worksheet": "data/researcher_2_worksheet.md",
+          "blind_to": [
+            "the requested politeness strategy",
+            "every automatic verdict",
+            "researcher_1's labels"
+          ],
+          "key": "data/researcher_2_key.json"
+        }
+      }
     },
     "sources": [
       {

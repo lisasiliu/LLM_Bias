@@ -13,8 +13,10 @@ Read **[VALIDATION.md](VALIDATION.md)** for the results and what they mean.
 | `data/manual_validation.jsonl` | one record per rewritten utterance: provenance, predicate, speaker, untreated original, requested strategy, rewrite, the blind manual annotation, every automatic verdict, and the prompt/rubric hashes it was produced under |
 | `data/external_validation.jsonl` | one record per external construct-check item: the published label, how it maps onto our strategies, the split, and our automatic prediction |
 | `data/provenance.json` | source runs, sampling and annotation procedure, what was hidden from the annotator, models and settings, frozen prompt and rubric hashes, git commit |
-| `data/independent_annotation_worksheet.md` | a 20-item blind worksheet prepared for a second, independent annotator; not yet collected |
-| `data/independent_annotation_key.json` | the hidden record for that worksheet — do not open it before annotating |
+| `data/researcher_1_worksheet.md` | the worksheet researcher 1 was issued, **as returned** with their answers — the raw primary annotation record |
+| `data/researcher_1_key.json` | the hidden record for that worksheet |
+| `data/researcher_2_worksheet.md` | the same 48 items as a blank blind worksheet for a second, independent annotator; not yet collected |
+| `data/researcher_2_key.json` | the hidden record for that worksheet — do not open it before annotating |
 
 The JSONL files are the scientifically useful artifacts; everything in
 `VALIDATION.md` is computed from them.
@@ -44,22 +46,27 @@ python -m experiments.politeness_validation.code.validation import-annotations \
     --out data/manual_validation.jsonl
 ```
 
-### Second-annotator reliability round
+### Second annotator
 
-`data/independent_annotation_worksheet.md` is ready to send to an independent
-annotator. It is a 20-item subsample of the 48, balanced 5 per strategy and 5
-per predicate so that all sixteen strategy x predicate cells appear, shuffled
-under a different seed from the first round. Once it comes back:
+Annotations are stored per annotator: `researcher_1_strategy`,
+`researcher_2_meaning` and so on. `researcher_1` is the study author and
+supplies the headline numbers; `researcher_2` is an independent rater.
+
+`data/researcher_2_worksheet.md` holds all 48 items, shuffled under a different
+seed, blind to the requested condition, to every automatic verdict, and to
+researcher 1's labels. **Do not send `researcher_1_worksheet.md` to researcher
+2** — it contains researcher 1's answers. Once the second sheet comes back:
 
 ```bash
 python -m experiments.politeness_validation.code.validation import-annotations \
-    --worksheet independent_annotation_worksheet.md \
-    --key data/independent_annotation_key.json \
-    --out data/independent_annotation.jsonl
+    --worksheet researcher_2_worksheet.md \
+    --key data/researcher_2_key.json \
+    --annotator researcher_2 \
+    --out data/manual_validation.jsonl
 ```
 
-Each record keeps the first round's `item_id`, so the two annotations can be
-compared item by item.
+`analyze` then reports inter-rater agreement on strategy and meaning
+automatically, alongside the existing tables.
 
 Reproduce every statistic in `VALIDATION.md`:
 
