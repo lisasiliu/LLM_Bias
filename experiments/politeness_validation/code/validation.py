@@ -55,6 +55,23 @@ STRATEGY_LABELS = STRATEGIES + ("ambiguous_or_mixed", "failed_manipulation")
 CORE_FIELDS = ("strategy", "confidence", "meaning", "note")
 DETAIL_FIELDS = ("commitment", "directive", "evidence", "reference")
 
+# Annotations are stored per annotator: researcher_1_strategy, researcher_2_meaning
+# and so on. The primary annotator supplies the headline numbers; a second set,
+# when collected, gives inter-rater agreement on the same items.
+PRIMARY_ANNOTATOR = "researcher_1"
+
+
+def field(annotator: str, name: str) -> str:
+    return f"{annotator}_{name}"
+
+
+def annotators_in(records: Sequence[dict]) -> List[str]:
+    """Annotator prefixes present in the data, primary first."""
+    found = {k.rsplit("_", 1)[0] for r in records for k in r
+             if re.fullmatch(r"researcher_\d+_strategy", k)}
+    return ([PRIMARY_ANNOTATOR] if PRIMARY_ANNOTATOR in found else []) + \
+           sorted(found - {PRIMARY_ANNOTATOR})
+
 
 # ═══════════════════════════════════════════════════════════════
 # Worksheet
@@ -93,12 +110,12 @@ def find_leaks(worksheet: str) -> List[str]:
         match = re.match(r"^\s*[-*]?\s*(\w+)\s*:\s*`?([\w/ ]+)`?\s*$", line)
         if not match:
             continue
-        field, value = match.group(1).lower(), match.group(2).strip().lower()
-        # An annotation field left blank for the annotator is not a leak.
-        if field in CORE_FIELDS + DETAIL_FIELDS and not value:
+        name, value = match.group(1).lower(), match.group(2).strip().lower()
+        if name in CORE_FIELDS + DETAIL_FIELDS and not value:
             continue
-        if field in HIDDEN_FIELDS or value in LEAK_TOKENS:
-            found.append(f"{field}: {value}")
+        if (name in HIDDEN_FIELDS or value in LEAK_TOKENS
+                or re.match(r"^researcher_\d+_", name)):
+            found.append(f"{name}: {value}")
     return sorted(set(found))
 
 
@@ -191,7 +208,8 @@ def parse_worksheet(text: str) -> Dict[str, Dict[str, str]]:
     return {k: v for k, v in out.items() if v.get("strategy")}
 
 
-def import_annotations(worksheet_text: str, key: Dict[str, dict]) -> List[dict]:
+def import_annotations(worksheet_text: str, key: Dict[str, dict],
+                       annotator: str = PRIMARY_ANNOTATOR) -> List[dict]:
     """Merge a completed worksheet back into the hidden experimental record."""
     answers = parse_worksheet(worksheet_text)
     merged: List[dict] = []
@@ -199,7 +217,7 @@ def import_annotations(worksheet_text: str, key: Dict[str, dict]) -> List[dict]:
         record = dict(key.get(item_id, {}))
         record["item_id"] = item_id
         for field, value in filled.items():
-            record[f"human_{field}"] = value
+            record[f"{annotator}_{field}"] = value
         merged.append(record)
     return merged
 
@@ -261,20 +279,20 @@ def _matrix(table: Dict[str, Dict[str, int]], corner: str,
 # ═══════════════════════════════════════════════════════════════
 
 def analyse_manual(records: Sequence[dict]) -> Dict[str, Any]:
-    requested_vs_human = [(r["requested_strategy"], r["human_strategy"])
+    requested_vs_human = [(r["requested_strategy"], r[field(PRIMARY_ANNOTATOR, "strategy")])
                           for r in records]
-    human_vs_auto = [(r["human_strategy"], r["automatic_politeness_strategy"])
+    human_vs_auto = [(r[field(PRIMARY_ANNOTATOR, "strategy")], r["automatic_politeness_strategy"])
                      for r in records if r.get("automatic_politeness_strategy")]
 
     confidence: Dict[str, int] = {}
     for record in records:
-        level = record.get("human_confidence") or "(blank)"
+        level = record.get(field(PRIMARY_ANNOTATOR, "confidence")) or "(blank)"
         confidence[level] = confidence.get(level, 0) + 1
 
     def meaning_counts(subset: Sequence[dict]) -> Dict[str, int]:
         counts = {"yes": 0, "no": 0, "unsure": 0}
         for record in subset:
-            value = record.get("human_meaning")
+            value = record.get(field(PRIMARY_ANNOTATOR, "meaning"))
             if value in counts:
                 counts[value] += 1
         return counts
@@ -285,18 +303,18 @@ def analyse_manual(records: Sequence[dict]) -> Dict[str, Any]:
 
     # Automatic semantic QC against the manual `meaning` judgement. `unsure` is
     # never assigned to a side; it is carried as its own bucket.
-    decided = [r for r in records if r.get("human_meaning") in ("yes", "no")]
-    unsure = [r for r in records if r.get("human_meaning") == "unsure"]
+    decided = [r for r in records if r.get(field(PRIMARY_ANNOTATOR, "meaning")) in ("yes", "no")]
+    unsure = [r for r in records if r.get(field(PRIMARY_ANNOTATOR, "meaning")) == "unsure"]
 
     def against_meaning(accepted) -> Dict[str, Any]:
         return {
             "n_decided": len(decided),
             "agreement": sum(1 for r in decided
-                             if accepted(r) == (r["human_meaning"] == "yes")),
+                             if accepted(r) == (r[field(PRIMARY_ANNOTATOR, "meaning")] == "yes")),
             "accepted_but_human_no": [r["item_id"] for r in decided
-                                      if accepted(r) and r["human_meaning"] == "no"],
+                                      if accepted(r) and r[field(PRIMARY_ANNOTATOR, "meaning")] == "no"],
             "flagged_but_human_yes": [r["item_id"] for r in decided
-                                      if not accepted(r) and r["human_meaning"] == "yes"],
+                                      if not accepted(r) and r[field(PRIMARY_ANNOTATOR, "meaning")] == "yes"],
             "unsure_accepted": [r["item_id"] for r in unsure if accepted(r)],
             "unsure_flagged": [r["item_id"] for r in unsure if not accepted(r)],
         }
@@ -340,7 +358,7 @@ def analyse_manual(records: Sequence[dict]) -> Dict[str, Any]:
             "by_requested": {s: {
                 "n": sum(1 for r in records if r["requested_strategy"] == s),
                 "human": sum(1 for r in records if r["requested_strategy"] == s
-                             and r["human_strategy"] == s),
+                             and r[field(PRIMARY_ANNOTATOR, "strategy")] == s),
                 "automatic": sum(1 for r in records if r["requested_strategy"] == s
                                  and r.get("automatic_politeness_strategy") == s),
             } for s in strategies},
@@ -355,10 +373,10 @@ def analyse_manual(records: Sequence[dict]) -> Dict[str, Any]:
                              for p in predicates},
             "failures": [
                 {"item_id": r["item_id"], "requested": r["requested_strategy"],
-                 "predicate": r["predicate_name"], "meaning": r["human_meaning"],
-                 "note": r.get("human_note", ""),
-                 "broken": [f for f in DETAIL_FIELDS if r.get(f"human_{f}") == "no"]}
-                for r in records if r.get("human_meaning") in ("no", "unsure")],
+                 "predicate": r["predicate_name"], "meaning": r[field(PRIMARY_ANNOTATOR, "meaning")],
+                 "note": r.get(field(PRIMARY_ANNOTATOR, "note"), ""),
+                 "broken": [f for f in DETAIL_FIELDS if r.get(field(PRIMARY_ANNOTATOR, f)) == "no"]}
+                for r in records if r.get(field(PRIMARY_ANNOTATOR, "meaning")) in ("no", "unsure")],
         },
         "automatic_semantic": {
             "inverse_parser": against_meaning(
@@ -374,9 +392,36 @@ def analyse_manual(records: Sequence[dict]) -> Dict[str, Any]:
                             for s in strategies},
             "items": [{"item_id": r["item_id"], "requested": r["requested_strategy"],
                        "reasons": r.get("adjudication_reasons", []),
-                       "human_meaning": r.get("human_meaning")} for r in queued],
+                       field(PRIMARY_ANNOTATOR, "meaning"): r.get(field(PRIMARY_ANNOTATOR, "meaning"))} for r in queued],
         },
     }
+
+
+def inter_rater(records: Sequence[dict]) -> Dict[str, Any]:
+    """Agreement between annotators on the items both of them labelled."""
+    who = annotators_in(records)
+    if len(who) < 2:
+        return {"annotators": who, "pairs": {}}
+    out: Dict[str, Any] = {"annotators": who, "pairs": {}}
+    for i, a in enumerate(who):
+        for b in who[i + 1:]:
+            block: Dict[str, Any] = {}
+            for name in ("strategy", "meaning"):
+                both = [(r[field(a, name)], r[field(b, name)]) for r in records
+                        if r.get(field(a, name)) and r.get(field(b, name))]
+                block[name] = {
+                    "n": len(both),
+                    "agreed": sum(1 for x, y in both if x == y),
+                    "confusion": confusion(both),
+                    "disagreements": [
+                        {"item_id": r["item_id"], a: r[field(a, name)], b: r[field(b, name)],
+                         "requested": r["requested_strategy"]}
+                        for r in records
+                        if r.get(field(a, name)) and r.get(field(b, name))
+                        and r[field(a, name)] != r[field(b, name)]],
+                }
+            out["pairs"][f"{a} vs {b}"] = block
+    return out
 
 
 def analyse_external(records: Sequence[dict]) -> Dict[str, Any]:
@@ -423,7 +468,8 @@ PRETTY = {"bald_on_record": "bald on-record",
           "off_record": "off-record"}
 
 
-def render(manual: Dict[str, Any], external: Dict[str, Any]) -> str:
+def render(manual: Dict[str, Any], external: Dict[str, Any],
+           rater: Optional[Dict[str, Any]] = None) -> str:
     m, a, s = manual["manipulation"], manual["automatic_strategy"], manual["semantic"]
     out: List[str] = ["## Manipulation success (manual annotation)", "",
                       "| strategy | n | recognized as requested |",
@@ -490,7 +536,30 @@ def render(manual: Dict[str, Any], external: Dict[str, Any]) -> str:
             f"**{rate(adj['queued'], manual['n'])}** — "
             + ", ".join(f"{PRETTY.get(k, k)} {v}"
                         for k, v in adj["by_strategy"].items() if v) + ".",
-            "", "## External construct validation", ""]
+            ""]
+    if rater and rater.get("pairs"):
+        out += ["## Inter-rater agreement", ""]
+        for pair, block in rater["pairs"].items():
+            a, b = pair.split(" vs ")
+            out += [f"**{pair}**", "",
+                    "| judgement | n | agreed |", "| --- | ---: | ---: |"]
+            for name in ("strategy", "meaning"):
+                st = block[name]
+                out.append(f"| {name} | {st['n']} | {rate(st['agreed'], st['n'])} |")
+            out.append("")
+            for name in ("strategy", "meaning"):
+                if block[name]["disagreements"]:
+                    out += [f"Disagreements on {name}:", "",
+                            f"| item | {a} | {b} | requested |",
+                            "| --- | --- | --- | --- |"]
+                    for d in block[name]["disagreements"]:
+                        out.append(f"| {d['item_id']} | {d[a]} | {d[b]} | {d['requested']} |")
+                    out.append("")
+    elif rater:
+        out += ["## Inter-rater agreement", "",
+                f"Only one annotator so far ({', '.join(rater['annotators'])}); a "
+                "second set of labels on the same items would give reliability.", ""]
+    out += ["## External construct validation", ""]
     if external:
         pn = external["positive_vs_negative"]
         out += [f"Dataset `{external['dataset']}`, {external['n_eligible']} "
@@ -540,7 +609,8 @@ def cmd_build_worksheet(args) -> int:
 
 def cmd_import_annotations(args) -> int:
     key = json.loads(Path(args.key).read_text(encoding="utf-8"))
-    merged = import_annotations(Path(args.worksheet).read_text(encoding="utf-8"), key)
+    merged = import_annotations(Path(args.worksheet).read_text(encoding="utf-8"), key,
+                                annotator=args.annotator)
     if not merged:
         print(f"No completed items found in {args.worksheet}.", file=sys.stderr)
         return 2
@@ -553,7 +623,8 @@ def cmd_analyze(args) -> int:
     manual = analyse_manual(read_jsonl(Path(args.manual)))
     external = analyse_external(read_jsonl(Path(args.external))) \
         if Path(args.external).exists() else {}
-    tables = render(manual, external)
+    rater = inter_rater(read_jsonl(Path(args.manual)))
+    tables = render(manual, external, rater)
     if args.out:
         Path(args.out).write_text(tables, encoding="utf-8")
         print(f"wrote {args.out}")
@@ -561,7 +632,7 @@ def cmd_analyze(args) -> int:
         print(tables)
     if args.json:
         Path(args.json).write_text(
-            json.dumps({"manual": manual, "external": external},
+            json.dumps({"manual": manual, "external": external, "inter_rater": rater},
                        ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         print(f"wrote {args.json}")
     return 0
@@ -640,6 +711,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     p2.add_argument("--worksheet", type=Path, required=True)
     p2.add_argument("--key", type=Path, required=True)
     p2.add_argument("--out", type=Path, required=True)
+    p2.add_argument("--annotator", default=PRIMARY_ANNOTATOR,
+                    help="prefix the answers are stored under, e.g. researcher_2")
 
     p3 = sub.add_parser("analyze", help="validation tables from the canonical data")
     p3.add_argument("--manual", type=Path, default=MANUAL)

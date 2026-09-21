@@ -73,18 +73,17 @@ statement.
 Confidence: **36 high, 12 medium, 0 low**. No item was labelled
 `ambiguous_or_mixed` or `failed_manipulation`. The confusion matrix is diagonal.
 
-**Limitation.** There was a single annotator, who is an author of the study.
-The annotation was blind to condition, but an author may recognise the design's
-structure, and a perfect result should be read with that in mind.
+**Limitation.** All 48 items were annotated by one rater (`researcher_1`), who
+is an author of the study. The annotation was blind to condition, but an author
+may recognise the design's structure, and a perfect result should be read with
+that in mind.
 
-A second, independent annotation has been **prepared but not yet collected**:
-`data/independent_annotation_worksheet.md` holds a 20-item subsample of the 48,
-balanced five per strategy and five per predicate so that all sixteen strategy x
-predicate cells are represented, shuffled under a different seed and blind to
-condition and to the first annotator's labels. It happens to include three of
-the five items whose meaning the first annotator did not mark `yes`, which is a
-consequence of the balanced draw rather than a selection of contested cases.
-Until it is returned, the manipulation result rests on one rater.
+A second, independent annotation of the **same 48 items** has been prepared but
+**not yet collected**: `data/researcher_2_worksheet.md`, shuffled under a
+different seed and blind to the requested condition, to every automatic verdict
+and to researcher 1's labels. Annotations are stored per rater
+(`researcher_1_*`, `researcher_2_*`), so agreement is computed item by item once
+it returns. Until then every manual number here rests on one rater.
 
 ## Automatic strategy classification
 
