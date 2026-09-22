@@ -48,9 +48,9 @@ python -m experiments.politeness_validation.code.validation import-annotations \
 
 ### Second annotator
 
-Annotations are stored per annotator: `researcher_1_strategy`,
-`researcher_2_meaning` and so on. `researcher_1` is the study author and
-supplies the headline numbers; `researcher_2` is an independent rater.
+Each item carries an `annotations` list, one entry per rater (`rater_1`,
+`rater_2`), plus `strategy_agreement` / `meaning_agreement` flags. Categorical
+labels are never averaged across raters.
 
 `data/researcher_2_worksheet.md` holds all 48 items, shuffled under a different
 seed, blind to the requested condition, to every automatic verdict, and to
@@ -61,12 +61,13 @@ researcher 1's labels. **Do not send `researcher_1_worksheet.md` to researcher
 python -m experiments.politeness_validation.code.validation import-annotations \
     --worksheet researcher_2_worksheet.md \
     --key data/researcher_2_key.json \
-    --annotator researcher_2 \
+    --annotator rater_2 \
     --out data/manual_validation.jsonl
 ```
 
-`analyze` then reports inter-rater agreement on strategy and meaning
-automatically, alongside the existing tables.
+`analyze` reports each rater against the requested strategy, inter-rater
+agreement with unweighted Cohen's kappa, and the meaning counts.
+`--latex -` prints a paste-ready LaTeX subsection with the same numbers.
 
 Reproduce every statistic in `VALIDATION.md`:
 

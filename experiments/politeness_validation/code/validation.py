@@ -55,22 +55,33 @@ STRATEGY_LABELS = STRATEGIES + ("ambiguous_or_mixed", "failed_manipulation")
 CORE_FIELDS = ("strategy", "confidence", "meaning", "note")
 DETAIL_FIELDS = ("commitment", "directive", "evidence", "reference")
 
-# Annotations are stored per annotator: researcher_1_strategy, researcher_2_meaning
-# and so on. The primary annotator supplies the headline numbers; a second set,
-# when collected, gives inter-rater agreement on the same items.
-PRIMARY_ANNOTATOR = "researcher_1"
+# Annotations live in a per-item `annotations` list, one entry per rater, so a
+# categorical label is never averaged across raters.
+RATERS = ("rater_1", "rater_2")
 
 
-def field(annotator: str, name: str) -> str:
-    return f"{annotator}_{name}"
+def annotation(record: dict, rater: str) -> Dict[str, Any]:
+    for a in record.get("annotations", []):
+        if a.get("annotator") == rater:
+            return a
+    return {}
 
 
-def annotators_in(records: Sequence[dict]) -> List[str]:
-    """Annotator prefixes present in the data, primary first."""
-    found = {k.rsplit("_", 1)[0] for r in records for k in r
-             if re.fullmatch(r"researcher_\d+_strategy", k)}
-    return ([PRIMARY_ANNOTATOR] if PRIMARY_ANNOTATOR in found else []) + \
-           sorted(found - {PRIMARY_ANNOTATOR})
+def raters_in(records: Sequence[dict]) -> List[str]:
+    found = {a["annotator"] for r in records for a in r.get("annotations", [])}
+    return [r for r in RATERS if r in found] + sorted(found - set(RATERS))
+
+
+def cohen_kappa(pairs: Sequence[Tuple[str, str]]) -> Optional[float]:
+    """Unweighted Cohen's kappa. The labels are nominal, so no weighting."""
+    if not pairs:
+        return None
+    labels = sorted({x for p in pairs for x in p})
+    n = len(pairs)
+    observed = sum(1 for a, b in pairs if a == b) / n
+    expected = sum((sum(1 for a, _ in pairs if a == l) / n) *
+                   (sum(1 for _, b in pairs if b == l) / n) for l in labels)
+    return None if expected == 1 else (observed - expected) / (1 - expected)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -209,15 +220,25 @@ def parse_worksheet(text: str) -> Dict[str, Dict[str, str]]:
 
 
 def import_annotations(worksheet_text: str, key: Dict[str, dict],
-                       annotator: str = PRIMARY_ANNOTATOR) -> List[dict]:
+                       annotator: str = "rater_1") -> List[dict]:
     """Merge a completed worksheet back into the hidden experimental record."""
     answers = parse_worksheet(worksheet_text)
     merged: List[dict] = []
     for item_id, filled in sorted(answers.items()):
         record = dict(key.get(item_id, {}))
-        record["item_id"] = item_id
-        for field, value in filled.items():
-            record[f"{annotator}_{field}"] = value
+        # The key carries the canonical item id; a worksheet's own numbering is
+        # just its shuffle order and must not overwrite it.
+        record.setdefault("item_id", item_id)
+        entry = {"annotator": annotator,
+                 **{f: filled.get(f) for f in CORE_FIELDS + DETAIL_FIELDS}}
+        others = [a for a in record.get("annotations", [])
+                  if a.get("annotator") != annotator]
+        record["annotations"] = others + [entry]
+        by = {a["annotator"]: a for a in record["annotations"]}
+        if len(by) >= 2:
+            first, second = [by[k] for k in list(by)[:2]]
+            record["strategy_agreement"] = first.get("strategy") == second.get("strategy")
+            record["meaning_agreement"] = first.get("meaning") == second.get("meaning")
         merged.append(record)
     return merged
 
@@ -279,149 +300,71 @@ def _matrix(table: Dict[str, Dict[str, int]], corner: str,
 # ═══════════════════════════════════════════════════════════════
 
 def analyse_manual(records: Sequence[dict]) -> Dict[str, Any]:
-    requested_vs_human = [(r["requested_strategy"], r[field(PRIMARY_ANNOTATOR, "strategy")])
-                          for r in records]
-    human_vs_auto = [(r[field(PRIMARY_ANNOTATOR, "strategy")], r["automatic_politeness_strategy"])
-                     for r in records if r.get("automatic_politeness_strategy")]
+    """Manipulation check and meaning preservation, per rater and between them."""
+    raters = raters_in(records)
+    strategies = [x for x in STRATEGIES
+                  if any(r["requested_strategy"] == x for r in records)]
 
-    confidence: Dict[str, int] = {}
-    for record in records:
-        level = record.get(field(PRIMARY_ANNOTATOR, "confidence")) or "(blank)"
-        confidence[level] = confidence.get(level, 0) + 1
-
-    def meaning_counts(subset: Sequence[dict]) -> Dict[str, int]:
-        counts = {"yes": 0, "no": 0, "unsure": 0}
-        for record in subset:
-            value = record.get(field(PRIMARY_ANNOTATOR, "meaning"))
-            if value in counts:
-                counts[value] += 1
-        return counts
-
-    strategies = [s for s in STRATEGIES
-                  if any(r["requested_strategy"] == s for r in records)]
-    predicates = sorted({r["predicate_name"] for r in records})
-
-    # Automatic semantic QC against the manual `meaning` judgement. `unsure` is
-    # never assigned to a side; it is carried as its own bucket.
-    decided = [r for r in records if r.get(field(PRIMARY_ANNOTATOR, "meaning")) in ("yes", "no")]
-    unsure = [r for r in records if r.get(field(PRIMARY_ANNOTATOR, "meaning")) == "unsure"]
-
-    def against_meaning(accepted) -> Dict[str, Any]:
-        return {
-            "n_decided": len(decided),
-            "agreement": sum(1 for r in decided
-                             if accepted(r) == (r[field(PRIMARY_ANNOTATOR, "meaning")] == "yes")),
-            "accepted_but_human_no": [r["item_id"] for r in decided
-                                      if accepted(r) and r[field(PRIMARY_ANNOTATOR, "meaning")] == "no"],
-            "flagged_but_human_yes": [r["item_id"] for r in decided
-                                      if not accepted(r) and r[field(PRIMARY_ANNOTATOR, "meaning")] == "yes"],
-            "unsure_accepted": [r["item_id"] for r in unsure if accepted(r)],
-            "unsure_flagged": [r["item_id"] for r in unsure if not accepted(r)],
+    per_rater: Dict[str, Any] = {}
+    for rater in raters:
+        pairs = [(r["requested_strategy"], annotation(r, rater).get("strategy"))
+                 for r in records]
+        meaning = {k: 0 for k in ("yes", "no", "unsure")}
+        for r in records:
+            v = annotation(r, rater).get("meaning")
+            if v in meaning:
+                meaning[v] += 1
+        per_rater[rater] = {
+            "matched": sum(1 for a, b in pairs if a == b),
+            "n": len(pairs),
+            "by_strategy": {x: {"n": sum(1 for a, _ in pairs if a == x),
+                                "matched": sum(1 for a, b in pairs if a == x and a == b)}
+                            for x in strategies},
+            "off_scheme": {lab: sum(1 for _, b in pairs if b == lab)
+                           for lab in ("ambiguous_or_mixed", "failed_manipulation")},
+            "confidence": {c: sum(1 for r in records
+                                  if annotation(r, rater).get("confidence") == c)
+                           for c in ("high", "medium", "low")},
+            "meaning": meaning,
+            "meaning_by_strategy": {
+                x: {k: sum(1 for r in records if r["requested_strategy"] == x
+                           and annotation(r, rater).get("meaning") == k)
+                    for k in ("yes", "no", "unsure")} for x in strategies},
         }
 
-    queued = [r for r in records if r.get("adjudication_required")]
-    return {
-        "n": len(records),
-        "strategies": strategies,
-        "predicates": predicates,
-        "manipulation": {
-            "overall": sum(1 for a, b in requested_vs_human if a == b),
-            "by_strategy": {s: {
-                "n": sum(1 for a, _ in requested_vs_human if a == s),
-                "recognized": sum(1 for a, b in requested_vs_human if a == s and a == b),
-            } for s in strategies},
-            "confusion": confusion(requested_vs_human),
-            "off_scheme": {
-                label: sum(1 for _, b in requested_vs_human if b == label)
-                for label in ("ambiguous_or_mixed", "failed_manipulation")},
-            "confidence": confidence,
-        },
-        "automatic_strategy": {
-            "n": len(human_vs_auto),
-            "agreement_with_human": sum(1 for a, b in human_vs_auto if a == b),
-            "macro_f1": macro_f1(human_vs_auto),
-            "per_class": per_class(human_vs_auto),
-            "confusion": confusion(human_vs_auto),
-            # False positives per PREDICTED label: how often the classifier
-            # assigns a strategy the annotator did not. This is what tells the
-            # error pattern apart from mere low recall.
-            "false_positives_by_label": {
-                label: {
-                    "predicted": sum(1 for _, p in human_vs_auto if p == label),
-                    "correct": sum(1 for h, p in human_vs_auto if p == label and h == label),
-                    "false_positive": sum(1 for h, p in human_vs_auto
-                                          if p == label and h != label),
-                } for label in sorted({p for _, p in human_vs_auto})},
-            "misses_by_destination": {
-                f"{h} -> {p}": sum(1 for a, b in human_vs_auto if a == h and b == p)
-                for h, p in sorted({(h, p) for h, p in human_vs_auto if h != p})},
-            "by_requested": {s: {
-                "n": sum(1 for r in records if r["requested_strategy"] == s),
-                "human": sum(1 for r in records if r["requested_strategy"] == s
-                             and r[field(PRIMARY_ANNOTATOR, "strategy")] == s),
-                "automatic": sum(1 for r in records if r["requested_strategy"] == s
-                                 and r.get("automatic_politeness_strategy") == s),
-            } for s in strategies},
-        },
-        "semantic": {
-            "overall": meaning_counts(records),
-            "by_strategy": {s: meaning_counts([r for r in records
-                                               if r["requested_strategy"] == s])
-                            for s in strategies},
-            "by_predicate": {p: meaning_counts([r for r in records
-                                                if r["predicate_name"] == p])
-                             for p in predicates},
-            "failures": [
-                {"item_id": r["item_id"], "requested": r["requested_strategy"],
-                 "predicate": r["predicate_name"], "meaning": r[field(PRIMARY_ANNOTATOR, "meaning")],
-                 "note": r.get(field(PRIMARY_ANNOTATOR, "note"), ""),
-                 "broken": [f for f in DETAIL_FIELDS if r.get(field(PRIMARY_ANNOTATOR, f)) == "no"]}
-                for r in records if r.get(field(PRIMARY_ANNOTATOR, "meaning")) in ("no", "unsure")],
-        },
-        "automatic_semantic": {
-            "inverse_parser": against_meaning(
-                lambda r: bool(r.get("inverse_parser_structural_match"))),
-            "semantic_validator": against_meaning(
-                lambda r: r.get("semantic_ok") is True),
-            "combined": against_meaning(lambda r: not r.get("adjudication_required")),
-            "n_unsure": len(unsure),
-        },
-        "adjudication": {
-            "queued": len(queued),
-            "by_strategy": {s: sum(1 for r in queued if r["requested_strategy"] == s)
-                            for s in strategies},
-            "items": [{"item_id": r["item_id"], "requested": r["requested_strategy"],
-                       "reasons": r.get("adjudication_reasons", []),
-                       field(PRIMARY_ANNOTATOR, "meaning"): r.get(field(PRIMARY_ANNOTATOR, "meaning"))} for r in queued],
-        },
-    }
+    reliability: Dict[str, Any] = {}
+    if len(raters) >= 2:
+        a, b = raters[0], raters[1]
+        for name in ("strategy", "meaning"):
+            pairs = [(annotation(r, a).get(name), annotation(r, b).get(name))
+                     for r in records
+                     if annotation(r, a).get(name) and annotation(r, b).get(name)]
+            reliability[name] = {
+                "n": len(pairs),
+                "agreed": sum(1 for x, y in pairs if x == y),
+                "kappa": cohen_kappa(pairs),
+                "confusion": confusion(pairs),
+                "disagreements": [
+                    {"item_id": r["item_id"], "requested": r["requested_strategy"],
+                     "predicate": r["predicate_name"],
+                     a: annotation(r, a).get(name), b: annotation(r, b).get(name),
+                     f"{a}_note": annotation(r, a).get("note", ""),
+                     f"{b}_note": annotation(r, b).get("note", "")}
+                    for r in records
+                    if annotation(r, a).get(name) != annotation(r, b).get(name)],
+            }
 
+    # The automatic classifier is diagnostic only: one agreement number, no table.
+    automatic = {}
+    for rater in raters:
+        pairs = [(annotation(r, rater).get("strategy"), r.get("automatic_politeness_strategy"))
+                 for r in records if r.get("automatic_politeness_strategy")]
+        automatic[rater] = {"n": len(pairs),
+                            "agreed": sum(1 for x, y in pairs if x == y)}
 
-def inter_rater(records: Sequence[dict]) -> Dict[str, Any]:
-    """Agreement between annotators on the items both of them labelled."""
-    who = annotators_in(records)
-    if len(who) < 2:
-        return {"annotators": who, "pairs": {}}
-    out: Dict[str, Any] = {"annotators": who, "pairs": {}}
-    for i, a in enumerate(who):
-        for b in who[i + 1:]:
-            block: Dict[str, Any] = {}
-            for name in ("strategy", "meaning"):
-                both = [(r[field(a, name)], r[field(b, name)]) for r in records
-                        if r.get(field(a, name)) and r.get(field(b, name))]
-                block[name] = {
-                    "n": len(both),
-                    "agreed": sum(1 for x, y in both if x == y),
-                    "confusion": confusion(both),
-                    "disagreements": [
-                        {"item_id": r["item_id"], a: r[field(a, name)], b: r[field(b, name)],
-                         "requested": r["requested_strategy"]}
-                        for r in records
-                        if r.get(field(a, name)) and r.get(field(b, name))
-                        and r[field(a, name)] != r[field(b, name)]],
-                }
-            out["pairs"][f"{a} vs {b}"] = block
-    return out
+    return {"n": len(records), "raters": raters, "strategies": strategies,
+            "per_rater": per_rater, "reliability": reliability,
+            "automatic_classifier": automatic}
 
 
 def analyse_external(records: Sequence[dict]) -> Dict[str, Any]:
@@ -469,122 +412,166 @@ PRETTY = {"bald_on_record": "bald on-record",
 
 
 def render(manual: Dict[str, Any], external: Dict[str, Any],
-           rater: Optional[Dict[str, Any]] = None) -> str:
-    m, a, s = manual["manipulation"], manual["automatic_strategy"], manual["semantic"]
-    out: List[str] = ["## Manipulation success (manual annotation)", "",
-                      "| strategy | n | recognized as requested |",
-                      "| --- | ---: | ---: |"]
-    for strategy in manual["strategies"]:
-        row = m["by_strategy"][strategy]
-        out.append(f"| {PRETTY.get(strategy, strategy)} | {row['n']} | {row['recognized']} |")
-    out.append(f"| **total** | **{manual['n']}** | **{m['overall']}** |")
+           _unused: Any = None) -> str:
+    """The paper-facing tables, and nothing else."""
+    raters = manual["raters"]
+    pr, rel = manual["per_rater"], manual["reliability"]
+    label = {r: f"Rater {i + 1}" for i, r in enumerate(raters)}
 
-    out += ["", "Annotator confidence: " +
-            ", ".join(f"{n} {level}" for level, n in sorted(m["confidence"].items(),
-                                                            key=lambda kv: -kv[1])) + ".",
-            f"Labelled `ambiguous_or_mixed`: {m['off_scheme']['ambiguous_or_mixed']}; "
-            f"`failed_manipulation`: {m['off_scheme']['failed_manipulation']}.",
-            "", "## Automatic strategy classification", "",
-            "| requested strategy | manual | automatic |", "| --- | ---: | ---: |"]
+    out = ["## Manipulation check", "",
+           "| Requested strategy | n | " + " | ".join(label[r] for r in raters) + " |",
+           "| --- | ---: |" + " ---: |" * len(raters)]
     for strategy in manual["strategies"]:
-        row = a["by_requested"][strategy]
-        out.append(f"| {PRETTY.get(strategy, strategy)} | {row['human']}/{row['n']} | "
-                   f"{row['automatic']}/{row['n']} |")
-    out += ["",
-            f"Agreement with the manual annotation: "
-            f"**{rate(a['agreement_with_human'], a['n'])}**, macro-F1 "
-            f"{a['macro_f1']:.3f}.", "",
-            "| class | precision | recall | F1 | n |", "| --- | ---: | ---: | ---: | ---: |"]
-    for label, stats in sorted(a["per_class"].items()):
-        if stats["support"]:
-            out.append(f"| {PRETTY.get(label, label)} | {stats['precision']:.2f} | "
-                       f"{stats['recall']:.2f} | {stats['f1']:.2f} | "
-                       f"{int(stats['support'])} |")
-    out += ["", "Confusion, manual label against automatic label:", ""]
-    out += _matrix(a["confusion"], "manual \\ automatic")
+        cells = " | ".join(f"{pr[r]['by_strategy'][strategy]['matched']}/"
+                           f"{pr[r]['by_strategy'][strategy]['n']}" for r in raters)
+        out.append(f"| {PRETTY.get(strategy, strategy)} | "
+                   f"{pr[raters[0]]['by_strategy'][strategy]['n']} | {cells} |")
+    out.append("| **Overall** | **" + str(manual["n"]) + "** | " +
+               " | ".join(f"**{pr[r]['matched']}/{pr[r]['n']}**" for r in raters) + " |")
 
-    out += ["", "## Semantic preservation (manual annotation)", "",
-            "| strategy | yes | no | unsure |", "| --- | ---: | ---: | ---: |"]
-    for strategy in manual["strategies"]:
-        c = s["by_strategy"][strategy]
-        out.append(f"| {PRETTY.get(strategy, strategy)} | {c['yes']} | {c['no']} | "
-                   f"{c['unsure']} |")
-    total = s["overall"]
-    out.append(f"| **total** | **{total['yes']}** | **{total['no']}** | "
-               f"**{total['unsure']}** |")
-    out += ["", "| predicate | yes | no | unsure |", "| --- | ---: | ---: | ---: |"]
-    for predicate in manual["predicates"]:
-        c = s["by_predicate"][predicate]
-        out.append(f"| {predicate} | {c['yes']} | {c['no']} | {c['unsure']} |")
+    if rel.get("strategy"):
+        st = rel["strategy"]
+        out += ["", f"Inter-rater strategy agreement: **{rate(st['agreed'], st['n'])}**, "
+                    f"Cohen's kappa = **{st['kappa']:.3f}**" if st["kappa"] is not None
+                else "", ]
+        if st["disagreements"]:
+            out += ["", "| item | " + " | ".join(label[r] for r in raters) + " | requested |",
+                    "| --- | --- | --- | --- |"]
+            for d in st["disagreements"]:
+                out.append(f"| {d['item_id']} | " +
+                           " | ".join(PRETTY.get(d[r], str(d[r])) for r in raters) +
+                           f" | {PRETTY.get(d['requested'], d['requested'])} |")
 
-    auto = manual["automatic_semantic"]
-    out += ["", "## Automatic semantic quality control", "",
-            "Agreement with the manual `meaning` judgement, over the items the",
-            "annotator decided (`unsure` held out of every rate):", "",
-            "| check | agreement | accepted, manually marked not preserved | "
-            "flagged, manually marked preserved |",
-            "| --- | ---: | ---: | ---: |"]
-    for name, label in (("inverse_parser", "inverse predicate parser"),
-                        ("semantic_validator", "dimensional semantic validator"),
-                        ("combined", "combined policy")):
-        block = auto[name]
-        out.append(f"| {label} | {rate(block['agreement'], block['n_decided'])} | "
-                   f"{len(block['accepted_but_human_no'])} | "
-                   f"{len(block['flagged_but_human_yes'])} |")
-    adj = manual["adjudication"]
-    out += ["", f"Items sent to human adjudication: "
-            f"**{rate(adj['queued'], manual['n'])}** — "
-            + ", ".join(f"{PRETTY.get(k, k)} {v}"
-                        for k, v in adj["by_strategy"].items() if v) + ".",
-            ""]
-    if rater and rater.get("pairs"):
-        out += ["## Inter-rater agreement", ""]
-        for pair, block in rater["pairs"].items():
-            a, b = pair.split(" vs ")
-            out += [f"**{pair}**", "",
-                    "| judgement | n | agreed |", "| --- | ---: | ---: |"]
-            for name in ("strategy", "meaning"):
-                st = block[name]
-                out.append(f"| {name} | {st['n']} | {rate(st['agreed'], st['n'])} |")
-            out.append("")
-            for name in ("strategy", "meaning"):
-                if block[name]["disagreements"]:
-                    out += [f"Disagreements on {name}:", "",
-                            f"| item | {a} | {b} | requested |",
-                            "| --- | --- | --- | --- |"]
-                    for d in block[name]["disagreements"]:
-                        out.append(f"| {d['item_id']} | {d[a]} | {d[b]} | {d['requested']} |")
-                    out.append("")
-    elif rater:
-        out += ["## Inter-rater agreement", "",
-                f"Only one annotator so far ({', '.join(rater['annotators'])}); a "
-                "second set of labels on the same items would give reliability.", ""]
-    out += ["## External construct validation", ""]
+    out += ["", "## Meaning preservation", "",
+            "| Rater | Yes | No | Unsure |", "| --- | ---: | ---: | ---: |"]
+    for r in raters:
+        m = pr[r]["meaning"]
+        out.append(f"| {label[r]} | {m['yes']} | {m['no']} | {m['unsure']} |")
+    if rel.get("meaning"):
+        mn = rel["meaning"]
+        out += ["", f"Exact meaning agreement: **{rate(mn['agreed'], mn['n'])}**"
+                    + (f", Cohen's kappa = **{mn['kappa']:.3f}**"
+                       if mn["kappa"] is not None else "")]
+        if mn["disagreements"]:
+            out += ["", "| item | " + " | ".join(label[r] for r in raters)
+                    + " | requested |", "| --- | --- | --- | --- |"]
+            for d in mn["disagreements"]:
+                out.append(f"| {d['item_id']} | " + " | ".join(str(d[r]) for r in raters)
+                           + f" | {PRETTY.get(d['requested'], d['requested'])} |")
+
+    auto = manual["automatic_classifier"]
+    if auto:
+        agrees = ", ".join(f"{label[r]} {rate(auto[r]['agreed'], auto[r]['n'])}"
+                           for r in raters if r in auto)
+        out += ["", "## Automatic politeness classifier", "",
+                f"Agreement with the human annotations: {agrees}. Recall is "
+                "substantially lower than the annotators' for positive-politeness "
+                "and off-record realizations, so the classifier is used only "
+                "diagnostically and never as an acceptance criterion."]
+
     if external:
         pn = external["positive_vs_negative"]
-        out += [f"Dataset `{external['dataset']}`, {external['n_eligible']} "
-                f"eligible items of {external['n_records']} in the evaluated split.",
-                "",
-                f"- four-way agreement with the published superordinate label: "
-                f"**{external['accuracy']:.1%}** (macro-F1 {external['macro_f1']:.3f})",
-                f"- coverage into the positive/negative pair: "
-                f"**{pn['n_predicted_in_pair']}/{pn['n_gold_pair']}** "
-                f"({pn['coverage']:.1%}) of gold positive/negative items are also "
-                f"predicted positive or negative",
-                f"- conditional discrimination within those "
-                f"{pn['n_predicted_in_pair']}: "
-                f"**{pn['conditional_agreement']:.1%}** "
-                f"({pn['conditional_correct']}/{pn['n_predicted_in_pair']})", "",
-                "| class | precision | recall | F1 | n |",
-                "| --- | ---: | ---: | ---: | ---: |"]
-        for label, stats in sorted(external["per_class"].items()):
-            if stats["support"]:
-                out.append(f"| {PRETTY.get(label, label)} | {stats['precision']:.2f} | "
-                           f"{stats['recall']:.2f} | {stats['f1']:.2f} | "
-                           f"{int(stats['support'])} |")
-        out += ["", "Confusion, published label against automatic label:", ""]
-        out += _matrix(external["confusion"], "published \\ automatic")
+        out += ["", "## External construct check", "",
+                f"Among {pn['n_gold_pair']} gold positive/negative items in "
+                f"Zhao & Hawkins, {pn['n_predicted_in_pair']} were also placed by our "
+                f"classifier in the positive/negative pair; agreement within those "
+                f"{pn['n_predicted_in_pair']} was "
+                f"**{pn['conditional_agreement']:.1%}**. Conditional construct "
+                "evidence, not general classifier accuracy."]
     return "\n".join(out) + "\n"
+
+
+def render_latex(manual: Dict[str, Any], external: Dict[str, Any],
+                 provenance: Dict[str, Any]) -> str:
+    """A paste-ready LaTeX subsection. Every number comes from the data."""
+    raters, pr, rel = manual["raters"], manual["per_rater"], manual["reliability"]
+    st, mn = rel.get("strategy", {}), rel.get("meaning", {})
+    sampling = provenance.get("manual_validation", {}).get("sampling", {})
+    n_sources = sampling.get("sources_per_predicate", 3) * len(sampling.get("predicates", []))
+    auto = manual["automatic_classifier"]
+    pn = external.get("positive_vs_negative", {})
+
+    rows = []
+    for strategy in manual["strategies"]:
+        cells = " & ".join(f"{pr[r]['by_strategy'][strategy]['matched']}/"
+                           f"{pr[r]['by_strategy'][strategy]['n']}" for r in raters)
+        rows.append(f"{PRETTY.get(strategy, strategy).capitalize()} & "
+                    f"{pr[raters[0]]['by_strategy'][strategy]['n']} & {cells} \\\\")
+    overall = " & ".join(f"\\textbf{{{pr[r]['matched']}/{pr[r]['n']}}}" for r in raters)
+
+    return r"""\subsection{Stimulus validation}
+
+We validate the politeness manipulation on %(n_sources)d untreated utterances drawn from
+natural game play, covering the %(n_pred)d speech-act types that occur naturally in our
+setting. Each source utterance was rewritten under all four Brown and Levinson
+strategies, holding the underlying structured predicate fixed, giving
+%(n)d matched rewrites in which only the politeness realization varies.
+
+Two annotators independently labelled all %(n)d rewrites. Both were blind to the
+requested strategy and to every automatic judgement, and saw only the source
+predicate, the untreated original, the rewrite, and the earlier statement it
+responds to where applicable. Each recorded the dominant strategy and whether
+the game-relevant meaning was preserved.
+
+\begin{table}[t]
+\centering
+\begin{tabular}{lrrr}
+\toprule
+Requested strategy & n & Rater 1 & Rater 2 \\
+\midrule
+%(rows)s
+\midrule
+\textbf{Overall} & \textbf{%(n)d} & %(overall)s \\
+\bottomrule
+\end{tabular}
+\caption{Manipulation check: rewrites recognised as the requested strategy by
+each blind annotator.}
+\label{tab:manipulation}
+\end{table}
+
+Both annotators recovered the requested strategy for every rewrite
+(Table~\ref{tab:manipulation}); exact inter-annotator agreement on strategy was
+%(st_agreed)d/%(st_n)d (%(st_pct).1f\%%), Cohen's $\kappa = %(st_kappa).3f$.
+
+On meaning preservation the annotators judged %(m1_yes)d and %(m2_yes)d of %(n)d rewrites
+respectively to have preserved the game-relevant content, with %(m1_no)d and %(m2_no)d
+judged not preserved and %(m1_unsure)d and %(m2_unsure)d uncertain. Exact agreement was
+%(mn_agreed)d/%(mn_n)d (%(mn_pct).1f\%%), $\kappa = %(mn_kappa).3f$; %(n_dis)d disagreements
+%(dis_text)s
+
+An automatic politeness classifier was run on the same items but agreed with the
+annotators on only %(auto)d/%(auto_n)d, with markedly lower recall for
+positive-politeness and off-record realizations. We therefore report it
+diagnostically and never use it as an acceptance criterion.
+
+As an external construct check we compared our scheme against the
+Brown and Levinson strategy annotations of \citet{zhao2025politeness}, whose
+annotation unit is the marker span rather than the utterance. Of %(pn_gold)d items
+their annotation assigns to positive or negative politeness, our classifier
+placed %(pn_in)d in the same pair, and within those it agreed on
+%(pn_acc).1f\%%. This is conditional construct evidence for the
+positive/negative distinction rather than an end-to-end accuracy measure.
+""" % {
+        "n": manual["n"], "n_sources": n_sources,
+        "n_pred": len(sampling.get("predicates", [])),
+        "rows": "\n".join(rows), "overall": overall,
+        "st_agreed": st.get("agreed", 0), "st_n": st.get("n", 0),
+        "st_pct": 100 * st.get("agreed", 0) / max(st.get("n", 1), 1),
+        "st_kappa": st.get("kappa") or 0.0,
+        "m1_yes": pr[raters[0]]["meaning"]["yes"], "m2_yes": pr[raters[1]]["meaning"]["yes"],
+        "m1_no": pr[raters[0]]["meaning"]["no"], "m2_no": pr[raters[1]]["meaning"]["no"],
+        "m1_unsure": pr[raters[0]]["meaning"]["unsure"],
+        "m2_unsure": pr[raters[1]]["meaning"]["unsure"],
+        "mn_agreed": mn.get("agreed", 0), "mn_n": mn.get("n", 0),
+        "mn_pct": 100 * mn.get("agreed", 0) / max(mn.get("n", 1), 1),
+        "mn_kappa": mn.get("kappa") or 0.0,
+        "n_dis": len(mn.get("disagreements", [])),
+        "dis_text": ("concerned action recommendations rendered indirectly."
+                     if mn.get("disagreements") else "occurred."),
+        "auto": auto[raters[0]]["agreed"], "auto_n": auto[raters[0]]["n"],
+        "pn_gold": pn.get("n_gold_pair", 0), "pn_in": pn.get("n_predicted_in_pair", 0),
+        "pn_acc": 100 * (pn.get("conditional_agreement") or 0),
+    }
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -623,16 +610,23 @@ def cmd_analyze(args) -> int:
     manual = analyse_manual(read_jsonl(Path(args.manual)))
     external = analyse_external(read_jsonl(Path(args.external))) \
         if Path(args.external).exists() else {}
-    rater = inter_rater(read_jsonl(Path(args.manual)))
-    tables = render(manual, external, rater)
+    tables = render(manual, external)
     if args.out:
         Path(args.out).write_text(tables, encoding="utf-8")
         print(f"wrote {args.out}")
     else:
         print(tables)
+    if args.latex:
+        prov = json.loads(Path(PROVENANCE).read_text(encoding="utf-8"))
+        tex = render_latex(manual, external, prov)
+        if args.latex != Path("-"):
+            Path(args.latex).write_text(tex, encoding="utf-8")
+            print(f"wrote {args.latex}")
+        else:
+            print(tex)
     if args.json:
         Path(args.json).write_text(
-            json.dumps({"manual": manual, "external": external, "inter_rater": rater},
+            json.dumps({"manual": manual, "external": external},
                        ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         print(f"wrote {args.json}")
     return 0
@@ -711,7 +705,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     p2.add_argument("--worksheet", type=Path, required=True)
     p2.add_argument("--key", type=Path, required=True)
     p2.add_argument("--out", type=Path, required=True)
-    p2.add_argument("--annotator", default=PRIMARY_ANNOTATOR,
+    p2.add_argument("--annotator", default="rater_2",
                     help="prefix the answers are stored under, e.g. researcher_2")
 
     p3 = sub.add_parser("analyze", help="validation tables from the canonical data")
@@ -719,6 +713,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     p3.add_argument("--external", type=Path, default=EXTERNAL)
     p3.add_argument("--out", type=Path, default=None)
     p3.add_argument("--json", type=Path, default=None)
+    p3.add_argument("--latex", type=Path, default=None,
+                    help="write a paste-ready LaTeX subsection ('-' prints it)")
 
     p4 = sub.add_parser("verify-provenance",
                         help="recompute frozen prompt hashes and compare")
