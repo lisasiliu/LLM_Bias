@@ -1,0 +1,956 @@
+{
+  "created_at": "2026-09-25T18:31:25+00:00",
+  "frozen_config_used": false,
+  "frozen_config_path": null,
+  "n_boot": 2000,
+  "seed": 101,
+  "generation_qc": {
+    "high": {
+      "n": 280,
+      "first_pass_success": 145,
+      "first_pass_success_rate": 0.5178571428571429,
+      "needed_retry": 135,
+      "retry_rate": 0.48214285714285715,
+      "treatment_unavailable": 38,
+      "treatment_unavailable_rate": 0.1357142857142857,
+      "infrastructure_unavailable": 42,
+      "fallback_to_original": 0,
+      "mean_attempts": 1.7892857142857144
+    },
+    "low": {
+      "n": 280,
+      "first_pass_success": 111,
+      "first_pass_success_rate": 0.3964285714285714,
+      "needed_retry": 169,
+      "retry_rate": 0.6035714285714285,
+      "treatment_unavailable": 120,
+      "treatment_unavailable_rate": 0.42857142857142855,
+      "infrastructure_unavailable": 19,
+      "fallback_to_original": 0,
+      "mean_attempts": 2.107142857142857
+    },
+    "neutral": {
+      "n": 280,
+      "first_pass_success": 135,
+      "first_pass_success_rate": 0.48214285714285715,
+      "needed_retry": 1,
+      "retry_rate": 0.0035714285714285713,
+      "treatment_unavailable": 125,
+      "treatment_unavailable_rate": 0.44642857142857145,
+      "infrastructure_unavailable": 19,
+      "fallback_to_original": 0,
+      "mean_attempts": 0.48928571428571427
+    }
+  },
+  "neutral_matching": {
+    "n_sources": 205,
+    "treatment_condition": "low",
+    "treatment": {
+      "mean": 0.3099263401714277,
+      "sd": 0.14856614295789367,
+      "median": 0.3181818181818182,
+      "n": 141
+    },
+    "neutral": {
+      "mean": 0.35367764489662895,
+      "sd": 0.12283618932432151,
+      "median": 0.35355392156862747,
+      "n": 136
+    },
+    "abs_gap": {
+      "mean": 0.12489752635044023,
+      "median": 0.10789969834087486,
+      "p90": 0.2582468074949278,
+      "n": 136
+    },
+    "tolerance": null,
+    "fraction_within_tolerance": null
+  },
+  "neutral_matching_by_condition": {
+    "low": {
+      "n_sources": 205,
+      "treatment_condition": "low",
+      "treatment": {
+        "mean": 0.3099263401714277,
+        "sd": 0.14856614295789367,
+        "median": 0.3181818181818182,
+        "n": 141
+      },
+      "neutral": {
+        "mean": 0.35367764489662895,
+        "sd": 0.12283618932432151,
+        "median": 0.35355392156862747,
+        "n": 136
+      },
+      "abs_gap": {
+        "mean": 0.12489752635044023,
+        "median": 0.10789969834087486,
+        "p90": 0.2582468074949278,
+        "n": 136
+      },
+      "tolerance": null,
+      "fraction_within_tolerance": null
+    },
+    "high": {
+      "n_sources": 205,
+      "treatment_condition": "high",
+      "treatment": {
+        "mean": 0.438507244238787,
+        "sd": 0.16832886484290388,
+        "median": 0.4568837347606304,
+        "n": 200
+      },
+      "neutral": {
+        "mean": 0.35367764489662895,
+        "sd": 0.12283618932432151,
+        "median": 0.35355392156862747,
+        "n": 136
+      },
+      "abs_gap": {
+        "mean": 0.1236695448799086,
+        "median": 0.12059512374964833,
+        "p90": 0.23923381214229605,
+        "n": 136
+      },
+      "tolerance": null,
+      "fraction_within_tolerance": null
+    }
+  },
+  "range": {
+    "low_vs_neutral": {
+      "treatment": "low",
+      "comparator": "neutral",
+      "role": "primary",
+      "family": "linguistic_range",
+      "metrics": {
+        "mattr": {
+          "n_bundles": 3,
+          "n_games": 2,
+          "estimate": -0.043927184020854125,
+          "ci_low": -0.07836350330400849,
+          "ci_high": 0.024945454545454604,
+          "sd_diff": 0.059708067704552954,
+          "cohens_dz": -0.7356993068041376,
+          "p_sign_flip": 1.0,
+          "expected_sign": -1,
+          "direction_confirmed": false,
+          "q_bh": 1.0,
+          "reject_fdr_05": false,
+          "fdr_family": "linguistic_range (m=2)"
+        },
+        "mtld": {
+          "n_bundles": 3,
+          "n_games": 2,
+          "estimate": -20.35460081809652,
+          "ci_low": -30.290732954966582,
+          "ci_high": -0.48233654435640005,
+          "sd_diff": 18.60379608824359,
+          "cohens_dz": -1.0941100795530287,
+          "p_sign_flip": 0.5048990201959608,
+          "expected_sign": -1,
+          "direction_confirmed": true,
+          "q_bh": 1.0,
+          "reject_fdr_05": false,
+          "fdr_family": "linguistic_range (m=2)"
+        },
+        "word_count": {
+          "n_bundles": 3,
+          "n_games": 2,
+          "estimate": 5.333333333333333,
+          "ci_low": 4.5,
+          "ci_high": 7.0,
+          "sd_diff": 2.0816659994661326,
+          "cohens_dz": 2.562050460881394,
+          "p_sign_flip": 0.5048990201959608,
+          "expected_sign": null,
+          "direction_confirmed": null,
+          "q_bh": null,
+          "reject_fdr_05": null,
+          "fdr_family": "nuisance (not corrected)"
+        },
+        "n_sentences": {
+          "n_bundles": 3,
+          "n_games": 2,
+          "estimate": 17.666666666666668,
+          "ci_low": 16.0,
+          "ci_high": 21.0,
+          "sd_diff": 2.8867513459481287,
+          "cohens_dz": 6.1199128534100335,
+          "p_sign_flip": 0.5048990201959608,
+          "expected_sign": null,
+          "direction_confirmed": null,
+          "q_bh": null,
+          "reject_fdr_05": null,
+          "fdr_family": "nuisance (not corrected)"
+        },
+        "edit_distance_to_original": {
+          "n_bundles": 3,
+          "n_games": 2,
+          "estimate": -0.028682378085401212,
+          "ci_low": -0.05434169359388624,
+          "ci_high": -0.0158527203311587,
+          "sd_diff": 0.03743973476916377,
+          "cohens_dz": -0.7660945853982032,
+          "p_sign_flip": 0.5048990201959608,
+          "expected_sign": null,
+          "direction_confirmed": null,
+          "q_bh": null,
+          "reject_fdr_05": null,
+          "fdr_family": "nuisance (not corrected)"
+        }
+      }
+    },
+    "neutral_vs_original": {
+      "treatment": "neutral",
+      "comparator": "original",
+      "role": "control",
+      "family": "linguistic_range",
+      "metrics": {
+        "mattr": {
+          "n_bundles": 3,
+          "n_games": 2,
+          "estimate": -0.01838388628279945,
+          "ci_low": -0.024270225187656425,
+          "ci_high": -0.01544071683037096,
+          "sd_diff": 0.005185001340028795,
+          "cohens_dz": -3.5455894950062548,
+          "p_sign_flip": 0.5048990201959608,
+          "expected_sign": 0,
+          "direction_confirmed": null,
+          "equivalence": {
+            "bound": null,
+            "equivalent": null
+          },
+          "q_bh": 1.0,
+          "reject_fdr_05": false,
+          "fdr_family": "linguistic_range (m=2)"
+        },
+        "mtld": {
+          "n_bundles": 3,
+          "n_games": 2,
+          "estimate": 0.25978523342431953,
+          "ci_low": -14.947671929488195,
+          "ci_high": 7.8635138148805765,
+          "sd_diff": 14.945544374194933,
+          "cohens_dz": 0.017382119173448528,
+          "p_sign_flip": 1.0,
+          "expected_sign": 0,
+          "direction_confirmed": null,
+          "equivalence": {
+            "bound": null,
+            "equivalent": null
+          },
+          "q_bh": 1.0,
+          "reject_fdr_05": false,
+          "fdr_family": "linguistic_range (m=2)"
+        },
+        "word_count": {
+          "n_bundles": 3,
+          "n_games": 2,
+          "estimate": 1.3333333333333333,
+          "ci_low": -3.0,
+          "ci_high": 10.0,
+          "sd_diff": 7.767453465154029,
+          "cohens_dz": 0.1716564301691498,
+          "p_sign_flip": 1.0,
+          "expected_sign": null,
+          "direction_confirmed": null,
+          "q_bh": null,
+          "reject_fdr_05": null,
+          "fdr_family": "nuisance (not corrected)"
+        },
+        "n_sentences": {
+          "n_bundles": 3,
+          "n_games": 2,
+          "estimate": 0.0,
+          "ci_low": 0.0,
+          "ci_high": 0.0,
+          "sd_diff": 0.0,
+          "cohens_dz": null,
+          "p_sign_flip": 1.0,
+          "expected_sign": null,
+          "direction_confirmed": null,
+          "q_bh": null,
+          "reject_fdr_05": null,
+          "fdr_family": "nuisance (not corrected)"
+        },
+        "edit_distance_to_original": {
+          "n_bundles": 3,
+          "n_games": 2,
+          "estimate": 0.374856062040214,
+          "ci_low": 0.35352120646238294,
+          "ci_high": 0.4175257731958763,
+          "sd_diff": 0.053014436023591856,
+          "cohens_dz": 7.070829950419542,
+          "p_sign_flip": 0.5048990201959608,
+          "expected_sign": null,
+          "direction_confirmed": null,
+          "q_bh": null,
+          "reject_fdr_05": null,
+          "fdr_family": "nuisance (not corrected)"
+        }
+      }
+    },
+    "low_vs_original": {
+      "treatment": "low",
+      "comparator": "original",
+      "role": "secondary",
+      "family": "linguistic_range",
+      "metrics": {
+        "mattr": {
+          "n_bundles": 3,
+          "n_games": 2,
+          "estimate": -0.06231107030365357,
+          "ci_low": -0.09380422013437945,
+          "ci_high": 0.0006752293577981794,
+          "sd_diff": 0.05457697717343948,
+          "cohens_dz": -1.1417098111834962,
+          "p_sign_flip": 1.0,
+          "expected_sign": -1,
+          "direction_confirmed": false,
+          "q_bh": 1.0,
+          "reject_fdr_05": false,
+          "fdr_family": "linguistic_range (m=2)"
+        },
+        "mtld": {
+          "n_bundles": 3,
+          "n_games": 2,
+          "estimate": -20.0948155846722,
+          "ci_low": -22.427219140086006,
+          "ci_high": -15.430008473844595,
+          "sd_diff": 4.039841463810705,
+          "cohens_dz": -4.974159447761385,
+          "p_sign_flip": 0.5048990201959608,
+          "expected_sign": -1,
+          "direction_confirmed": true,
+          "q_bh": 1.0,
+          "reject_fdr_05": false,
+          "fdr_family": "linguistic_range (m=2)"
+        },
+        "word_count": {
+          "n_bundles": 3,
+          "n_games": 2,
+          "estimate": 6.666666666666667,
+          "ci_low": 1.5,
+          "ci_high": 17.0,
+          "sd_diff": 8.962886439832502,
+          "cohens_dz": 0.7438080033056018,
+          "p_sign_flip": 0.5048990201959608,
+          "expected_sign": null,
+          "direction_confirmed": null,
+          "q_bh": null,
+          "reject_fdr_05": null,
+          "fdr_family": "nuisance (not corrected)"
+        },
+        "n_sentences": {
+          "n_bundles": 3,
+          "n_games": 2,
+          "estimate": 17.666666666666668,
+          "ci_low": 16.0,
+          "ci_high": 21.0,
+          "sd_diff": 2.8867513459481287,
+          "cohens_dz": 6.1199128534100335,
+          "p_sign_flip": 0.5048990201959608,
+          "expected_sign": null,
+          "direction_confirmed": null,
+          "q_bh": null,
+          "reject_fdr_05": null,
+          "fdr_family": "nuisance (not corrected)"
+        },
+        "edit_distance_to_original": {
+          "n_bundles": 3,
+          "n_games": 2,
+          "estimate": 0.34617368395481285,
+          "ci_low": 0.33766848613122424,
+          "ci_high": 0.36318407960199006,
+          "sd_diff": 0.01670716327029551,
+          "cohens_dz": 20.72007547626545,
+          "p_sign_flip": 0.5048990201959608,
+          "expected_sign": null,
+          "direction_confirmed": null,
+          "q_bh": null,
+          "reject_fdr_05": null,
+          "fdr_family": "nuisance (not corrected)"
+        }
+      }
+    },
+    "high_vs_neutral": {
+      "treatment": "high",
+      "comparator": "neutral",
+      "role": "primary when included",
+      "family": "linguistic_range",
+      "metrics": {
+        "mattr": {
+          "n_bundles": 3,
+          "n_games": 2,
+          "estimate": 0.022278829213505547,
+          "ci_low": 0.02193123083324533,
+          "ci_high": 0.02297402597402598,
+          "sd_diff": 0.003397165454822352,
+          "cohens_dz": 6.558064218473744,
+          "p_sign_flip": 0.5048990201959608,
+          "expected_sign": 1,
+          "direction_confirmed": true,
+          "q_bh": 0.5048990201959608,
+          "reject_fdr_05": false,
+          "fdr_family": "linguistic_range (m=2)"
+        },
+        "mtld": {
+          "n_bundles": 3,
+          "n_games": 2,
+          "estimate": 15.994236316283056,
+          "ci_low": 13.88026724100294,
+          "ci_high": 17.051220853923112,
+          "sd_diff": 4.156326372106452,
+          "cohens_dz": 3.848166598182009,
+          "p_sign_flip": 0.5048990201959608,
+          "expected_sign": 1,
+          "direction_confirmed": true,
+          "q_bh": 0.5048990201959608,
+          "reject_fdr_05": false,
+          "fdr_family": "linguistic_range (m=2)"
+        },
+        "word_count": {
+          "n_bundles": 3,
+          "n_games": 2,
+          "estimate": 7.666666666666667,
+          "ci_low": 3.5,
+          "ci_high": 16.0,
+          "sd_diff": 7.234178138070235,
+          "cohens_dz": 1.0597840584434102,
+          "p_sign_flip": 0.5048990201959608,
+          "expected_sign": null,
+          "direction_confirmed": null,
+          "q_bh": null,
+          "reject_fdr_05": null,
+          "fdr_family": "nuisance (not corrected)"
+        },
+        "n_sentences": {
+          "n_bundles": 3,
+          "n_games": 2,
+          "estimate": 0.3333333333333333,
+          "ci_low": 0.0,
+          "ci_high": 1.0,
+          "sd_diff": 0.5773502691896257,
+          "cohens_dz": 0.5773502691896257,
+          "p_sign_flip": 1.0,
+          "expected_sign": null,
+          "direction_confirmed": null,
+          "q_bh": null,
+          "reject_fdr_05": null,
+          "fdr_family": "nuisance (not corrected)"
+        },
+        "edit_distance_to_original": {
+          "n_bundles": 3,
+          "n_games": 2,
+          "estimate": 0.13308724537953315,
+          "ci_low": 0.12506042133390455,
+          "ci_high": 0.14914089347079035,
+          "sd_diff": 0.019714121137593955,
+          "cohens_dz": 6.750858658656696,
+          "p_sign_flip": 0.5048990201959608,
+          "expected_sign": null,
+          "direction_confirmed": null,
+          "q_bh": null,
+          "reject_fdr_05": null,
+          "fdr_family": "nuisance (not corrected)"
+        }
+      }
+    }
+  },
+  "listener": {
+    "high:neutral": {
+      "treatment": "high",
+      "comparator": "neutral",
+      "n_invalid_responses": 0,
+      "listeners": {
+        "listener_qwen": {
+          "n_responses": 6,
+          "n_decided": 6,
+          "n_abstained": 0,
+          "n_cannot_tell": 0,
+          "n_blank_or_unrecognised": 0,
+          "abstention_rate": 0.0,
+          "n_bundles": 3,
+          "n_games": 2,
+          "min_raters_per_item": 1,
+          "share_treatment_more_limited": 0.0,
+          "share_treatment_raw_votes": 0.0,
+          "share_treatment_all_responses": 0.0,
+          "wilson_ci": [
+            0.0,
+            0.39033429165637346
+          ],
+          "cluster_bootstrap_ci": [
+            0,
+            1
+          ],
+          "equivalence_ci90": [
+            0,
+            0.9122213841853289
+          ],
+          "interval_method": "Hoeffding fallback for constant game data",
+          "conservative_ci95": [
+            0,
+            1
+          ],
+          "ci_lower_above_half": false,
+          "ci_covers_half": true,
+          "by_order": {
+            "ab": {
+              "n": 3,
+              "share_treatment": 0.0,
+              "n_games": 2,
+              "n_bundles": 3,
+              "ci95": [
+                0,
+                1
+              ],
+              "ci90": [
+                0,
+                0.9122213841853289
+              ]
+            },
+            "ba": {
+              "n": 3,
+              "share_treatment": 0.0,
+              "n_games": 2,
+              "n_bundles": 3,
+              "ci95": [
+                0,
+                1
+              ],
+              "ci90": [
+                0,
+                0.9122213841853289
+              ]
+            }
+          },
+          "bradley_terry": {
+            "estimate": -2.5649493574615367,
+            "ci_low": -2.833213344056216,
+            "ci_high": -2.1972245773362196,
+            "p_a_beats_b": 0.07142857142857142,
+            "n_clusters": 2,
+            "n_comparisons": 6,
+            "prior_pseudo_wins": 0.5,
+            "n_boot": 2000
+          },
+          "confidence": {
+            "high": 5,
+            "medium": 1,
+            "low": 0
+          }
+        },
+        "all_models": {
+          "n_responses": 6,
+          "n_decided": 6,
+          "n_abstained": 0,
+          "n_cannot_tell": 0,
+          "n_blank_or_unrecognised": 0,
+          "abstention_rate": 0.0,
+          "n_bundles": 3,
+          "n_games": 2,
+          "min_raters_per_item": 1,
+          "share_treatment_more_limited": 0.0,
+          "share_treatment_raw_votes": 0.0,
+          "share_treatment_all_responses": 0.0,
+          "wilson_ci": [
+            0.0,
+            0.39033429165637346
+          ],
+          "cluster_bootstrap_ci": [
+            0,
+            1
+          ],
+          "equivalence_ci90": [
+            0,
+            0.9122213841853289
+          ],
+          "interval_method": "Hoeffding fallback for constant game data",
+          "conservative_ci95": [
+            0,
+            1
+          ],
+          "ci_lower_above_half": false,
+          "ci_covers_half": true,
+          "by_order": {
+            "ab": {
+              "n": 3,
+              "share_treatment": 0.0,
+              "n_games": 2,
+              "n_bundles": 3,
+              "ci95": [
+                0,
+                1
+              ],
+              "ci90": [
+                0,
+                0.9122213841853289
+              ]
+            },
+            "ba": {
+              "n": 3,
+              "share_treatment": 0.0,
+              "n_games": 2,
+              "n_bundles": 3,
+              "ci95": [
+                0,
+                1
+              ],
+              "ci90": [
+                0,
+                0.9122213841853289
+              ]
+            }
+          },
+          "bradley_terry": {
+            "estimate": -2.5649493574615367,
+            "ci_low": -2.833213344056216,
+            "ci_high": -2.1972245773362196,
+            "p_a_beats_b": 0.07142857142857142,
+            "n_clusters": 2,
+            "n_comparisons": 6,
+            "prior_pseudo_wins": 0.5,
+            "n_boot": 2000
+          },
+          "confidence": {
+            "high": 5,
+            "medium": 1,
+            "low": 0
+          }
+        }
+      },
+      "human_agreement": {}
+    },
+    "low:neutral": {
+      "treatment": "low",
+      "comparator": "neutral",
+      "n_invalid_responses": 0,
+      "listeners": {
+        "listener_qwen": {
+          "n_responses": 6,
+          "n_decided": 6,
+          "n_abstained": 0,
+          "n_cannot_tell": 0,
+          "n_blank_or_unrecognised": 0,
+          "abstention_rate": 0.0,
+          "n_bundles": 3,
+          "n_games": 2,
+          "min_raters_per_item": 1,
+          "share_treatment_more_limited": 1.0,
+          "share_treatment_raw_votes": 1.0,
+          "share_treatment_all_responses": 1.0,
+          "wilson_ci": [
+            0.6096657083436265,
+            1.0
+          ],
+          "cluster_bootstrap_ci": [
+            0,
+            1
+          ],
+          "equivalence_ci90": [
+            0.08777861581467106,
+            1
+          ],
+          "interval_method": "Hoeffding fallback for constant game data",
+          "conservative_ci95": [
+            0,
+            1
+          ],
+          "ci_lower_above_half": false,
+          "ci_covers_half": true,
+          "by_order": {
+            "ab": {
+              "n": 3,
+              "share_treatment": 1.0,
+              "n_games": 2,
+              "n_bundles": 3,
+              "ci95": [
+                0,
+                1
+              ],
+              "ci90": [
+                0.08777861581467106,
+                1
+              ]
+            },
+            "ba": {
+              "n": 3,
+              "share_treatment": 1.0,
+              "n_games": 2,
+              "n_bundles": 3,
+              "ci95": [
+                0,
+                1
+              ],
+              "ci90": [
+                0.08777861581467106,
+                1
+              ]
+            }
+          },
+          "bradley_terry": {
+            "estimate": 2.5649493574615367,
+            "ci_low": 2.1972245773362196,
+            "ci_high": 2.833213344056216,
+            "p_a_beats_b": 0.9285714285714286,
+            "n_clusters": 2,
+            "n_comparisons": 6,
+            "prior_pseudo_wins": 0.5,
+            "n_boot": 2000
+          },
+          "confidence": {
+            "high": 6,
+            "medium": 0,
+            "low": 0
+          }
+        },
+        "all_models": {
+          "n_responses": 6,
+          "n_decided": 6,
+          "n_abstained": 0,
+          "n_cannot_tell": 0,
+          "n_blank_or_unrecognised": 0,
+          "abstention_rate": 0.0,
+          "n_bundles": 3,
+          "n_games": 2,
+          "min_raters_per_item": 1,
+          "share_treatment_more_limited": 1.0,
+          "share_treatment_raw_votes": 1.0,
+          "share_treatment_all_responses": 1.0,
+          "wilson_ci": [
+            0.6096657083436265,
+            1.0
+          ],
+          "cluster_bootstrap_ci": [
+            0,
+            1
+          ],
+          "equivalence_ci90": [
+            0.08777861581467106,
+            1
+          ],
+          "interval_method": "Hoeffding fallback for constant game data",
+          "conservative_ci95": [
+            0,
+            1
+          ],
+          "ci_lower_above_half": false,
+          "ci_covers_half": true,
+          "by_order": {
+            "ab": {
+              "n": 3,
+              "share_treatment": 1.0,
+              "n_games": 2,
+              "n_bundles": 3,
+              "ci95": [
+                0,
+                1
+              ],
+              "ci90": [
+                0.08777861581467106,
+                1
+              ]
+            },
+            "ba": {
+              "n": 3,
+              "share_treatment": 1.0,
+              "n_games": 2,
+              "n_bundles": 3,
+              "ci95": [
+                0,
+                1
+              ],
+              "ci90": [
+                0.08777861581467106,
+                1
+              ]
+            }
+          },
+          "bradley_terry": {
+            "estimate": 2.5649493574615367,
+            "ci_low": 2.1972245773362196,
+            "ci_high": 2.833213344056216,
+            "p_a_beats_b": 0.9285714285714286,
+            "n_clusters": 2,
+            "n_comparisons": 6,
+            "prior_pseudo_wins": 0.5,
+            "n_boot": 2000
+          },
+          "confidence": {
+            "high": 6,
+            "medium": 0,
+            "low": 0
+          }
+        }
+      },
+      "human_agreement": {}
+    },
+    "neutral:original": {
+      "treatment": "neutral",
+      "comparator": "original",
+      "n_invalid_responses": 0,
+      "listeners": {
+        "listener_qwen": {
+          "n_responses": 6,
+          "n_decided": 6,
+          "n_abstained": 0,
+          "n_cannot_tell": 0,
+          "n_blank_or_unrecognised": 0,
+          "abstention_rate": 0.0,
+          "n_bundles": 3,
+          "n_games": 2,
+          "min_raters_per_item": 1,
+          "share_treatment_more_limited": 0.5,
+          "share_treatment_raw_votes": 0.5,
+          "share_treatment_all_responses": 0.5,
+          "wilson_ci": [
+            0.18761630498040816,
+            0.8123836950195918
+          ],
+          "cluster_bootstrap_ci": [
+            0,
+            1
+          ],
+          "equivalence_ci90": [
+            0,
+            1
+          ],
+          "interval_method": "Hoeffding fallback for constant game data",
+          "conservative_ci95": [
+            0,
+            1
+          ],
+          "ci_lower_above_half": false,
+          "ci_covers_half": true,
+          "by_order": {
+            "ab": {
+              "n": 3,
+              "share_treatment": 0.3333333333333333,
+              "n_games": 2,
+              "n_bundles": 3,
+              "ci95": [
+                0.0,
+                0.5
+              ],
+              "ci90": [
+                0.0,
+                0.5
+              ]
+            },
+            "ba": {
+              "n": 3,
+              "share_treatment": 0.6666666666666666,
+              "n_games": 2,
+              "n_bundles": 3,
+              "ci95": [
+                0.5,
+                1.0
+              ],
+              "ci90": [
+                0.5,
+                1.0
+              ]
+            }
+          },
+          "bradley_terry": {
+            "estimate": 0.0,
+            "ci_low": 0.0,
+            "ci_high": 0.0,
+            "p_a_beats_b": 0.5,
+            "n_clusters": 2,
+            "n_comparisons": 6,
+            "prior_pseudo_wins": 0.5,
+            "n_boot": 2000
+          },
+          "confidence": {
+            "high": 0,
+            "medium": 2,
+            "low": 4
+          }
+        },
+        "all_models": {
+          "n_responses": 6,
+          "n_decided": 6,
+          "n_abstained": 0,
+          "n_cannot_tell": 0,
+          "n_blank_or_unrecognised": 0,
+          "abstention_rate": 0.0,
+          "n_bundles": 3,
+          "n_games": 2,
+          "min_raters_per_item": 1,
+          "share_treatment_more_limited": 0.5,
+          "share_treatment_raw_votes": 0.5,
+          "share_treatment_all_responses": 0.5,
+          "wilson_ci": [
+            0.18761630498040816,
+            0.8123836950195918
+          ],
+          "cluster_bootstrap_ci": [
+            0,
+            1
+          ],
+          "equivalence_ci90": [
+            0,
+            1
+          ],
+          "interval_method": "Hoeffding fallback for constant game data",
+          "conservative_ci95": [
+            0,
+            1
+          ],
+          "ci_lower_above_half": false,
+          "ci_covers_half": true,
+          "by_order": {
+            "ab": {
+              "n": 3,
+              "share_treatment": 0.3333333333333333,
+              "n_games": 2,
+              "n_bundles": 3,
+              "ci95": [
+                0.0,
+                0.5
+              ],
+              "ci90": [
+                0.0,
+                0.5
+              ]
+            },
+            "ba": {
+              "n": 3,
+              "share_treatment": 0.6666666666666666,
+              "n_games": 2,
+              "n_bundles": 3,
+              "ci95": [
+                0.5,
+                1.0
+              ],
+              "ci90": [
+                0.5,
+                1.0
+              ]
+            }
+          },
+          "bradley_terry": {
+            "estimate": 0.0,
+            "ci_low": 0.0,
+            "ci_high": 0.0,
+            "p_a_beats_b": 0.5,
+            "n_clusters": 2,
+            "n_comparisons": 6,
+            "prior_pseudo_wins": 0.5,
+            "n_boot": 2000
+          },
+          "confidence": {
+            "high": 0,
+            "medium": 2,
+            "low": 4
+          }
+        }
+      },
+      "human_agreement": {}
+    }
+  },
+  "criteria": []
+}

@@ -1,0 +1,16 @@
+{
+  "created_at": "2026-09-25T18:30:44+00:00",
+  "mattr_window": 50,
+  "include_domain_terms": false,
+  "subtlex": null,
+  "spacy": null,
+  "frozen_config": null,
+  "frozen_sha256": null,
+  "split": "pilot",
+  "input_sha256": {
+    "bundles": "dcd3ec21c9fe7a76b8e2cef8c6d8b8475c853991fca03aae53a565be5776e61f",
+    "rewrites": "d23dfc27572a15329c9709f132442a7ccf4292cabc5606ceb8544a2b7270ca5c"
+  },
+  "assembled_sha256": "8fe1f5c9635d8f6a88c10f93b99e916193205407b810e9ed15c02d56ace90b38",
+  "output_sha256": "47a17424c63a665ad51d7e46d27ca045cb7e6de6036a331d1691fbe4cb6723e0"
+}
