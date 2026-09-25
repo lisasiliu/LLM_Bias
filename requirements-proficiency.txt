@@ -1,0 +1,13 @@
+# Extra dependencies for experiments/proficiency_validation (on top of requirements.txt).
+#
+# Family A syntactic features (lemmas, POS, dependency parses):
+spacy>=3.7
+#   then: python -m spacy download en_core_web_sm
+#
+# Family B guardrails are external instruments, installed separately and pinned at the freeze:
+#   LanguageTool  -- run a local server and pass --languagetool-url http://localhost:8081
+#                    (https://github.com/languagetool-org/languagetool; needs Java)
+#   CoLA model    -- pip install torch transformers ; pass --cola-model textattack/roberta-base-CoLA
+#
+# Family A lexical frequency needs the SUBTLEX-US norms file (delimited export with Word and Lg10CD
+# columns), passed as --subtlex PATH. Brysbaert & New (2009), https://pubmed.ncbi.nlm.nih.gov/19897807/

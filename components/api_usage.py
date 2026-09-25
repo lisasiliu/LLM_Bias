@@ -38,7 +38,7 @@ PRICING: Dict[str, Dict[str, Any]] = {
 
 PURPOSES = ("game_agent", "surface_generation", "rewrite",
             "politeness_classifier", "semantic_validator", "inverse_parser",
-            "other")
+            "listener_probe", "other")
 
 
 @dataclass
