@@ -21,7 +21,8 @@ from components.helpers import read_jsonl
 from components.stats import (
     benjamini_hochberg, bradley_terry_bootstrap, cluster_bootstrap, cluster_sign_flip_test,
     cohen_kappa, flatten, mean, median, paired_cohens_dz, percentile, sd, tost_equivalence,
-    wilson_interval)
+    wilson_interval, proportion_bootstrap)
+from .protocol import assert_unique
 
 from .common import (
     CONTRASTS, GUARDRAIL_METRICS, NUISANCE_METRICS, PRIMARY_RANGE_METRICS, RANGE_METRICS,
@@ -45,6 +46,7 @@ def expected_direction(metric: str, treatment: str, comparator: str) -> Optional
 
 def paired_clusters(rows: Sequence[dict], metric: str, treatment: str, comparator: str
                     ) -> Tuple[Dict[str, List[float]], int]:
+    assert_unique(rows, ("bundle_id", "condition"))
     by_bc = {(r["bundle_id"], r["condition"]): r for r in rows if r.get("complete", True)}
     ids = sorted({b for (b, c) in by_bc if c == treatment} & {b for (b, c) in by_bc if c == comparator})
     clusters: Dict[str, List[float]] = {}
@@ -76,7 +78,8 @@ def contrast_analysis(rows: Sequence[dict], metrics: Sequence[str], *, frozen: O
                 continue
             diffs = flatten(clusters)
             boot = cluster_bootstrap(clusters, n_boot=n_boot, seed=seed)
-            test = cluster_sign_flip_test(clusters, seed=seed)
+            test = cluster_sign_flip_test(clusters, seed=seed,
+                    n_perm=(frozen or {}).get("statistics", {}).get("n_perm", 5000))
             equivalence_from_same_draws = dict(boot)          # reuse, then drop the raw draws
             boot.pop("draws", None)
             expected = expected_direction(metric, treatment, comparator)
@@ -111,6 +114,14 @@ def contrast_analysis(rows: Sequence[dict], metrics: Sequence[str], *, frozen: O
         out[f"{treatment}_vs_{comparator}"] = {
             "treatment": treatment, "comparator": comparator, "role": role, "family": family,
             "metrics": per_metric}
+    if frozen:
+        # Low and High are planned together, so their range tests share one BH family.
+        pvals = {(contrast, m): values["p_sign_flip"] for contrast, block in out.items()
+                 if contrast in ("low_vs_neutral", "high_vs_neutral")
+                 for m, values in block["metrics"].items() if m in fdr_set}
+        for (contrast, m), adj in benjamini_hochberg(pvals).items():
+            out[contrast]["metrics"][m].update(q_bh=adj["q"], reject_fdr_05=adj["reject"],
+                                             fdr_family=f"{family}: planned Low/High contrasts")
     return out
 
 
@@ -140,6 +151,7 @@ def listener_analysis(choices: Sequence[dict], *, n_boot: int, seed: int) -> Dic
     responses (an abstention counted as not choosing the treatment), so a
     rater who abstains on most items cannot produce a 100% share.
     """
+    assert_unique(choices, ("bundle_id", "pair", "listener", "order"))
     out: Dict[str, dict] = {}
     for pair in sorted({r["pair"] for r in choices}):
         rows = [r for r in choices if r["pair"] == pair and r.get("ok")]
@@ -171,7 +183,8 @@ def listener_analysis(choices: Sequence[dict], *, n_boot: int, seed: int) -> Dic
             clusters: Dict[str, List[float]] = {}
             for b, votes in by_bundle.items():
                 clusters.setdefault(game_of[b], []).append(sum(votes) / len(votes))
-            boot = cluster_bootstrap(clusters, n_boot=n_boot, seed=seed)
+            boot = proportion_bootstrap(clusters, n_boot=n_boot, seed=seed)
+            eq_boot = proportion_bootstrap(clusters, n_boot=n_boot, seed=seed, alpha=.10)
             boot.pop("draws", None)
             k = sum(1 for r in decided if r["chose_treatment"])
             p, w_lo, w_hi = wilson_interval(k, len(decided))
@@ -179,8 +192,19 @@ def listener_analysis(choices: Sequence[dict], *, n_boot: int, seed: int) -> Dic
             for order in ("ab", "ba"):
                 o = [r for r in decided if r["order"] == order]
                 if o:
+                    by_order_bundle = {}
+                    for r in o:
+                        by_order_bundle.setdefault((str(r.get("game_id")), r["bundle_id"]), []).append(int(r["chose_treatment"]))
+                    order_clusters = {}
+                    for (g, b), vals in by_order_bundle.items():
+                        order_clusters.setdefault(g, []).append(mean(vals))
+                    order_ci = proportion_bootstrap(order_clusters, n_boot=n_boot, seed=seed)
+                    order_eq = proportion_bootstrap(order_clusters, n_boot=n_boot, seed=seed, alpha=.10)
                     by_order[order] = {"n": len(o),
-                                       "share_treatment": sum(1 for r in o if r["chose_treatment"]) / len(o)}
+                                       "share_treatment": order_ci["estimate"], "n_games": order_ci["n_clusters"],
+                                       "n_bundles": len(by_order_bundle),
+                                       "ci95": [order_ci["ci_low"], order_ci["ci_high"]],
+                                       "ci90": [order_eq["ci_low"], order_eq["ci_high"]]}
             comps_by_cluster: Dict[str, List[Tuple[str, str]]] = {}
             for r in decided:
                 loser = comparator if r["chosen_condition"] == treatment else treatment
@@ -191,10 +215,13 @@ def listener_analysis(choices: Sequence[dict], *, n_boot: int, seed: int) -> Dic
                 "n_responses": len(subset), "n_decided": len(decided), "n_abstained": n_abstain,
                 "abstention_rate": n_abstain / len(subset) if subset else None,
                 "n_bundles": len(by_bundle), "n_games": boot["n_clusters"],
-                "share_treatment_more_limited": p,
+                "share_treatment_more_limited": boot["estimate"],
+                "share_treatment_raw_votes": p,
                 "share_treatment_all_responses": k / len(subset) if subset else None,
                 "wilson_ci": [w_lo, w_hi],
                 "cluster_bootstrap_ci": [ci_low, ci_high],
+                "equivalence_ci90": [eq_boot["ci_low"], eq_boot["ci_high"]],
+                "interval_method": boot["interval_method"],
                 "ci_lower_above_half": (ci_low is not None and ci_low > 0.5),
                 "ci_covers_half": (ci_low is not None and ci_high is not None and ci_low <= 0.5 <= ci_high),
                 "by_order": by_order, "bradley_terry": bt,

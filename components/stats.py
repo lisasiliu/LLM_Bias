@@ -121,6 +121,21 @@ def cluster_sign_flip_test(clusters: Clusters, *, n_perm: int = 5000, seed: int 
     return {"p_value": (exceed + 1) / (n_perm + 1), "observed_mean": observed, "n_perm": n_perm}
 
 
+def proportion_bootstrap(clusters: Clusters, *, n_boot=2000, seed=101, alpha=.05):
+    """Game bootstrap; constant data use a conservative bounded-mean Hoeffding CI."""
+    result = cluster_bootstrap(clusters, n_boot=n_boot, seed=seed, alpha=alpha)
+    if result["n_clusters"] >= 2 and result["ci_low"] == result["ci_high"]:
+        sizes = [sum(v is not None for v in values) for values in clusters.values()]
+        total = sum(sizes)
+        width = math.sqrt(sum((n / total) ** 2 for n in sizes) * math.log(2 / alpha) / 2)
+        result["ci_low"] = max(0, result["estimate"] - width)
+        result["ci_high"] = min(1, result["estimate"] + width)
+        result["interval_method"] = "Hoeffding fallback for constant game data"
+    else:
+        result["interval_method"] = "percentile game bootstrap"
+    return result
+
+
 def tost_equivalence(clusters: Clusters, bound: float, *, alpha: float = 0.05,
                      n_boot: int = 2000, seed: int = 101,
                      bootstrap: Optional[dict] = None) -> dict:
