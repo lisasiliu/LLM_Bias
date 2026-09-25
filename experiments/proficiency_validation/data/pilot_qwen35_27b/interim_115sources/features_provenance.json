@@ -1,0 +1,21 @@
+{
+  "created_at": "2026-09-25T17:46:59+00:00",
+  "mattr_window": 50,
+  "include_domain_terms": false,
+  "subtlex": null,
+  "spacy": {
+    "spacy_version": "3.8.16",
+    "model": "core_web_sm",
+    "model_version": "3.8.0",
+    "lang": "en"
+  },
+  "frozen_config": null,
+  "frozen_sha256": null,
+  "split": "pilot",
+  "input_sha256": {
+    "bundles": "dcd3ec21c9fe7a76b8e2cef8c6d8b8475c853991fca03aae53a565be5776e61f",
+    "rewrites": "4318c89f13ed214e8dec5888e113fa84d2fabd9b31d4e93254be91afbb7b0491"
+  },
+  "assembled_sha256": "149eb1463d955213aa372447b22463d08bcb4fe387736e7ea53c1865de528563",
+  "output_sha256": "199a7a848754a30128b28e391f15c40abbcdb58ac69846637dc88b823787a067"
+}
