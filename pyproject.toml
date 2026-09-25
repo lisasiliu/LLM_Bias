@@ -13,12 +13,18 @@ dependencies = [
     "pyyaml",
 ]
 
+[project.optional-dependencies]
+proficiency = [
+    "spacy>=3.7",
+    "torch",
+    "transformers",
+]
+
 [tool.setuptools.packages.find]
-include = ["lurkingwolf*", "components*"]
+include = ["lurkingwolf*", "components*", "experiments*"]
 
 [tool.setuptools.package-data]
 "lurkingwolf.prompts" = ["*.json"]
 
 [project.scripts]
 lurk = "lurkingwolf.cli:main"
-

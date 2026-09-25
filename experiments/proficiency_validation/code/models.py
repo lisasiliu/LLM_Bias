@@ -2,8 +2,8 @@
 
 PROFICIENCY_MODEL_CONFIG points to a JSON mapping of named models. Endpoint
 locations may change between HPC jobs; model identities and inference settings
-must match the frozen configuration. No cloud credential is needed for local servers.
-The shared politeness transport is not modified.
+must match the frozen configuration. Local servers use endpoint-specific
+authentication settings.
 """
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ import requests
 
 from components.judges.judge_model import (
     JudgeModel, ModelSpec, Completion, JudgeModelError, JudgeTransportError,
-    THINK_OPEN, resolve_spec, read_key,
+    THINK_OPEN, resolve_spec,
 )
 from lurkingwolf.utils.speech_nl import strip_reasoning
 

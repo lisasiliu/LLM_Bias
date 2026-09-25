@@ -1,4 +1,4 @@
-"""The semantic hard gate and the generation policy around it (PLAN 4, 4.3).
+"""Semantic fidelity checks and the gated generation policy.
 
 Every treated candidate passes, in order:
 
@@ -18,7 +18,7 @@ one attempt, then up to ``max_corrective_retries`` corrective retries that feed
 the gate's failure reasons back into the prompt, then ``treatment_unavailable``.
 What happens next is explicit: ``on_unavailable="original"`` returns the
 untreated text and records ``fallback_to_original=True`` so a replay can go on
-(PLAN 4.3), while ``on_unavailable="raise"`` fails closed for stimulus building.
+while ``on_unavailable="raise"`` fails closed for stimulus building.
 Every attempt is logged.
 """
 
@@ -40,7 +40,7 @@ from components.api_usage import UsageLedger
 from components.judges.judge_model import Completion, JudgeModel
 from components.judges.structural_check import structural_check
 from components.metrics.edit_distance import normalized_token_edit_distance
-from components.metrics.text_normalization import same_wording, surface_key, tokenize
+from components.metrics.text_normalization import same_wording, surface_key
 from components.rewriters.language_rewriter import (
     LanguageProficiencyRewriter, NeutralSelection, select_candidate)
 from components.rewriters.politeness_rewriter import predicate_definition, predicate_entry
@@ -352,11 +352,11 @@ def generate_with_gate(rewriter: LanguageProficiencyRewriter, gate: SemanticGate
                        max_corrective_retries: int = 2,
                        target_edit_distance: Optional[float] = None,
                        anchor_outcomes: Optional[Dict[str, dict]] = None) -> GenerationOutcome:
-    """The PLAN 4.3 policy for one utterance in one condition.
+    """Gated generation for one utterance in one condition.
 
     Low/High: rewrite -> gate -> corrective retry.  Neutral: generate all
     candidates -> cheap-check each -> model-judge the survivors -> choose, among
-    the passers, the one closest to the target edit distance (PLAN 3.3); retry
+    the passers, the one closest to the target edit distance; retry
     with the closest failure's reasons when nothing passes.
     """
     attempts: List[Attempt] = []
@@ -516,6 +516,8 @@ class GatedRewriter(Rewriter):
                           else base.get("params", base) if isinstance(base, dict) else {"condition": base or "low"})
             if params.get("condition", "low") not in frozen["conditions"]:
                 raise ValueError("replay condition is outside the frozen design")
+            if params.get("applies_to") or params.get("applies_to_predicates"):
+                raise ValueError("frozen persistent treatment must cover every public speech predicate")
             params.update(temperature=frozen["generation_temperature"], max_tokens=frozen["generation_max_tokens"],
                           n_neutral_candidates=frozen["n_neutral_candidates"],
                           neutral_anchor_conditions=[c for c in ("low", "high") if c in frozen["conditions"]],
@@ -532,14 +534,18 @@ class GatedRewriter(Rewriter):
             raise ValueError("on_unavailable='original' requires log_path: a fallback that is not "
                              "written to disk is an untreated stimulus under a treatment label")
         if isinstance(base, LanguageProficiencyRewriter):
-            if llm_client is not None and base.llm_client is None:
+            if llm_client is not None and (base.llm_client is None or generator_handle):
                 base.llm_client = llm_client
+            if generator_handle:
+                base.model = generator_model.spec.model
         else:
             params = dict(base_params)
             if isinstance(base, dict):
                 params.update(base.get("params", base))
             elif base is not None:
                 params["condition"] = str(base)          # ``base="low"`` shorthand
+            if generator_handle:
+                params["model"] = generator_model.spec.model
             base = LanguageProficiencyRewriter(llm_client=llm_client, **params)
         if isinstance(gate, SemanticGate):
             pass
@@ -629,7 +635,7 @@ class GatedRewriter(Rewriter):
 
 
 def generation_qc(outcomes: List[dict]) -> Dict[str, dict]:
-    """First-pass, retry, unavailable and fallback rates per condition (PLAN 4.3)."""
+    """First-pass, retry, unavailable and fallback rates per condition."""
     out: Dict[str, dict] = {}
     for condition in sorted({o["condition"] for o in outcomes}):
         rows = [o for o in outcomes if o["condition"] == condition]

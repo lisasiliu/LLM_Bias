@@ -18,7 +18,7 @@ import statistics
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 from components.metrics.text_normalization import DOMAIN_TERMS, is_game_id
 

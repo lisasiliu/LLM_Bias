@@ -1,33 +1,29 @@
-"""One entry point for the proficiency-cue validation.
+"""Command-line entry point for proficiency validation.
 
     python -m experiments.proficiency_validation.code.cli <command> [options]
 
-Offline commands (no model calls): audit, bundles, benchmark-judges,
+Offline commands (no model calls): audit, bundles, report,
 build-challenge, report-challenge, features, suggest-bounds, freeze,
 verify-frozen, analyze, build-human-worksheet, import-human-worksheet.
-Model commands: generate, run-challenge, guardrails (politeness part), probe.
+Model commands: generate, run-challenge, probe; guardrails uses local measurement instruments.
 """
 
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from pathlib import Path
 from typing import List, Optional
 
 from components.helpers import read_jsonl, write_jsonl
 
-from . import analysis, features, freeze, generate, guardrails, listener
+from . import analysis, features, freeze, generate, guardrails, listener, human_validation, report
 from .audit import audit, load_sources, render_audit
 from .bundles import build_bundles
-from .common import DATA_DIR, EXPERIMENT_DIR, dump_json, now_iso
+from .common import DATA_DIR, dump_json, now_iso
 from .judge_benchmark import (
-    build_challenge_set, human_benchmark, human_preserved_positives, render_challenge,
-    render_human_benchmark, report_challenge, run_challenge, source_record_from_dict)
+    build_challenge_set, render_challenge, report_challenge, run_challenge, source_record_from_dict)
 
-POLITENESS_MANUAL = EXPERIMENT_DIR.parent / "politeness_validation" / "data" / "manual_validation.jsonl"
-POLITENESS_PROVENANCE = EXPERIMENT_DIR.parent / "politeness_validation" / "data" / "provenance.json"
 
 
 def cmd_audit(args) -> int:
@@ -65,28 +61,9 @@ def cmd_bundles(args) -> int:
     return 0
 
 
-def cmd_benchmark_judges(args) -> int:
-    records = read_jsonl(args.manual)
-    if not records:
-        print(f"no records at {args.manual}", file=sys.stderr)
-        return 2
-    bench = human_benchmark(records, use_recheck=not args.no_recheck)
-    bench["source"] = str(args.manual)
-    bench["created_at"] = now_iso()
-    text = render_human_benchmark(bench)
-    if args.out:
-        dump_json(args.out, bench)
-        Path(args.out).with_suffix(".md").write_text(text, encoding="utf-8")
-        print(f"wrote {args.out} and {Path(args.out).with_suffix('.md')}")
-    else:
-        print(text)
-    return 0
-
-
 def cmd_build_challenge(args) -> int:
     sources = generate.load_source_records(args.sources)
-    positives = human_preserved_positives(read_jsonl(args.manual)) if args.manual else []
-    items = build_challenge_set(sources, seed=args.seed, positives=positives)
+    items = build_challenge_set(sources, seed=args.seed)
     write_jsonl(args.out, items)
     counts = {}
     for item in items:
@@ -131,6 +108,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
+    report.add_parser(sub)
 
     a = sub.add_parser("audit", help="audit untreated game runs for bundle capacity")
     a.add_argument("game_dirs", nargs="+")
@@ -152,24 +130,16 @@ def build_parser() -> argparse.ArgumentParser:
     b.add_argument("--out", type=Path, required=True)
     b.set_defaults(func=cmd_bundles)
 
-    j = sub.add_parser("benchmark-judges", help="semantic judges vs the 48 human meaning labels")
-    j.add_argument("--manual", type=Path, default=POLITENESS_MANUAL)
-    j.add_argument("--no-recheck", action="store_true", help="score the v1 rubric verdicts only")
-    j.add_argument("--out", type=Path, default=None)
-    j.set_defaults(func=cmd_benchmark_judges)
-
     c = sub.add_parser("build-challenge", help="synthetic semantic challenge set from sources")
-    c.add_argument("--sources", type=Path, default=POLITENESS_PROVENANCE,
-                   help="sources JSONL or a provenance.json with a sources list")
-    c.add_argument("--manual", type=Path, default=POLITENESS_MANUAL,
-                   help="politeness manual_validation.jsonl for human-preserved positives ('' to skip)")
+    c.add_argument("--sources", type=Path, default=DATA_DIR / "sources.jsonl",
+                   help="untreated proficiency source records")
     c.add_argument("--seed", type=int, default=101)
     c.add_argument("--out", type=Path, required=True)
     c.set_defaults(func=cmd_build_challenge)
 
     r = sub.add_parser("run-challenge", help="judge every challenge item with the semantic gate")
     r.add_argument("--items", type=Path, required=True)
-    r.add_argument("--judge", default="deepseek-chat")
+    r.add_argument("--judge", default="judge")
     r.add_argument("--limit", type=int, default=None)
     r.add_argument("--out", type=Path, required=True)
     r.set_defaults(func=cmd_run_challenge)
@@ -185,14 +155,13 @@ def build_parser() -> argparse.ArgumentParser:
     listener.add_parser(sub)
     analysis.add_parser(sub)
     freeze.add_parser(sub)
+    human_validation.add_parser(sub)
     return parser
 
 
 def main(argv: Optional[List[str]] = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
-    if getattr(args, "manual", None) == Path(""):
-        args.manual = None
     return args.func(args)
 
 

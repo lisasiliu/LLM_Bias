@@ -1,4 +1,4 @@
-"""Primary analysis (PLAN 12) and the report (PLAN 17).
+"""Paired statistical analysis and reproducible validation reporting.
 
 Everything is a matched comparison within a source bundle, and every interval
 or p-value treats the GAME as the independent unit (cluster bootstrap and
@@ -25,7 +25,7 @@ from components.stats import (
 from .protocol import assert_unique
 
 from .common import (
-    CONTRASTS, GUARDRAIL_METRICS, NUISANCE_METRICS, PRIMARY_RANGE_METRICS, RANGE_METRICS,
+    CONTRASTS, GUARDRAIL_METRICS, NUISANCE_METRICS, RANGE_METRICS,
     dump_json, fmt, load_frozen, now_iso)
 from .semantic_gate import generation_qc
 
@@ -125,17 +125,17 @@ def contrast_analysis(rows: Sequence[dict], metrics: Sequence[str], *, frozen: O
     return out
 
 
-def neutral_matching(rewrites: Sequence[dict], *, tolerance: Optional[float]) -> dict:
+def neutral_matching(rewrites: Sequence[dict], *, tolerance: Optional[float], treatment="low") -> dict:
     by_source: Dict[str, Dict[str, float]] = {}
     for r in rewrites:
         if r.get("status") == "ok" and r.get("edit_distance_to_original") is not None:
             by_source.setdefault(r["source_id"], {})[r["condition"]] = r["edit_distance_to_original"]
-    low = [d["low"] for d in by_source.values() if "low" in d]
+    low = [d[treatment] for d in by_source.values() if treatment in d]
     neutral = [d["neutral"] for d in by_source.values() if "neutral" in d]
-    gaps = [abs(d["low"] - d["neutral"]) for d in by_source.values() if "low" in d and "neutral" in d]
+    gaps = [abs(d[treatment] - d["neutral"]) for d in by_source.values() if treatment in d and "neutral" in d]
     within = (sum(1 for g in gaps if g <= tolerance) / len(gaps)) if gaps and tolerance is not None else None
-    return {"n_sources": len(by_source),
-            "low": {"mean": mean(low), "sd": sd(low), "median": median(low), "n": len(low)},
+    return {"n_sources": len(by_source), "treatment_condition": treatment,
+            "treatment": {"mean": mean(low), "sd": sd(low), "median": median(low), "n": len(low)},
             "neutral": {"mean": mean(neutral), "sd": sd(neutral), "median": median(neutral), "n": len(neutral)},
             "abs_gap": {"mean": mean(gaps), "median": median(gaps), "p90": percentile(gaps, 90), "n": len(gaps)},
             "tolerance": tolerance, "fraction_within_tolerance": within}
@@ -154,19 +154,23 @@ def listener_analysis(choices: Sequence[dict], *, n_boot: int, seed: int) -> Dic
     assert_unique(choices, ("bundle_id", "pair", "listener", "order"))
     out: Dict[str, dict] = {}
     for pair in sorted({r["pair"] for r in choices}):
-        rows = [r for r in choices if r["pair"] == pair and r.get("ok")]
-        errors = sum(1 for r in choices if r["pair"] == pair and not r.get("ok"))
+        def is_human(r: dict) -> bool:
+            return r.get("listener_family") == "human" or str(r["listener"]).startswith("human:")
+        valid_orders = {}
+        for r in choices:
+            if r["pair"] == pair and r.get("ok") and not is_human(r):
+                valid_orders.setdefault((r["bundle_id"], r["listener"]), set()).add(r["order"])
+        # Supplementary human rows retain unresolved answers in their denominators.
+        # Model comparisons require valid responses in both presentation orders.
+        rows = [r for r in choices if r["pair"] == pair and (is_human(r) or
+                (r.get("ok") and valid_orders.get((r["bundle_id"], r["listener"])) == {"ab", "ba"}))]
+        errors = sum(1 for r in choices if r["pair"] == pair and not r.get("ok") and not is_human(r))
         if not rows:
             continue
         treatment, comparator = rows[0]["treatment"], rows[0]["comparator"]
         listeners = sorted({r["listener"] for r in rows})
 
-        def is_human(r: dict) -> bool:
-            return r.get("listener_family") == "human" or str(r["listener"]).startswith("human:")
-
-        # Pooled rows never mix model listeners with human raters: the frozen
-        # criterion is about the model instruments, and the humans are the
-        # independent check on them.
+        # Pool model comparisons and supplementary human observations separately.
         pooled = {"all_models": [r for r in rows if not is_human(r)]}
         if any(is_human(r) for r in rows):
             pooled["all_humans"] = [r for r in rows if is_human(r)]
@@ -211,10 +215,22 @@ def listener_analysis(choices: Sequence[dict], *, n_boot: int, seed: int) -> Dic
                 comps_by_cluster.setdefault(str(r.get("game_id")), []).append((r["chosen_condition"], loser))
             bt = bradley_terry_bootstrap(comps_by_cluster, treatment, comparator, n_boot=n_boot, seed=seed)
             ci_low, ci_high = boot["ci_low"], boot["ci_high"]
+            conservative_by_bundle = {}
+            for r in subset:
+                score = int(r["chose_treatment"]) if r.get("chosen_condition") else int(treatment == "high")
+                conservative_by_bundle.setdefault((str(r.get("game_id")), r["bundle_id"]), []).append(score)
+            conservative_clusters = {}
+            for (g, b), scores in conservative_by_bundle.items():
+                conservative_clusters.setdefault(g, []).append(mean(scores))
+            conservative = proportion_bootstrap(conservative_clusters, n_boot=n_boot, seed=seed)
             per_listener[listener] = {
                 "n_responses": len(subset), "n_decided": len(decided), "n_abstained": n_abstain,
+                "n_cannot_tell": sum(1 for r in subset if r.get("cannot_tell")),
+                "n_blank_or_unrecognised": sum(1 for r in subset if not r.get("ok")),
                 "abstention_rate": n_abstain / len(subset) if subset else None,
                 "n_bundles": len(by_bundle), "n_games": boot["n_clusters"],
+                "min_raters_per_item": min((len({r["listener"] for r in subset if r["bundle_id"] == b})
+                                            for b in {r["bundle_id"] for r in subset}), default=0),
                 "share_treatment_more_limited": boot["estimate"],
                 "share_treatment_raw_votes": p,
                 "share_treatment_all_responses": k / len(subset) if subset else None,
@@ -222,6 +238,7 @@ def listener_analysis(choices: Sequence[dict], *, n_boot: int, seed: int) -> Dic
                 "cluster_bootstrap_ci": [ci_low, ci_high],
                 "equivalence_ci90": [eq_boot["ci_low"], eq_boot["ci_high"]],
                 "interval_method": boot["interval_method"],
+                "conservative_ci95": [conservative["ci_low"], conservative["ci_high"]],
                 "ci_lower_above_half": (ci_low is not None and ci_low > 0.5),
                 "ci_covers_half": (ci_low is not None and ci_high is not None and ci_low <= 0.5 <= ci_high),
                 "by_order": by_order, "bradley_terry": bt,
@@ -246,148 +263,14 @@ def listener_analysis(choices: Sequence[dict], *, n_boot: int, seed: int) -> Dic
     return out
 
 
-def politeness_analysis(drift: Sequence[dict], *, n_boot: int, seed: int) -> dict:
-    conditions = sorted({r["condition"] for r in drift if r["condition"] != "original"})
-    per_condition = {}
-    for c in conditions:
-        rows = [r for r in drift if r["condition"] == c and r.get("preserved") is not None]
-        k = sum(1 for r in rows if r["preserved"])
-        p, lo, hi = wilson_interval(k, len(rows))
-        labels: Dict[str, int] = {}
-        for r in rows:
-            labels[r["label"]] = labels.get(r["label"], 0) + 1
-        per_condition[c] = {"n": len(rows), "preserved": k, "preservation_rate": p,
-                            "wilson_ci": [lo, hi], "label_distribution": labels}
-    contrast = None
-    by_source: Dict[str, Dict[str, int]] = {}
-    game_of: Dict[str, str] = {}
-    for r in drift:
-        if r["condition"] in ("low", "neutral") and r.get("preserved") is not None:
-            by_source.setdefault(r["source_id"], {})[r["condition"]] = int(r["preserved"])
-            game_of[r["source_id"]] = str(r.get("game_id"))
-    clusters: Dict[str, List[float]] = {}
-    for sid, d in by_source.items():
-        if "low" in d and "neutral" in d:
-            clusters.setdefault(game_of[sid], []).append(d["low"] - d["neutral"])
-    if clusters:
-        boot = cluster_bootstrap(clusters, n_boot=n_boot, seed=seed)
-        boot.pop("draws", None)
-        contrast = {"n_sources": sum(len(v) for v in clusters.values()), "estimate": boot["estimate"],
-                    "ci_low": boot["ci_low"], "ci_high": boot["ci_high"],
-                    "p_sign_flip": cluster_sign_flip_test(clusters, seed=seed)["p_value"]}
-    return {"per_condition": per_condition, "low_minus_neutral_preservation": contrast}
-
-
 def _criterion(name: str, passed: Optional[bool], detail=None, note: str = "") -> dict:
     """``passed`` is True, False, or None = could not be evaluated (never a pass)."""
     return {"criterion": name, "passed": passed, "detail": detail, "note": note}
 
 
 def frozen_criteria(report: dict, frozen: Optional[dict]) -> List[dict]:
-    """Confirmatory criteria (PLAN 9.1, 12, 13) evaluated against the frozen config.
-
-    Every criterion the config implies is listed, whether or not the data to
-    evaluate it was supplied: a missing listener file or a metric with no
-    p-value yields ``passed=None`` ("not evaluated"), which the verdict counts
-    as not passed. Nothing passes by absence.
-    """
-    if not frozen:
-        return []
-    crit: List[dict] = []
-    thresholds = frozen.get("range_effect_thresholds", {}) or {}
-    primary = frozen.get("primary_range_metrics", list(PRIMARY_RANGE_METRICS))
-    low_neu = (report.get("range") or {}).get("low_vs_neutral", {}).get("metrics", {})
-    for metric in primary:
-        m = low_neu.get(metric)
-        threshold = thresholds.get(metric)
-        name = f"Low vs Neutral: {metric} in expected direction, FDR q<.05, |dz|>={threshold}"
-        if m is None:
-            crit.append(_criterion(name, None, note="no feature data for this metric"))
-            continue
-        dz = m.get("cohens_dz")
-        if threshold is None:
-            crit.append(_criterion(name, None, m, note="no |d_z| threshold frozen for this metric"))
-            continue
-        if m.get("reject_fdr_05") is None or dz is None or m.get("direction_confirmed") is None:
-            crit.append(_criterion(name, None, m, note="p-value, d_z or CI unavailable (too few games?)"))
-            continue
-        crit.append(_criterion(name, bool(m["direction_confirmed"] and m["reject_fdr_05"] is True
-                                          and abs(dz) >= threshold), m))
-
-    expected_listeners = list((frozen.get("models") or {}).get("listeners") or []) + ["all_models"]
-    lst = (report.get("listener") or {}).get("low:neutral", {}).get("listeners", {})
-    for listener in expected_listeners:
-        row = lst.get(listener)
-        name = (f"Listener {listener}: share choosing Low as more limited, "
-                "cluster-bootstrap 95% CI lower bound > 0.50")
-        if row is None:
-            crit.append(_criterion(name, None, note="no listener data"))
-        elif row["cluster_bootstrap_ci"][0] is None:
-            crit.append(_criterion(name, None, row, note="CI unavailable (too few games?)"))
-        else:
-            crit.append(_criterion(name, bool(row["ci_lower_above_half"]),
-                                   {"share": row["share_treatment_more_limited"],
-                                    "share_all_responses": row["share_treatment_all_responses"],
-                                    "abstention_rate": row["abstention_rate"],
-                                    "ci": row["cluster_bootstrap_ci"]}))
-    for listener, row in lst.items():
-        if (listener not in expected_listeners and not listener.startswith("human:")
-                and listener != "all_humans"):
-            crit.append(_criterion(f"Listener {listener} is not in the frozen listener set", False, row))
-    control = (report.get("listener") or {}).get("neutral:original", {}).get("listeners", {})
-    for listener in expected_listeners:
-        row = control.get(listener)
-        name = (f"Listener {listener}: Neutral vs Original control, cluster-bootstrap 95% CI "
-                "covers 0.50 (paraphrasing alone is not perceived as more limited)")
-        if row is None:
-            crit.append(_criterion(name, None, note="no neutral:original probe data"))
-        elif row["cluster_bootstrap_ci"][0] is None:
-            crit.append(_criterion(name, None, row, note="CI unavailable (too few games?)"))
-        else:
-            crit.append(_criterion(name, bool(row["ci_covers_half"]),
-                                   {"share": row["share_treatment_more_limited"], "ci": row["cluster_bootstrap_ci"]}))
-
-    bounds = frozen.get("equivalence_bounds", {}) or {}
-    guard = (report.get("guardrails") or {}).get("low_vs_neutral", {}).get("metrics", {})
-    for metric in GUARDRAIL_METRICS:
-        m = guard.get(metric)
-        eq = (m or {}).get("equivalence") or {}
-        name = f"Low vs Neutral: {metric} equivalent within ±{bounds.get(metric)} (TOST)"
-        if m is None:
-            crit.append(_criterion(name, None, note="no guardrail data"))
-        elif bounds.get(metric) is None:
-            crit.append(_criterion(name, None, m, note="no equivalence bound frozen"))
-        else:
-            crit.append(_criterion(name, eq.get("equivalent"), m,
-                                   note="" if eq.get("equivalent") is not None else "CI unavailable"))
-    neu_orig = (report.get("range") or {}).get("neutral_vs_original", {}).get("metrics", {})
-    for metric in primary:
-        m = neu_orig.get(metric)
-        eq = (m or {}).get("equivalence") or {}
-        name = f"Neutral vs Original: {metric} equivalent within ±{bounds.get(metric)} (TOST)"
-        if m is None:
-            crit.append(_criterion(name, None, note="no feature data for this metric"))
-        elif bounds.get(metric) is None:
-            crit.append(_criterion(name, None, m, note="no equivalence bound frozen"))
-        else:
-            crit.append(_criterion(name, eq.get("equivalent"), m,
-                                   note="" if eq.get("equivalent") is not None else "CI unavailable"))
-
-    tol = report.get("neutral_matching") or {}
-    min_frac = frozen.get("neutral_match_min_fraction")
-    name = (f"Neutral matching: >= {min_frac:.0%} of sources within tolerance "
-            f"{frozen.get('neutral_edit_distance_tolerance')}" if min_frac is not None
-            else "Neutral matching: minimum fraction within tolerance")
-    frac = tol.get("fraction_within_tolerance")
-    if min_frac is None:
-        crit.append(_criterion(name, None, tol, note="no minimum fraction frozen"))
-    else:
-        crit.append(_criterion(name, None if frac is None else frac >= min_frac, tol,
-                               note="" if frac is not None else "no rewrites data"))
-    for row in report.get("integrity") or []:
-        crit.append(_criterion(f"Integrity: {row['check']}", row["passed"], row.get("detail"),
-                               note=row.get("note", "")))
-    return crit
+    from .confirmatory import criteria
+    return criteria(report, frozen)
 
 
 def verdict(criteria: List[dict]) -> dict:
@@ -396,112 +279,124 @@ def verdict(criteria: List[dict]) -> dict:
     unevaluated = sum(1 for c in criteria if c["passed"] is None)
     return {"n_criteria": len(criteria), "passed": passed, "failed": failed,
             "not_evaluated": unevaluated,
+            "scope": "automated linguistic measures and model perception",
             "confirmed": bool(criteria) and failed == 0 and unevaluated == 0}
 
 
-def integrity_checks(frozen: dict, *, rewrites: Optional[Sequence[dict]] = None,
-                     features_path: Optional[Path] = None, listener_paths: Optional[Sequence[Path]] = None,
-                     guardrails_path: Optional[Path] = None) -> List[dict]:
-    """Does the data on disk come from the frozen pipeline?
-
-    Compares the recorded prompt hashes, model handles and instrument versions
-    in the data and its provenance side-cars with the frozen config, and
-    recomputes the code hashes. Anything that cannot be checked is reported as
-    not evaluated rather than assumed fine.
-    """
-    from .frozen import verify_hashes
-    checks: List[dict] = []
-    problems = verify_hashes(frozen)
-    checks.append({"check": "current code matches the frozen hashes", "passed": not problems,
-                   "detail": problems})
-    hashes = frozen.get("hashes", {}) or {}
-    models = frozen.get("models", {}) or {}
-    if rewrites is not None:
-        from .frozen import expected_template_hash
-        bad = sorted({(r["condition"], r.get("prompt_template_sha256")) for r in rewrites
-                      if expected_template_hash(frozen, r["condition"])
-                      and r.get("prompt_template_sha256") != expected_template_hash(frozen, r["condition"])},
-                     key=str)
-        checks.append({"check": "every rewrite was generated under the frozen prompt template", "passed": not bad,
-                       "detail": bad})
-        conditions = sorted({r["condition"] for r in rewrites}, key=str)
-        allowed = set(frozen.get("conditions") or [])
-        checks.append({"check": f"rewrite conditions within the frozen design {sorted(allowed)}",
-                       "passed": (set(conditions) <= allowed) if allowed else None, "detail": conditions})
-        temps = sorted({r.get("generator_temperature") for r in rewrites}, key=str)
-        frozen_temp = frozen.get("generation_temperature")
-        checks.append({"check": f"rewrites generated at the frozen temperature {frozen_temp}",
-                       "passed": (temps == [frozen_temp]) if frozen_temp is not None else None, "detail": temps})
-        gens = sorted({r.get("generator_handle") or r.get("generator_model") for r in rewrites}, key=str)
-        checks.append({"check": f"rewrites generated by the frozen generator {models.get('generator')!r}",
-                       "passed": gens == [models.get("generator")] if gens else None, "detail": gens})
-        judges = sorted({((r.get("gate_provenance") or {}).get("judge_handle")) for r in rewrites}, key=str)
-        # A row without a judge handle is an un-provenanced rewrite: that is a FAIL, not a skip.
-        checks.append({"check": f"rewrites gated by the frozen judge {models.get('judge')!r}",
-                       "passed": judges == [models.get("judge")] if judges else None, "detail": judges})
-    if features_path is not None:
-        rows = read_jsonl(features_path)
-        complete = [r for r in rows if r.get("complete")]
-        lacking = [r["bundle_id"] for r in complete
-                   if not r.get("syntax_available") or not r.get("lemmas_available")]
-        checks.append({"check": "every feature row has spaCy syntax and lemma-based measures",
-                       "passed": (not lacking) if complete else None,
-                       "detail": {"rows_without": len(lacking), "of": len(complete)}})
-        side = Path(features_path).with_name(Path(features_path).stem + "_provenance.json")
-        if side.exists():
-            prov = json.loads(side.read_text(encoding="utf-8"))
-            inst = frozen.get("instruments", {}) or {}
-            checks.append({"check": "features computed with the frozen MATTR window",
-                           "passed": prov.get("mattr_window") == frozen.get("mattr_window"),
-                           "detail": {"features": prov.get("mattr_window"), "frozen": frozen.get("mattr_window")}})
-            spacy_prov = prov.get("spacy") or {}
-            model_name = f"{spacy_prov.get('lang', '')}_{spacy_prov.get('model', '')}" if spacy_prov else None
-            checks.append({"check": "features computed with the frozen spaCy model/version",
-                           "passed": (bool(spacy_prov) and model_name == inst.get("spacy_model")
-                                      and (inst.get("spacy_model_version") in (None, spacy_prov.get("model_version")))),
-                           "detail": {"features": spacy_prov, "frozen": {"model": inst.get("spacy_model"),
-                                                                          "version": inst.get("spacy_model_version")}}})
+def integrity_checks(frozen: dict, *, rewrites=None, features_path=None,
+                     listener_paths=None, guardrails_path=None, rewrites_path=None, split=None) -> List[dict]:
+    from .frozen import verify_hashes, expected_template_hash
+    from .protocol import validate_design, verify_artifact, cohort, assert_unique, sha256_file
+    checks = []
+    def check(name, passed, detail=None):
+        checks.append({"check": name, "passed": passed, "detail": detail})
+    problems = validate_design(frozen) + verify_hashes(frozen)
+    check("complete frozen design and unchanged code", not problems, problems)
+    if split not in ("set_a", "set_b"):
+        check("explicit confirmatory split", False)
+        return checks
+    expected = {b["bundle_id"]: b["game_id"] for b in cohort(frozen, split)}
+    conditions = frozen["conditions"]
+    sources = {sid for b in cohort(frozen, split) for sid in b["source_ids"]}
+    expected_rewrites = {(s, c) for s in sources for c in conditions if c != "original"}
+    if rewrites is None or rewrites_path is None:
+        check("rewrite data and provenance supplied", None)
+    else:
+        assert_unique(rewrites, ("source_id", "condition"))
+        check("all preselected source/condition outcomes recorded",
+              {(r["source_id"], r["condition"]) for r in rewrites} == expected_rewrites)
+        prov, errors = verify_artifact(rewrites_path, frozen, split)
+        check("rewrites artifact provenance", not errors, errors)
+        check("rewrites use the frozen source text artifact", bool(prov) and
+              prov.get("input_sha256", {}).get("sources") == frozen.get("sources_sha256", {}).get(split))
+        models = frozen["models"]
+        bad = []
+        for r in rewrites:
+            gate = r.get("gate_provenance") or {}
+            valid = (r.get("prompt_template_sha256") == expected_template_hash(frozen, r["condition"])
+                     and r.get("generator_temperature") == frozen["generation_temperature"]
+                     and (r.get("generator_provenance") or {}).get("identity") == models["identities"][models["generator"]]
+                     and (gate.get("judge_model") or {}).get("identity") == models["identities"][models["judge"]]
+                     and gate.get("semantic_rubric_sha256") == frozen["hashes"]["semantic_rubric_sha256"])
+            if not valid:
+                bad.append(r["source_id"])
+        check("every rewrite uses frozen generator, English gate and prompts", not bad, bad)
+    feature_prov, feature_rows = None, []
+    for kind, path in (("features", features_path), ("guardrails", guardrails_path)):
+        if path is None:
+            check(f"{kind} artifact supplied", None)
+            continue
+        rows = read_jsonl(path)
+        assert_unique(rows, ("bundle_id", "condition"))
+        check(f"{kind} uses the entire preselected cohort with recorded missing values",
+              {(r["bundle_id"], r["condition"]) for r in rows} == {(b, c) for b in expected for c in conditions}
+              and all(expected.get(r["bundle_id"]) == r.get("game_id") for r in rows))
+        prov, errors = verify_artifact(path, frozen, split)
+        check(f"{kind} artifact provenance", not errors, errors)
+        if prov is None:
+            continue
+        inst = frozen["instruments"]
+        if kind == "features":
+            feature_prov = prov
+            feature_rows = rows
+            spacy = prov.get("spacy") or {}
+            subtlex = prov.get("subtlex") or {}
+            check("feature instruments and lexical definition match freeze",
+                  prov.get("mattr_window") == frozen["mattr_window"]
+                  and prov.get("include_domain_terms") == inst["include_domain_terms"]
+                  and subtlex.get("sha256") == inst["subtlex_sha256"]
+                  and subtlex.get("measure") == inst["subtlex_measure"]
+                  and spacy.get("model_version") == inst["spacy_model_version"]
+                  and spacy.get("spacy_version") == inst["spacy_version"]
+                  and f"{spacy.get('lang')}_{spacy.get('model')}" == inst["spacy_model"])
+            check("features were computed from the analyzed rewrites",
+                  bool(rewrites_path) and prov.get("input_sha256", {}).get("rewrites") == sha256_file(rewrites_path))
+            complete = [r for r in rows if r.get("complete")]
+            check("complete feature rows have syntax and adequate SUBTLEX coverage",
+                  bool(complete) and all(r.get("syntax_available") and r.get("lemmas_available")
+                      and r.get("subtlex_coverage") is not None
+                      and r["subtlex_coverage"] >= frozen["min_subtlex_coverage"] for r in complete))
         else:
-            checks.append({"check": "features provenance side-car present", "passed": None,
-                           "note": f"{side.name} not found"})
-    if guardrails_path is not None:
-        side = Path(guardrails_path).with_name(Path(guardrails_path).stem + "_provenance.json")
-        inst = frozen.get("instruments", {}) or {}
-        if side.exists():
-            prov = json.loads(side.read_text(encoding="utf-8"))
-            lt = prov.get("languagetool") or {}
-            if inst.get("languagetool_version"):
-                checks.append({"check": "guardrails computed with the frozen LanguageTool version",
-                               "passed": lt.get("version") == inst["languagetool_version"],
-                               "detail": {"used": lt.get("version"), "frozen": inst["languagetool_version"]}})
-            cola = prov.get("cola") or {}
-            if inst.get("cola_model"):
-                checks.append({"check": "guardrails computed with the frozen CoLA checkpoint",
-                               "passed": (cola.get("model") == inst["cola_model"]
-                                          and (not inst.get("cola_commit_hash")
-                                               or cola.get("commit_hash") == inst["cola_commit_hash"])),
-                               "detail": {"used": {"model": cola.get("model"), "commit": cola.get("commit_hash")},
-                                          "frozen": {"model": inst["cola_model"], "commit": inst.get("cola_commit_hash")}}})
-        else:
-            checks.append({"check": "guardrails provenance side-car present", "passed": None,
-                           "note": f"{side.name} not found"})
+            lt, cola = prov.get("languagetool") or {}, prov.get("cola") or {}
+            check("grammar instruments and acceptable label match freeze",
+                  lt.get("version") == inst["languagetool_version"]
+                  and lt.get("language") == inst["languagetool_language"]
+                  and cola.get("model") == inst["cola_model"]
+                  and cola.get("commit_hash") == inst["cola_commit_hash"]
+                  and cola.get("acceptable_label_index") == inst["cola_acceptable_index"]
+                  and cola.get("max_length") == inst["cola_max_length"]
+                  and prov.get("spacy") == (feature_prov or {}).get("spacy"))
+            check("guardrails measured the same assembled passages",
+                  bool(feature_prov) and prov.get("input_sha256", {}).get("assembled") == feature_prov.get("assembled_sha256"))
     for path in listener_paths or []:
         rows = read_jsonl(path)
-        if rows and all(r.get("listener_family") == "human" or str(r.get("listener", "")).startswith("human:")
-                        for r in rows):
-            continue        # human worksheets carry no model provenance; nothing to check
-        side = Path(path).with_name(Path(path).stem + "_provenance.json")
-        if not side.exists():
-            checks.append({"check": f"listener provenance for {Path(path).name}", "passed": None,
-                           "note": "no provenance side-car for a model listener file"})
+        if rows and all(str(r.get("listener", "")).startswith("human:") for r in rows):
+            check(f"{Path(path).name}: human perception passages match analyzed stimuli",
+                  bool(feature_prov) and all(r.get("assembled_sha256") == feature_prov.get("assembled_sha256")
+                      and expected.get(r["bundle_id"]) == r.get("game_id") for r in rows))
             continue
-        prov = json.loads(side.read_text(encoding="utf-8"))
-        checks.append({"check": f"{Path(path).name}: probe prompt is the frozen one",
-                       "passed": prov.get("prompt_sha256") == hashes.get("listener_probe_sha256"),
-                       "detail": prov.get("prompt_sha256")})
-        used = sorted((prov.get("listeners") or {}).keys())
-        checks.append({"check": f"{Path(path).name}: listeners are the frozen set",
-                       "passed": used == sorted(models.get("listeners") or []), "detail": used})
+        prov, errors = verify_artifact(path, frozen, split)
+        check(f"{Path(path).name}: probe provenance", not errors, errors)
+        if prov is None:
+            continue
+        used = {r.get("listener") for r in rows}
+        check(f"{Path(path).name}: listener identities and prompts match freeze",
+              used <= set(frozen["models"]["listeners"])
+              and prov.get("prompt_sha256") == frozen["hashes"]["listener_probe_sha256"]
+              and all((prov.get("listeners", {}).get(h) or {}).get("identity") == frozen["models"]["identities"][h] for h in used))
+        check(f"{Path(path).name}: same passages/cohort", bool(feature_prov)
+              and prov.get("input_sha256", {}).get("assembled") == feature_prov.get("assembled_sha256")
+              and all(expected.get(r["bundle_id"]) == r.get("game_id") for r in rows))
+    model_rows = [r for p in listener_paths or [] for r in read_jsonl(p)
+                  if not str(r.get("listener", "")).startswith("human:")]
+    complete = {(r["bundle_id"], r["condition"]) for r in feature_rows if r.get("complete")}
+    required = {(b, f"{a}:{c}", h, o) for b in expected
+                for a, c in [(t, "neutral") for t in ("low", "high") if t in conditions] + [("neutral", "original")]
+                if (b, a) in complete and (b, c) in complete
+                for h in frozen["models"]["listeners"] for o in ("ab", "ba")}
+    actual = {(r["bundle_id"], r["pair"], r["listener"], r["order"]) for r in model_rows}
+    check("every eligible model probe has both presentation outcomes recorded",
+          bool(required) and actual == required and len(actual) == len(model_rows))
     return checks
 
 
@@ -528,7 +423,7 @@ def _contrast_table(block: dict, metrics: Sequence[str]) -> List[str]:
 
 
 def render(report: dict) -> str:
-    lines = ["# Proficiency-cue validation report", "",
+    lines = ["# Proficiency validation report", "",
              f"Generated {report['created_at']}. Frozen config: "
              f"{'yes' if report.get('frozen_config_used') else 'no (pilot / exploratory)'}.", ""]
     qc = report.get("generation_qc")
@@ -541,16 +436,20 @@ def render(report: dict) -> str:
                          f"{q['treatment_unavailable']} | {q.get('infrastructure_unavailable', 0)} | "
                          f"{q['fallback_to_original']} | {fmt(q['mean_attempts'], 2)} |")
         lines.append("")
-    nm = report.get("neutral_matching")
-    if nm and nm.get("n_sources"):
-        lines += ["## Neutral matching (normalized token edit distance to the original)", "",
-                  "| condition | n | mean | SD | median |", "| --- | ---: | ---: | ---: | ---: |",
-                  f"| low | {nm['low']['n']} | {fmt(nm['low']['mean'])} | {fmt(nm['low']['sd'])} | {fmt(nm['low']['median'])} |",
-                  f"| neutral | {nm['neutral']['n']} | {fmt(nm['neutral']['mean'])} | {fmt(nm['neutral']['sd'])} | {fmt(nm['neutral']['median'])} |",
-                  "", f"|low − neutral| gap: mean {fmt(nm['abs_gap']['mean'])}, median "
-                  f"{fmt(nm['abs_gap']['median'])}, p90 {fmt(nm['abs_gap']['p90'])}"
-                  + (f"; within tolerance {nm['tolerance']}: {fmt(nm['fraction_within_tolerance'], 2)}"
-                     if nm.get('tolerance') is not None else ""), ""]
+    blocks = report.get("neutral_matching_by_condition") or (
+        {"low": report["neutral_matching"]} if report.get("neutral_matching") else {})
+    blocks = {c: b for c, b in blocks.items() if b and (b.get("treatment") or {}).get("n")}
+    if blocks:
+        lines += ["## Neutral matching (normalized token edit distance to the original)", ""]
+        for cond, nm in blocks.items():
+            t, n, g = nm["treatment"], nm["neutral"], nm["abs_gap"]
+            lines += ["| condition | n | mean | SD | median |", "| --- | ---: | ---: | ---: | ---: |",
+                      f"| {cond} | {t['n']} | {fmt(t['mean'])} | {fmt(t['sd'])} | {fmt(t['median'])} |",
+                      f"| neutral | {n['n']} | {fmt(n['mean'])} | {fmt(n['sd'])} | {fmt(n['median'])} |",
+                      "", f"|{cond} − neutral| gap: mean {fmt(g['mean'])}, median {fmt(g['median'])}, "
+                      f"p90 {fmt(g['p90'])}"
+                      + (f"; within tolerance {nm['tolerance']}: {fmt(nm['fraction_within_tolerance'], 2)}"
+                         if nm.get('tolerance') is not None else ""), ""]
     if report.get("range"):
         lines += ["## Family A: linguistic range", ""]
         for block in report["range"].values():
@@ -584,28 +483,25 @@ def render(report: dict) -> str:
                 lines.append(f"Human agreement {name}: {agr['agreed']}/{agr['n']}, "
                              f"Cohen's κ = {fmt(agr['kappa'])}")
             lines.append("")
-    pol = report.get("politeness")
-    if pol and pol.get("per_condition"):
-        lines += ["## Pragmatic guardrail: politeness-label preservation (diagnostic)", "",
-                  "| condition | n | preserved | rate | Wilson 95% |", "| --- | ---: | ---: | ---: | ---: |"]
-        for c, row in pol["per_condition"].items():
-            lines.append(f"| {c} | {row['n']} | {row['preserved']} | {fmt(row['preservation_rate'])} | "
-                         f"[{fmt(row['wilson_ci'][0])}, {fmt(row['wilson_ci'][1])}] |")
-        d = pol.get("low_minus_neutral_preservation")
-        if d:
-            lines += ["", f"Low − Neutral preservation: Δ = {fmt(d['estimate'])} "
-                      f"[{fmt(d['ci_low'])}, {fmt(d['ci_high'])}], p = {fmt(d['p_sign_flip'])}"]
-        lines.append("")
     if report.get("criteria"):
         v = report.get("verdict") or verdict(report["criteria"])
-        lines += ["## Confirmatory criteria (frozen config)", "",
-                  f"**Verdict: {'CONFIRMED' if v['confirmed'] else 'NOT CONFIRMED'}** — "
+        lines += ["## Automated validation criteria", "",
+                  f"**{'CONFIRMED' if v['confirmed'] else 'NOT CONFIRMED'}**. "
                   f"{v['passed']} passed, {v['failed']} failed, {v['not_evaluated']} not evaluated "
-                  f"(a criterion that could not be evaluated never counts as passed).", "",
+                  "under the frozen protocol. Confirmation requires all criteria to be evaluated and satisfied.", "",
                   "| criterion | result | note |", "| --- | :-: | --- |"]
         for c in report["criteria"]:
             status = {True: "pass", False: "FAIL", None: "not evaluated"}[c["passed"]]
             lines.append(f"| {c['criterion']} | {status} | {c.get('note', '')} |")
+        lines.append("")
+        lines += ["The validation scope is measured linguistic range and model perception. "
+                  "Generalization to human perception or overall English ability requires separate evidence.", ""]
+    if report.get("human_quality_criteria"):
+        lines += ["## Supplementary human observations", "",
+                  "Supplementary observations are reported separately from the automated validation criteria.", "",
+                  "| Check | Result |", "| --- | --- |"]
+        for row in report["human_quality_criteria"]:
+            lines.append(f"| {row['criterion']} | {row['passed']} |")
         lines.append("")
     return "\n".join(lines)
 
@@ -614,10 +510,12 @@ def add_parser(sub) -> None:
     p = sub.add_parser("analyze", help="planned contrasts, guardrails, listener perception, report")
     p.add_argument("--features", type=Path, default=None)
     p.add_argument("--guardrails", type=Path, default=None)
-    p.add_argument("--politeness", type=Path, default=None)
     p.add_argument("--listener", type=Path, action="append", default=None,
                    help="listener choices JSONL (repeatable; human rows can be added)")
     p.add_argument("--rewrites", type=Path, default=None)
+    p.add_argument("--split", choices=["pilot", "set_a", "set_b"], default="pilot")
+    p.add_argument("--human-qc-key", type=Path)
+    p.add_argument("--human-qc", type=Path, nargs="+")
     p.add_argument("--frozen", type=Path, default=None, help="frozen_config.json (default: data/)")
     p.add_argument("--no-frozen", action="store_true", help="ignore any frozen config (pilot)")
     p.add_argument("--n-boot", type=int, default=2000)
@@ -632,15 +530,29 @@ def main(args) -> int:
     if args.frozen and frozen is None:
         print(f"no frozen config at {args.frozen}", file=sys.stderr)
         return 2
+    if frozen:
+        from .frozen import enforce_frozen
+        from .protocol import cohort
+        if args.split not in ("set_a", "set_b"):
+            print("a frozen analysis needs --split set_a or set_b; for pilot diagnostics pass --no-frozen",
+                  file=sys.stderr)
+            return 2
+        frozen = enforce_frozen(args.frozen)
+        selected = cohort(frozen, args.split)
+        args.n_boot, args.seed = frozen["statistics"]["n_boot"], frozen["statistics"]["seed"]
     report: dict = {"created_at": now_iso(), "frozen_config_used": bool(frozen),
                     "frozen_config_path": str(args.frozen) if frozen else None,
                     "n_boot": args.n_boot, "seed": args.seed}
+    if frozen:
+        report["expected_bundles"] = len(selected)
     rewrites = None
     if args.rewrites:
         rewrites = read_jsonl(args.rewrites)
         report["generation_qc"] = generation_qc(rewrites)
         report["neutral_matching"] = neutral_matching(
             rewrites, tolerance=(frozen or {}).get("neutral_edit_distance_tolerance"))
+        report["neutral_matching_by_condition"] = {c: neutral_matching(rewrites, treatment=c,
+            tolerance=(frozen or {}).get("neutral_edit_distance_tolerance")) for c in ("low", "high")}
     if args.features:
         features = read_jsonl(args.features)
         report["range"] = contrast_analysis(features, list(RANGE_METRICS) + list(NUISANCE_METRICS),
@@ -650,15 +562,25 @@ def main(args) -> int:
         guard = read_jsonl(args.guardrails)
         report["guardrails"] = contrast_analysis(guard, list(GUARDRAIL_METRICS), frozen=frozen,
                                                  n_boot=args.n_boot, seed=args.seed, family="guardrail")
+        report["absolute_quality"] = {}
+        for c in (frozen or {}).get("conditions", ("original", "neutral", "low", "high")):
+            valid = [r for r in guard if r["condition"] == c and r.get("grammar_errors_per_100_words") is not None
+                     and r.get("cola_mean") is not None]
+            report["absolute_quality"][c] = {"n_games": len({r["game_id"] for r in valid}),
+                "n_bundles": len(valid), "grammar_mean": mean([r["grammar_errors_per_100_words"] for r in valid]),
+                "cola_mean": mean([r["cola_mean"] for r in valid])}
     if args.listener:
         choices = [r for path in args.listener for r in read_jsonl(path)]
         report["listener"] = listener_analysis(choices, n_boot=args.n_boot, seed=args.seed)
-    if args.politeness:
-        report["politeness"] = politeness_analysis(read_jsonl(args.politeness), n_boot=args.n_boot,
-                                                   seed=args.seed)
     if frozen:
         report["integrity"] = integrity_checks(frozen, rewrites=rewrites, features_path=args.features,
-                                               listener_paths=args.listener, guardrails_path=args.guardrails)
+                                               listener_paths=args.listener, guardrails_path=args.guardrails,
+                                               rewrites_path=args.rewrites, split=args.split)
+        if args.human_qc_key and args.human_qc and rewrites:
+            from .human_validation import quality_criteria
+            key = json.loads(args.human_qc_key.read_text())
+            annotations = [r for p in args.human_qc for r in read_jsonl(p)]
+            report["human_quality_criteria"], report["human_quality"] = quality_criteria(key, annotations, frozen, rewrites)
     report["criteria"] = frozen_criteria(report, frozen)
     if report["criteria"]:
         report["verdict"] = verdict(report["criteria"])
@@ -672,4 +594,4 @@ def main(args) -> int:
     if args.json:
         dump_json(args.json, report)
         print(f"wrote {args.json}")
-    return 0
+    return 1 if frozen and not report.get("verdict", {}).get("confirmed") else 0

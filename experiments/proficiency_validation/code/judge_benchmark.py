@@ -1,29 +1,15 @@
-"""Calibrating the semantic judges before they gate anything (PLAN 4.1, 4.2).
+"""Synthetic fidelity stress tests built from untreated proficiency sources.
 
-Two benchmarks, both scored the same way (a judge FLAGS a rewrite as broken or
-PASSES it; the reference says whether meaning was in fact broken):
-
-  human      the 48 politeness-validation rewrites with two blind human
-             ``meaning`` judgements. Real errors, but very few of them, so the
-             sensitivity estimates carry wide intervals and are reported with them.
-  challenge  synthetic perturbations of untreated originals where the meaning
-             change is known by construction (speaker/target swap, role flip,
-             polarity flip, action-target change, reason deletion / substitution,
-             proposition deletion, certainty shift, directive-force shift), plus
-             positive controls (original vs original; human-preserved rewrites).
-
-Sensitivity = P(flag | broken), specificity = P(pass | preserved). Reported per
-judge (structural, parser, validator) and for the combined pipeline (any flag).
+Identity controls and targeted perturbations measure detection on constructed cases.
 """
 
 from __future__ import annotations
 
 import random
 import re
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 from components.helpers import SourceRecord
-from components.judges.judge_model import JudgeModel
 from components.metrics.text_normalization import PLAYER_ID_RE as PLAYER_RE
 from components.rewriters.politeness_rewriter import predicate_definition, predicate_entry
 from components.stats import wilson_interval
@@ -64,104 +50,6 @@ def _flag(value: Optional[bool]) -> Optional[bool]:
     if value is False:
         return True
     return None
-
-
-def judge_flags(record: dict, *, use_recheck: bool = True) -> Dict[str, Optional[bool]]:
-    """Per-judge flags from a politeness manual_validation record."""
-    semantic_ok = record.get("semantic_ok")
-    if use_recheck and isinstance(record.get("semantic_recheck"), dict):
-        semantic_ok = record["semantic_recheck"].get("semantic_ok", semantic_ok)
-    flags = {
-        "structural": _flag(record.get("structural_check_ok")),
-        "parser": _flag(record.get("inverse_parser_structural_match")),
-        "validator": _flag(semantic_ok),
-    }
-    known = [v for v in flags.values() if v is not None]
-    flags["pipeline"] = (True if any(known) else (False if len(known) == 3 else None))
-    return flags
-
-
-def human_benchmark(records: Sequence[dict], *, use_recheck: bool = True) -> dict:
-    """Judges vs each rater's ``meaning`` label, and vs the two-rater consensus."""
-    raters = sorted({a["annotator"] for r in records for a in r.get("annotations", [])})
-    references: Dict[str, List[Tuple[dict, bool]]] = {}
-    unsure: Dict[str, int] = {}
-    for rater in raters:
-        rows, skipped = [], 0
-        for r in records:
-            label = next((a.get("meaning") for a in r.get("annotations", [])
-                          if a.get("annotator") == rater), None)
-            if label == "no":
-                rows.append((r, True))
-            elif label == "yes":
-                rows.append((r, False))
-            else:
-                skipped += 1
-        references[rater] = rows
-        unsure[rater] = skipped
-    consensus, disagreements = [], 0
-    for r in records:
-        labels = {a.get("annotator"): a.get("meaning") for a in r.get("annotations", [])}
-        values = set(labels.values())
-        if values == {"no"}:
-            consensus.append((r, True))
-        elif values == {"yes"}:
-            consensus.append((r, False))
-        else:
-            disagreements += 1
-    references["consensus"] = consensus
-
-    result: Dict[str, Any] = {"n_items": len(records), "raters": raters,
-                              "unsure_or_missing": unsure,
-                              "consensus_excluded": disagreements,
-                              "semantic_recheck_used": use_recheck, "by_reference": {}}
-    for name, rows in references.items():
-        per_judge = {}
-        for judge in JUDGES:
-            per_judge[judge] = confusion([(gold, judge_flags(r, use_recheck=use_recheck)[judge])
-                                          for r, gold in rows])
-        result["by_reference"][name] = per_judge
-    # Where do the human 'no' judgements fall by predicate and strategy?
-    broken = [r for r, gold in references["consensus"] if gold]
-    result["consensus_broken_items"] = [
-        {"item_id": r["item_id"], "predicate": r["predicate_name"],
-         "requested_strategy": r["requested_strategy"],
-         "flags": judge_flags(r, use_recheck=use_recheck)} for r in broken]
-    return result
-
-
-def render_human_benchmark(bench: dict) -> str:
-    lines = ["# Semantic-judge benchmark on the 48 human-annotated politeness rewrites", "",
-             f"Items: {bench['n_items']}. Reference = a rater's `meaning` label "
-             "(`no` = broken, `yes` = preserved; `unsure` excluded). Judges flag a rewrite "
-             "when their check fails; `pipeline` flags when any of the three does.", ""]
-    for name, per_judge in bench["by_reference"].items():
-        any_row = next(iter(per_judge.values()))
-        lines += [f"## Reference: {name}  (broken n={any_row['n_broken']}, "
-                  f"preserved n={any_row['n_preserved']})", "",
-                  "| judge | sensitivity [95% CI] | specificity [95% CI] | FPR | FNR | precision of flag | no verdict |",
-                  "| --- | ---: | ---: | ---: | ---: | ---: | ---: |"]
-        for judge, c in per_judge.items():
-            s_lo, s_hi = c["sensitivity_ci95"]
-            p_lo, p_hi = c["specificity_ci95"]
-            lines.append(
-                f"| {judge} | {fmt(c['sensitivity'])} [{fmt(s_lo, 2)}, {fmt(s_hi, 2)}] | "
-                f"{fmt(c['specificity'])} [{fmt(p_lo, 2)}, {fmt(p_hi, 2)}] | "
-                f"{fmt(c['false_positive_rate'])} | {fmt(c['false_negative_rate'])} | "
-                f"{fmt(c['precision_of_flag'])} | {c['no_verdict']} |")
-        lines.append("")
-    lines += ["## Items both raters judged broken", "",
-              "| item | predicate | requested strategy | structural | parser | validator |",
-              "| --- | --- | --- | --- | --- | --- |"]
-    for item in bench["consensus_broken_items"]:
-        f = item["flags"]
-        lines.append(f"| {item['item_id']} | {item['predicate']} | {item['requested_strategy']} | "
-                     f"{fmt(f['structural'])} | {fmt(f['parser'])} | {fmt(f['validator'])} |")
-    lines += ["", "**Reading.** The negative class is tiny (a handful of `no` labels), so the "
-              "sensitivity intervals are wide; the synthetic challenge set supplies the "
-              "sensitivity estimate the gate is frozen on, and this benchmark anchors "
-              "specificity on real rewrites.", ""]
-    return "\n".join(lines)
 
 
 # ── synthetic challenge set ──
@@ -308,8 +196,7 @@ def source_record_from_dict(d: dict) -> SourceRecord:
         provenance=d.get("provenance") or d.get("source_provenance") or "unknown")
 
 
-def build_challenge_set(sources: Sequence[SourceRecord], *, seed: int = 101,
-                        positives: Optional[Sequence[dict]] = None) -> List[dict]:
+def build_challenge_set(sources: Sequence[SourceRecord], *, seed: int = 101) -> List[dict]:
     """Perturbed negatives for every applicable rule, plus positive controls."""
     rng = random.Random(seed)
     items: List[dict] = []
@@ -329,32 +216,7 @@ def build_challenge_set(sources: Sequence[SourceRecord], *, seed: int = 101,
             items.append({**base, "item_id": f"neg_{kind}_{len(items):03d}",
                           "challenge_type": kind, "expected": "broken",
                           "candidate_text": out["text"], "rule": out["rule"]})
-    for pos in positives or []:
-        items.append({**pos, "item_id": f"pos_human_{len(items):03d}",
-                      "challenge_type": "positive_human_preserved", "expected": "preserved"})
     return items
-
-
-def human_preserved_positives(manual_records: Sequence[dict]) -> List[dict]:
-    """Politeness rewrites both raters judged meaning-preserving, excluding
-    off-record ones (the proficiency gate runs with the DIRECT commitment rule,
-    under which licensed off-record indirectness would count as a failure)."""
-    out = []
-    for r in manual_records:
-        labels = {a.get("meaning") for a in r.get("annotations", [])}
-        if labels != {"yes"} or r.get("requested_strategy") == "off_record":
-            continue
-        out.append({"source_id": r["source_id"], "game_id": r.get("game_id"),
-                    "speech_id": r.get("speech_id"), "predicate": r["predicate"],
-                    "predicate_name": r["predicate_name"], "phase": r.get("phase"),
-                    "speaker": r.get("speaker"), "original_text": r["original_text"],
-                    "referenced_speech": ({"speech_id": r.get("referenced_speech_id"),
-                                           "speaker": r.get("referenced_speaker"), "predicate": "",
-                                           "text": r.get("referenced_text")}
-                                          if r.get("referenced_text") else None),
-                    "public_history": [], "candidate_text": r["rewritten_text"],
-                    "rule": f"human-preserved {r['requested_strategy']} rewrite ({r['item_id']})"})
-    return out
 
 
 def run_challenge(items: Sequence[dict], gate) -> List[dict]:
@@ -365,6 +227,8 @@ def run_challenge(items: Sequence[dict], gate) -> List[dict]:
     which would leave the parser and validator unscored on exactly the items a
     benchmark needs and would fail the identity positive controls by design.
     """
+    if any(i.get("challenge_type") == "positive_human_preserved" for i in items):
+        raise ValueError("positive_human_preserved items require English fidelity labels; use the proficiency challenge-set builder")
     out = []
     for item in items:
         src = source_record_from_dict({**item, "original_nl": item["original_text"],

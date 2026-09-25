@@ -22,7 +22,7 @@ CONDITIONS: tuple = ("original", "neutral", "low", "high")
 TREATED_CONDITIONS: tuple = ("neutral", "low", "high")
 CORE_CONDITIONS: tuple = ("original", "neutral", "low")
 
-# Planned contrasts (PLAN 12): (treatment, comparator, role).
+# Planned contrasts as (treatment, comparator, role).
 CONTRASTS: tuple = (
     ("low", "neutral", "primary"),
     ("neutral", "original", "control"),
@@ -97,8 +97,9 @@ def history_before(source: SourceRecord) -> List[str]:
     text) and everything said later. A judge that is meant to recover the
     predicate blind must never see that, so every judge call goes through
     this cut: entries strictly before the source's own speech id; failing
-    that, before the entry that realizes this exact utterance; failing that,
-    every entry that carries the utterance's text is dropped.
+    that, before the entry that realizes this exact utterance. Otherwise only
+    explicitly prior-only contexts or histories with every ID earlier than
+    this speech are accepted. An ambiguous history fails closed.
     """
     entries = list(source.public_history or [])
     sid = (source.speech_id or "").strip()
@@ -116,7 +117,7 @@ def history_before(source: SourceRecord) -> List[str]:
     if sid and sid.startswith("s") and sid[1:].isdigit():
         numbers = [int(item["sid"][1:]) for item in map(parse_history_entry, entries)
                    if item.get("sid", "").startswith("s") and item["sid"][1:].isdigit()]
-        if numbers and max(numbers) < int(sid[1:]):
+        if len(numbers) == len(entries) and numbers and max(numbers) < int(sid[1:]):
             return entries
     raise ValueError(f"Cannot establish prior-only history for {source.source_id}; regenerate sources from game logs")
 

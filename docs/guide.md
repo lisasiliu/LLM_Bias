@@ -6,7 +6,7 @@ This guide walks you through running games, writing rewriters, and running exper
 
 - Python 3.10+
 - An OpenAI-compatible model server (e.g. vLLM, Ollama, TGI). Set `VLLM_BASE_URL` in your `.env` if not using the default `http://localhost:8000`.
-- Dependencies: `pip install -r requirements.txt`
+- Dependencies: `pip install -e .`
 
 ## 1. Running your first game
 

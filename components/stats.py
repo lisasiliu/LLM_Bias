@@ -152,6 +152,10 @@ def tost_equivalence(clusters: Clusters, bound: float, *, alpha: float = 0.05,
     lo = percentile(draws, 100 * alpha)
     hi = percentile(draws, 100 * (1 - alpha))
     equivalent = None if lo is None or hi is None else (lo > -bound and hi < bound)
+    if lo == hi:
+        # A degenerate empirical resampling distribution cannot establish a
+        # population equivalence margin, even when every observed difference is zero.
+        equivalent = None
     return {"bound": bound, "estimate": ci["estimate"], "ci_low": lo, "ci_high": hi,
             "ci_level": 1 - 2 * alpha, "equivalent": equivalent,
             "n_clusters": ci["n_clusters"], "n_values": ci["n_values"]}

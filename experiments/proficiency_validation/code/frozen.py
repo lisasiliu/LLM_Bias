@@ -1,17 +1,7 @@
-"""Frozen-artifact hashes and their enforcement (PLAN 13).
+"""Freeze prompts, measurement, inference, selection and enforcement source code.
 
-What is hashed: the three rewriter system prompts and the neutral candidate
-prompt (on a fixed canonical context), the listener probe prompt, the semantic
-rubric, the parser prompt, and the SOURCE FILES of every module that defines a
-measurement or a check -- the structural check with its hedge and surface
-lists, the rewriter, the probe, the metrics, the gate. Inference code
-(``stats.py``, ``analysis.py``) is deliberately not hashed: changing how a CI
-is printed must not invalidate stimuli, and the statistical constants are
-recorded in the config itself.
-
-``enforce_frozen(path)`` is what every model-calling command runs when given
-``--frozen``: it loads the config, recomputes the hashes and refuses to
-continue on any mismatch.
+Formal runs stop on any code or protocol mismatch. Statistical settings and
+instrument/model identities are declared in the validated configuration.
 """
 
 from __future__ import annotations
@@ -44,7 +34,6 @@ CANONICAL_CONTEXT = RewriteContext(
 HASHED_MODULES: tuple = (
     "components.judges.structural_check",
     "components.judges.inverse_predicate_parser",
-    "components.judges.dimensional_semantic_validator",
     "components.judges.listener_probe",
     "components.helpers",
     "experiments.proficiency_validation.code.common",
@@ -65,7 +54,12 @@ HASHED_MODULES: tuple = (
     "experiments.proficiency_validation.code.guardrails",
     "experiments.proficiency_validation.code.listener",
     "experiments.proficiency_validation.code.analysis",
+    "experiments.proficiency_validation.code.confirmatory",
     "components.stats",
+    "experiments.proficiency_validation.code.frozen",
+    "experiments.proficiency_validation.code.freeze",
+    "experiments.proficiency_validation.code.cli",
+    "experiments.proficiency_validation.code.checkpoint",
 )
 
 

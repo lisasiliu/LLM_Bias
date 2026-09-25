@@ -1,4 +1,4 @@
-"""Bundle construction (PLAN 5): one matched speaker-passage per condition.
+"""Matched passage construction from one speaker's utterances in each game.
 
 A source bundle is the ordered set of one speaker's utterances in one game up
 to a fixed word window. Every condition (Original / Neutral / Low / High) is
@@ -105,6 +105,9 @@ def assemble_condition_texts(bundles: Sequence[dict], rewrites: Sequence[dict],
     carry ``original_text``; the ``original`` condition is assembled from them.
     """
     by_key: Dict[tuple, dict] = {}
+    from .protocol import assert_unique
+    assert_unique(bundles, ("bundle_id",))
+    assert_unique(rewrites, ("source_id", "condition"))
     originals: Dict[str, str] = {}
     for row in rewrites:
         by_key[(row["source_id"], row["condition"])] = row

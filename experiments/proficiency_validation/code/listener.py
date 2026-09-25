@@ -1,13 +1,12 @@
-"""Family C listener-side perception (PLAN 9): model probes and a human worksheet.
+"""Model perception comparisons and supplementary annotation worksheets.
 
 ``probe`` shows each matched pair (default Low vs Neutral) to each listener
 model in both presentation orders and records the choice. The listeners are
 perception instruments: separate model families from the generator and the
 semantic judges, and never told the conditions.
 
-``build-human-worksheet`` / ``import-human-worksheet`` add a small blind human
-pairwise judgement in the same format, mirroring the two-rater design of the
-politeness validation; the analysis treats a human rater as one more listener.
+``build-human-worksheet`` / ``import-human-worksheet`` support supplementary blind
+human comparisons, analyzed separately from model listeners.
 """
 
 from __future__ import annotations
@@ -21,14 +20,16 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 from components.api_usage import UsageLedger
 from components.helpers import read_jsonl, write_jsonl
-from components.judges.judge_model import JudgeModel
+from .models import ValidationModel as JudgeModel
+from .protocol import artifact_provenance, artifact_sidecar, verify_artifact, cohort, sha256_file
+from .protocol import assert_unique
 from components.judges.listener_probe import (
     PROMPT_VERSION, BlindProficiencyProbe, parse_choice, probe_prompt_sha256)
 
 from .bundles import matched_complete
-from .common import EXPERIMENT_NAME, dump_json, now_iso
+from .common import EXPERIMENT_NAME, now_iso
 
-DEFAULT_PAIRS = "low:neutral,neutral:original"
+DEFAULT_PAIRS = "low:neutral,high:neutral,neutral:original"
 HUMAN_FIELDS = ("more_limited", "confidence", "note")
 
 
@@ -49,17 +50,26 @@ def passages(assembled: Sequence[dict]) -> Dict[Tuple[str, str], dict]:
 
 def run_probe(assembled: Sequence[dict], listeners: Dict[str, BlindProficiencyProbe],
               pairs: Sequence[Tuple[str, str]], *, ledger: Optional[UsageLedger] = None,
-              limit: Optional[int] = None, log=print) -> List[dict]:
+              limit: Optional[int] = None, log=print, completed_rows=None, on_row=None) -> List[dict]:
     texts = passages(assembled)
     rows: List[dict] = []
+    prior = list(completed_rows or [])
+    assert_unique(prior, ("bundle_id", "pair", "listener", "order"))
+    done = {(r["bundle_id"], r["pair"], r["listener"], r["order"]): r for r in prior}
+    reused = set()
     for a, b in pairs:
         ids = matched_complete(assembled, (a, b))
         if limit:
             ids = ids[:limit]
         for index, bundle_id in enumerate(ids, 1):
-            ra, rb = texts[(bundle_id, a)], texts[(bundle_id, b)]
+            ra = texts[(bundle_id, a)]
             for handle, probe in listeners.items():
                 for order, (left, right) in (("ab", (a, b)), ("ba", (b, a))):
+                    key = (bundle_id, f"{a}:{b}", handle, order)
+                    if key in done:
+                        rows.append(done[key])
+                        reused.add(key)
+                        continue
                     left_text = texts[(bundle_id, left)]["text"]
                     right_text = texts[(bundle_id, right)]["text"]
                     result = probe.compare(left_text, right_text)
@@ -83,8 +93,12 @@ def run_probe(assembled: Sequence[dict], listeners: Dict[str, BlindProficiencyPr
                         "model_served": result.provenance.get("model_served"),
                         "created_at": now_iso(),
                     })
+                    if on_row:
+                        on_row(rows[-1])
             if index % 10 == 0:
                 log(f"  probe {a}:{b} {index}/{len(ids)}")
+    if reused != set(done):
+        raise ValueError("checkpoint contains unexpected probe rows")
     return rows
 
 
@@ -99,9 +113,10 @@ def build_human_worksheet(assembled: Sequence[dict], pair: Tuple[str, str], *, n
     rng.shuffle(ids)
     ids = ids[:n] if n else ids
     lines = ["# Language-range annotation worksheet", "",
-             "Each item shows two passages spoken by two different players in a Werewolf game.",
+             "Each item shows two alternative passages from a Werewolf game.",
              "Judge LANGUAGE only, not content: ignore who is accused, whether the reasoning",
-             "is good, and how polite or forceful the speaker is. Both passages are grammatical.", "",
+             "is good, and how polite or forceful the speaker is. Grammar is assessed separately.",
+             "Judge the passages' vocabulary and sentence range, not the players' overall ability.", "",
              "- `more_limited:` which speaker's English shows the more limited range of vocabulary",
              "  and sentence structure — `A` / `B` / `cannot_tell`",
              "- `confidence:`   `low` / `medium` / `high`",
@@ -150,11 +165,10 @@ def parse_human_worksheet(text: str) -> Dict[str, Dict[str, str]]:
 
 def import_human_worksheet(text: str, key: Dict[str, dict], annotator: str) -> List[dict]:
     rows = []
-    for item_id, answers in sorted(parse_human_worksheet(text).items()):
-        k = key.get(item_id)
-        if not k:
-            continue
-        raw = answers["more_limited"].strip()
+    parsed = parse_human_worksheet(text)
+    for item_id, k in sorted(key.items()):
+        answers = parsed.get(item_id, {})
+        raw = answers.get("more_limited", "").strip()
         letter = parse_choice(raw)                   # accepts "A", "Passage B", "(a)" ...
         choice = letter or raw.upper().replace(" ", "_").replace("-", "_")
         chosen = None
@@ -190,6 +204,8 @@ def add_parser(sub) -> None:
     p.add_argument("--max-tokens", type=int, default=400,
                    help="completion budget per comparison; raise for reasoning listeners")
     p.add_argument("--run-id", default=None)
+    p.add_argument("--resume", action="store_true")
+    p.add_argument("--split", choices=["pilot", "set_a", "set_b"], default="pilot")
     p.add_argument("--frozen", type=Path, default=None,
                    help="frozen_config.json: verify hashes and pin the listener set")
     p.add_argument("--out", type=Path, required=True)
@@ -202,6 +218,8 @@ def add_parser(sub) -> None:
     w.add_argument("--seed", type=int, default=101)
     w.add_argument("--out", type=Path, required=True)
     w.add_argument("--key", type=Path, required=True)
+    w.add_argument("--frozen", type=Path)
+    w.add_argument("--split", choices=["pilot", "set_a", "set_b"], default="pilot")
     w.set_defaults(func=main_worksheet)
 
     i = sub.add_parser("import-human-worksheet", help="merge a filled worksheet into choice rows")
@@ -213,14 +231,23 @@ def add_parser(sub) -> None:
 
 
 def main_probe(args) -> int:
+    frozen = None
     if args.frozen:
         from .frozen import enforce_frozen
-        frozen = enforce_frozen(args.frozen)
+        frozen = enforce_frozen(args.frozen, check_models=True)
         pinned = sorted(frozen["models"]["listeners"])
         given = sorted(h.strip() for h in args.listeners.split(",") if h.strip())
         if given != pinned:
             print(f"--listeners {given} differs from the frozen set {pinned}", file=sys.stderr)
             return 2
+        cohort(frozen, args.split)
+        args.pairs = ",".join([f"{c}:neutral" for c in ("low", "high") if c in frozen["conditions"]] + ["neutral:original"])
+        args.max_tokens = frozen["probe_max_tokens"]
+        if args.limit:
+            raise ValueError("a frozen probe cannot use --limit")
+        _, errors = verify_artifact(args.assembled, frozen, args.split)
+        if errors:
+            raise ValueError("; ".join(errors))
     assembled = read_jsonl(args.assembled)
     pairs = parse_pairs(args.pairs)
     listeners: Dict[str, BlindProficiencyProbe] = {}
@@ -233,10 +260,22 @@ def main_probe(args) -> int:
         listeners[handle] = BlindProficiencyProbe(model, max_tokens=args.max_tokens)
     run_id = args.run_id or f"probe_{now_iso().replace(':', '')}"
     ledger = UsageLedger(EXPERIMENT_NAME, run_id=run_id)
-    rows = run_probe(assembled, listeners, pairs, ledger=ledger, limit=args.limit)
-    write_jsonl(args.out, rows)
+    from .checkpoint import Checkpoint
+    from .frozen import frozen_hashes
+    settings = {"artifact": artifact_provenance(frozen, args.split, inputs={"assembled": args.assembled}),
+                "hashes": frozen_hashes(), "pairs": pairs, "max_tokens": args.max_tokens,
+                "limit": args.limit, "listeners": {h: p.model.identity_record for h, p in listeners.items()}}
+    # JSON normalization keeps tuples stable across resumed processes.
+    checkpoint = Checkpoint(args.out, json.loads(json.dumps(settings)), resume=args.resume)
+    try:
+        rows = run_probe(assembled, listeners, pairs, ledger=ledger, limit=args.limit,
+                         completed_rows=checkpoint.rows, on_row=checkpoint.append)
+        checkpoint.finish()
+    finally:
+        checkpoint.close()
     ledger.write()
-    dump_json(args.out.with_name(args.out.stem + "_provenance.json"), {
+    artifact_sidecar(args.out, {
+        **artifact_provenance(frozen, args.split, inputs={"assembled": args.assembled}),
         "run_id": run_id, "created_at": now_iso(), "pairs": [f"{a}:{b}" for a, b in pairs],
         "prompt_version": PROMPT_VERSION, "prompt_sha256": probe_prompt_sha256(),
         "listeners": {h: p.model.provenance() for h, p in listeners.items()},
@@ -247,9 +286,22 @@ def main_probe(args) -> int:
 
 
 def main_worksheet(args) -> int:
+    if args.frozen:
+        from .frozen import enforce_frozen
+        frozen = enforce_frozen(args.frozen)
+        if not frozen.get("human_validation"):
+            raise ValueError("this automated freeze has no optional human sampling settings; use an unfrozen supplementary worksheet")
+        cohort(frozen, args.split)
+        args.n = frozen["human_validation"]["min_perception_items"]
+        args.seed = frozen["statistics"]["seed"]
+        _, errors = verify_artifact(args.assembled, frozen, args.split)
+        if errors:
+            raise ValueError("; ".join(errors))
     assembled = read_jsonl(args.assembled)
     a, b = parse_pairs(args.pair)[0]
     worksheet, key = build_human_worksheet(assembled, (a, b), n=args.n, seed=args.seed)
+    for item in key.values():
+        item["assembled_sha256"] = sha256_file(args.assembled)
     leaks = find_leaks(worksheet)
     if leaks:
         print(f"refusing to write a leaking worksheet: {leaks}", file=sys.stderr)

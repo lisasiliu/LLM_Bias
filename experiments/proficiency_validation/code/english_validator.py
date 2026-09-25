@@ -1,7 +1,7 @@
 """English-only semantic and pragmatic fidelity checks.
 
-The politeness experiment has a different intervention contract. Its validator
-is deliberately not modified or used as the English fidelity rubric.
+The rubric assesses preservation of meaning and pragmatic force under controlled
+changes in vocabulary and syntactic range.
 """
 
 from __future__ import annotations

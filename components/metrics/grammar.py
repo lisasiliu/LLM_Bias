@@ -19,7 +19,9 @@ revision hash the client records.
 from __future__ import annotations
 
 import statistics
-from typing import Any, Dict, List, Optional
+import hashlib
+from pathlib import Path
+from typing import List, Optional
 
 import requests
 
@@ -135,7 +137,7 @@ class ColaScorer:
 
     def __init__(self, model_name: str = "textattack/roberta-base-CoLA",
                  revision: Optional[str] = None, acceptable_label_index: int = 1,
-                 device: Optional[str] = None, batch_size: int = 16):
+                 device: Optional[str] = None, batch_size: int = 16, max_length: int = 512):
         try:
             import torch
             from transformers import AutoModelForSequenceClassification, AutoTokenizer
@@ -146,6 +148,7 @@ class ColaScorer:
         self.revision = revision
         self.acceptable_label_index = int(acceptable_label_index)
         self.batch_size = int(batch_size)
+        self.max_length = int(max_length)
         self._torch = torch
         self.tokenizer = AutoTokenizer.from_pretrained(model_name, revision=revision)
         self.model = AutoModelForSequenceClassification.from_pretrained(model_name, revision=revision)
@@ -154,6 +157,18 @@ class ColaScorer:
         self.model.to(self.device)
         self.id2label = {int(k): v for k, v in (self.model.config.id2label or {}).items()}
         self.commit_hash = getattr(self.model.config, "_commit_hash", None)
+        if Path(model_name).is_dir():
+            hasher = hashlib.sha256()
+            files = sorted(p for p in Path(model_name).iterdir()
+                           if p.is_file() and (p.suffix in (".json", ".txt", ".model", ".safetensors", ".bin")))
+            for path in files:
+                hasher.update(path.name.encode())
+                with path.open("rb") as stream:
+                    for chunk in iter(lambda: stream.read(8 * 1024 * 1024), b""):
+                        hasher.update(chunk)
+            self.commit_hash = "sha256:" + hasher.hexdigest()
+        if self.acceptable_label_index not in self.id2label:
+            raise ValueError("acceptable label index is outside the checkpoint labels")
 
     def score_sentences(self, sentences: List[str]) -> List[float]:
         torch = self._torch
@@ -162,7 +177,10 @@ class ColaScorer:
             for start in range(0, len(sentences), self.batch_size):
                 batch = sentences[start:start + self.batch_size]
                 encoded = self.tokenizer(batch, return_tensors="pt", padding=True,
-                                         truncation=True, max_length=128).to(self.device)
+                                         truncation=False)
+                if encoded["input_ids"].shape[1] > self.max_length:
+                    raise ValueError(f"CoLA sentence exceeds frozen limit {self.max_length}; no text was truncated")
+                encoded = encoded.to(self.device)
                 logits = self.model(**encoded).logits
                 soft = torch.softmax(logits, dim=-1)[:, self.acceptable_label_index]
                 probs += [float(p) for p in soft.cpu()]
@@ -192,4 +210,5 @@ class ColaScorer:
             versions = {}
         return {"instrument": "cola", "model": self.model_name, "revision": self.revision,
                 "commit_hash": self.commit_hash, "id2label": self.id2label,
-                "acceptable_label_index": self.acceptable_label_index, **versions}
+                "acceptable_label_index": self.acceptable_label_index,
+                "max_length": self.max_length, "truncation": False, **versions}

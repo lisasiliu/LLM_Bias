@@ -1,0 +1,353 @@
+{
+  "provenance": {
+    "schema_version": 1,
+    "created_at": "2026-09-25T02:08:01+00:00",
+    "source_runs": [
+      {
+        "run_id": "run01",
+        "path": "experiments/validation/run01",
+        "manifest_game_id": "g1",
+        "source_model": "deepseek-chat",
+        "seed": "fresh01",
+        "players": 9,
+        "outcome": "werewolves_win",
+        "rewriter": null,
+        "treatment_evidence": [],
+        "raw_sha256": {
+          "manifest.json": "bbf8e2634fd0e0f97bf91358c4b1ec2076f24cf8b400b9ff28460d976da27408",
+          "game_nl.json": "7034d878945aa031bdf6209e2a74582ec80386574dcfb208a3ea923d3eb4c6bb",
+          "public_history.json": "4854d4d3794fe7f94b1299e534bf6979c74d3cf1b354aa3d1fd29f086af82db5"
+        }
+      },
+      {
+        "run_id": "run02",
+        "path": "experiments/validation/run02",
+        "manifest_game_id": "g1",
+        "source_model": "deepseek-chat",
+        "seed": "fresh02",
+        "players": 9,
+        "outcome": "villagers_win",
+        "rewriter": null,
+        "treatment_evidence": [],
+        "raw_sha256": {
+          "manifest.json": "0a1cb7bc3cf00ade274a7459e0a168448d8ab919c5e1515081422563317ec8b5",
+          "game_nl.json": "4b0a07ae0b85b8347811600d8c4f18df580df0c9512c62a40771699573fc57d2",
+          "public_history.json": "d582a1b3443d660051b661b7066ac452777a59e0c50a353bb08b34a1c32f6f5d"
+        }
+      },
+      {
+        "run_id": "run03",
+        "path": "experiments/validation/run03",
+        "manifest_game_id": "g1",
+        "source_model": "deepseek-chat",
+        "seed": "fresh03",
+        "players": 9,
+        "outcome": "villagers_win",
+        "rewriter": null,
+        "treatment_evidence": [],
+        "raw_sha256": {
+          "manifest.json": "03cb7b0a03540b6da49d8a13149a1543aff8b95ce129231583101711017976ff",
+          "game_nl.json": "db19a1a3f7bf20d087e2febbb97d5db2b2f1df9ab7777c9c26873afa913e7153",
+          "public_history.json": "80caa836d45b2fe7854c3819e3914bfdf2bdefa3b9f69d773e480a0872a2197e"
+        }
+      }
+    ],
+    "source_type": "untreated Stage-2 game speech",
+    "planned_test_model_family": "Qwen3.5",
+    "possible_additional_test_model_family": "DeepSeek",
+    "sampling": {
+      "rule": "all public speech records; one prefix bundle per game/speaker",
+      "window_words": [
+        150,
+        250
+      ],
+      "max_per_game": null,
+      "use": "descriptive baseline and pilot preparation"
+    },
+    "history": "strictly before the source speech; private roles and future turns are excluded",
+    "instruments": {
+      "spacy": {
+        "spacy_version": "3.8.4",
+        "model": "core_web_sm",
+        "model_version": "3.8.0",
+        "lang": "en"
+      },
+      "mattr_window": 50,
+      "include_domain_terms": false,
+      "subtlex": null
+    },
+    "artifacts": {
+      "sources.jsonl": "490be7c819a668100ea4d29a2b5c94788e50d4d7bec2eb68c1e8e82d5251fd19",
+      "bundles.jsonl": "dcd3ec21c9fe7a76b8e2cef8c6d8b8475c853991fca03aae53a565be5776e61f",
+      "original_features.jsonl": "036b57ad1f74fb73383d5142a207b033df24a195fca2abf3d02cae83cfde2659"
+    },
+    "validation_scope": "automated linguistic measures and model perception",
+    "validation_evidence": {
+      "proficiency_rewrites": false,
+      "grammar_guardrails": false,
+      "listener_perception": false
+    }
+  },
+  "corpus": {
+    "n_games": 3,
+    "n_utterances": 280,
+    "words_per_utterance": {
+      "mean": 46.035714285714285,
+      "sd": 10.027139312159688,
+      "median": 47.0,
+      "p10": 33.900000000000006,
+      "p90": 58.099999999999994
+    },
+    "words_per_speaker": {
+      "mean": 477.4074074074074,
+      "median": 407,
+      "p10": 145.2,
+      "p90": 768.6
+    },
+    "predicates": {
+      "recommend_action": 74,
+      "estimate": 72,
+      "disagree": 45,
+      "claim_role": 25,
+      "claim_divine": 20,
+      "address_role": 16,
+      "question": 15,
+      "dissociate": 5,
+      "unallied": 3,
+      "answer": 2,
+      "claim_antidote": 1,
+      "allied": 1,
+      "fluff": 1
+    },
+    "phases": {
+      "day_1_discussion": 110,
+      "day_2_discussion": 59,
+      "sheriff_election": 48,
+      "day_3_discussion": 34,
+      "night_0_last_words_P3": 6,
+      "day_1_vote_last_words_P5": 3,
+      "day_1_vote_last_words_P6": 3,
+      "day_2_vote_last_words_P1": 3,
+      "day_3_vote_last_words_P7": 3,
+      "day_1_vote_last_words_P2": 3,
+      "day_2_vote_last_words_P7": 3,
+      "day_3_vote_last_words_P8": 3,
+      "night_0_last_words_P4": 2
+    },
+    "candidate_bundles_by_window": {
+      "150": 24,
+      "200": 23,
+      "250": 21
+    },
+    "speakers_with_total_words_at_least": {
+      "150": 24,
+      "200": 23,
+      "250": 21
+    },
+    "windows": [
+      150,
+      200,
+      250
+    ],
+    "window_span": 100,
+    "per_game": {
+      "run01": {
+        "n_utterances": 55,
+        "n_speakers": 9,
+        "words_per_utterance_mean": 46.49090909090909,
+        "words_per_utterance_median": 46,
+        "words_per_speaker": {
+          "P1": 164,
+          "P2": 394,
+          "P3": 281,
+          "P4": 47,
+          "P5": 370,
+          "P6": 378,
+          "P7": 217,
+          "P8": 247,
+          "P9": 459
+        },
+        "utterances_per_speaker": {
+          "P1": 4,
+          "P2": 9,
+          "P3": 5,
+          "P4": 2,
+          "P5": 8,
+          "P6": 8,
+          "P7": 5,
+          "P8": 5,
+          "P9": 9
+        },
+        "speakers_reaching_window": {
+          "150": 8,
+          "200": 7,
+          "250": 5
+        }
+      },
+      "run02": {
+        "n_utterances": 120,
+        "n_speakers": 9,
+        "words_per_utterance_mean": 47.36666666666667,
+        "words_per_utterance_median": 49.0,
+        "words_per_speaker": {
+          "P1": 749,
+          "P2": 761,
+          "P3": 93,
+          "P4": 685,
+          "P5": 689,
+          "P6": 504,
+          "P7": 935,
+          "P8": 488,
+          "P9": 780
+        },
+        "utterances_per_speaker": {
+          "P1": 17,
+          "P2": 15,
+          "P3": 3,
+          "P4": 15,
+          "P5": 13,
+          "P6": 12,
+          "P7": 20,
+          "P8": 10,
+          "P9": 15
+        },
+        "speakers_reaching_window": {
+          "150": 8,
+          "200": 8,
+          "250": 8
+        }
+      },
+      "run03": {
+        "n_utterances": 105,
+        "n_speakers": 9,
+        "words_per_utterance_mean": 44.27619047619048,
+        "words_per_utterance_median": 45,
+        "words_per_speaker": {
+          "P1": 400,
+          "P2": 400,
+          "P3": 117,
+          "P4": 407,
+          "P5": 381,
+          "P6": 704,
+          "P7": 486,
+          "P8": 1007,
+          "P9": 747
+        },
+        "utterances_per_speaker": {
+          "P1": 9,
+          "P2": 12,
+          "P3": 3,
+          "P4": 9,
+          "P5": 8,
+          "P6": 15,
+          "P7": 12,
+          "P8": 22,
+          "P9": 15
+        },
+        "speakers_reaching_window": {
+          "150": 8,
+          "200": 8,
+          "250": 8
+        }
+      }
+    }
+  },
+  "n_bundles": 24,
+  "bundles_by_game": {
+    "run01": 8,
+    "run02": 8,
+    "run03": 8
+  },
+  "n_insufficient_speakers": 3,
+  "selected_source_count": 94,
+  "unique_original_texts": 272,
+  "duplicate_text_groups": [
+    [
+      "run01:s1",
+      "run02:s1"
+    ],
+    [
+      "run02:s17",
+      "run03:s17"
+    ],
+    [
+      "run02:s32",
+      "run02:s36"
+    ],
+    [
+      "run02:s39",
+      "run02:s49"
+    ],
+    [
+      "run02:s41",
+      "run02:s46"
+    ],
+    [
+      "run02:s45",
+      "run02:s48"
+    ],
+    [
+      "run03:s41",
+      "run03:s46"
+    ],
+    [
+      "run03:s42",
+      "run03:s47"
+    ]
+  ],
+  "cross_game_duplicate_text_groups": [
+    [
+      "run01:s1",
+      "run02:s1"
+    ],
+    [
+      "run02:s17",
+      "run03:s17"
+    ]
+  ],
+  "baseline": {
+    "word_count": {
+      "label": "Words per bundle",
+      "n_bundles": 24,
+      "mean": 177.29166666666666,
+      "median": 177.5
+    },
+    "mattr": {
+      "label": "MATTR",
+      "n_bundles": 24,
+      "mean": 0.8263633216825849,
+      "median": 0.8278348824494259
+    },
+    "mtld": {
+      "label": "MTLD",
+      "n_bundles": 24,
+      "mean": 81.2173837909876,
+      "median": 80.81715003383222
+    },
+    "repetition_rate": {
+      "label": "Content-lemma repetition",
+      "n_bundles": 24,
+      "mean": 0.14315870333081687,
+      "median": 0.14258064516129032
+    },
+    "subordinate_clauses_per_sentence": {
+      "label": "Subordinate clauses per sentence",
+      "n_bundles": 24,
+      "mean": 4.3374999999999995,
+      "median": 4.375
+    },
+    "mean_dependency_distance": {
+      "label": "Mean dependency distance",
+      "n_bundles": 24,
+      "mean": 3.267637316228836,
+      "median": 3.2489102722263343
+    },
+    "subtlex_mean": {
+      "label": "SUBTLEX mean",
+      "n_bundles": 0,
+      "mean": null,
+      "median": null
+    }
+  },
+  "validation_status": "NOT YET VALIDATED"
+}

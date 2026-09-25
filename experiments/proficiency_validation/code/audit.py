@@ -1,9 +1,9 @@
-"""Untreated-game audit (PLAN 16.8): what the raw corpus can support.
+"""Source coverage and passage eligibility in untreated game runs.
 
 For a set of LURK game directories, refuses treated runs, then reports per
 game and overall: speakers, utterances, words per utterance, words per speaker,
 predicate composition, and how many speakers could yield a bundle under each
-candidate word window. The pilot uses this to fix the bundle window (PLAN 5).
+candidate word window. The pilot uses these summaries to select the passage window.
 """
 
 from __future__ import annotations
@@ -32,6 +32,8 @@ def load_sources(game_dirs: Sequence[Path], *, allow_treated: bool = False,
     out: Dict[str, List[SourceRecord]] = {}
     for game_dir in game_dirs:
         game_dir = Path(game_dir)
+        if game_dir.name in out:
+            raise ValueError(f"duplicate run directory name: {game_dir.name}; game IDs must be unique")
         try:
             records = sources_from_game_dir(game_dir, predicates or SPEECH_PREDICATES,
                                             allow_treated=allow_treated)

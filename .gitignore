@@ -221,7 +221,6 @@ research/
 ref/
 .claude/
 run_overnight.sh
-pyproject.toml
 
 # Local evaluation outputs
 lurkingwolf/runs/
@@ -236,5 +235,8 @@ research/validation_runs/latest/
 # lurkingwolf.run_game rather than versioning transcripts. The derived sample
 # and its provenance are committed under experiments/politeness_validation/data/.
 games_fresh/
+# Local raw games for proficiency validation. Curated source records and reports
+# belong in experiments/proficiency_validation/data/.
+/experiments/validation/
 __pycache__/
 *.pyc

@@ -3,9 +3,9 @@ from __future__ import annotations
 
 import json
 import math
+import re
 from pathlib import Path
 from .common import GUARDRAIL_METRICS, RANGE_METRICS, sha256_text, sha256_file, dump_json
-from .english_validator import SEMANTIC_RUBRIC_VERSION
 
 
 def digest(value):
@@ -23,7 +23,8 @@ def validate_design(f):
     def require(ok, message):
         if not ok:
             errors.append(message)
-    require(f.get("schema_version") == 2, "schema_version must be 2")
+    require(f.get("schema_version") == 3, "schema_version must be 3")
+    require(f.get("validation_scope") == "automated", "validation_scope must be automated")
     conditions = f.get("conditions", [])
     require(conditions in (["original", "neutral", "low"], ["original", "neutral", "low", "high"]), "invalid conditions")
     primary = f.get("primary_range_metrics", [])
@@ -65,10 +66,15 @@ def validate_design(f):
     require(inst.get("cola_acceptable_index") in (0, 1), "cola_acceptable_index must be 0 or 1")
     require(isinstance(inst.get("include_domain_terms"), bool), "include_domain_terms must be a boolean")
     require(number(inst.get("cola_max_length"), 8, integer=True), "cola_max_length required")
-    human = f.get("human_validation", {})
-    for key, lo in (("min_raters", 2), ("min_items_per_condition", 1), ("min_games_per_condition", 2)):
-        require(number(human.get(key), lo, integer=True), f"human_validation.{key} required")
-    require(number(human.get("min_pass_rate"), .01, 1), "human_validation.min_pass_rate required")
+    if f.get("human_validation") is not None:
+        # Optional annotation settings never become automated acceptance criteria.
+        human = f["human_validation"]
+        for key, lo in (("min_raters", 2), ("min_items_per_condition", 1), ("min_games_per_condition", 2)):
+            require(number(human.get(key), lo, integer=True), f"human_validation.{key} required")
+        require(number(human.get("min_pass_rate"), .01, 1), "human_validation.min_pass_rate required")
+        for key, lo in (("min_perception_items", 1), ("min_perception_games", 2)):
+            require(number(human.get(key), lo, integer=True), f"human_validation.{key} required")
+        require(number(human.get("max_abstention_fraction"), 0, .99), "human_validation.max_abstention_fraction required")
     models = f.get("models", {})
     listeners = models.get("listeners", [])
     require(len(listeners) >= 3 and len(listeners) == len(set(listeners)), "three distinct listener handles required")
@@ -78,6 +84,9 @@ def validate_design(f):
         for key in ("model", "family", "revision", "tokenizer_revision", "serving_version", "precision", "chat_template"):
             v = identity.get(key)
             require(isinstance(v, str) and bool(v.strip()) and v.lower() not in ("local", "main", "latest", "todo") and not v.startswith("<"), f"model metadata {handle}.{key} required")
+        for key in ("revision", "tokenizer_revision"):
+            require(bool(re.fullmatch(r"(?:sha256:)?(?:[a-fA-F0-9]{40}|[a-fA-F0-9]{64})", str(identity.get(key, "")))),
+                    f"{handle}.{key} must be a commit hash or artifact SHA-256")
     lf = [identities.get(h, {}).get("family") for h in listeners]
     gen_family = identities.get(models.get("generator"), {}).get("family")
     require(len(lf) == len(set(lf)) and gen_family not in lf, "listener families must differ from one another and generator")
@@ -85,6 +94,8 @@ def validate_design(f):
     require(bool(behavior) and gen_family not in behavior, "declare behavioral families; generator must be separate")
     seen_games = set()
     for split in ("pilot", "set_a", "set_b"):
+        require(bool(re.fullmatch(r"[a-f0-9]{64}", str(f.get("sources_sha256", {}).get(split, "")))),
+                f"source artifact hash required for {split}")
         bundles = f.get("splits", {}).get(split, [])
         require(bool(bundles), f"preselected bundles required for {split}")
         ids, games = [b.get("bundle_id") for b in bundles], {b.get("game_id") for b in bundles}
@@ -98,10 +109,6 @@ def validate_design(f):
         cap = f.get("max_bundles_per_game")
         if isinstance(cap, int):
             require(all(sum(b.get("game_id") == g for b in bundles) <= cap for g in games), f"bundle cap exceeded in {split}")
-    calibration = f.get("calibration", {})
-    require(calibration.get("rubric_version") == SEMANTIC_RUBRIC_VERSION and calibration.get("passed") is True,
-            "English human judge calibration must pass before freeze")
-    require(calibration.get("judge_identity") == identities.get(models.get("judge")), "calibration judge does not match frozen judge")
     return errors
 
 

@@ -1,4 +1,4 @@
-"""Family A features for every bundle x condition (PLAN 7).
+"""Linguistic features for each passage and condition.
 
 Assembles the matched passages from ``bundles.jsonl`` + ``rewrites.jsonl``,
 then computes lexical (SUBTLEX ``Lg10CD``, MATTR, MTLD, repetition) and
@@ -20,7 +20,8 @@ from components.metrics.lexical import SubtlexNorms, lexical_profile
 from components.metrics.text_normalization import split_sentences, tokenize, word_count
 
 from .bundles import assemble_condition_texts
-from .common import CONDITIONS, dump_json, now_iso
+from .common import CONDITIONS, now_iso
+from .protocol import artifact_provenance, artifact_sidecar, cohort, verify_artifact, sha256_file
 
 SYNTAX_FIELDS = ("n_sentences", "mean_sentence_length", "sd_sentence_length",
                  "mean_dependency_distance", "tree_depth_mean", "tree_depth_max",
@@ -86,6 +87,7 @@ def add_parser(sub) -> None:
     p.add_argument("--assembled-out", type=Path, default=None,
                    help="also write the assembled passages (default: <out>_assembled.jsonl)")
     p.add_argument("--conditions", default=",".join(CONDITIONS))
+    p.add_argument("--split", choices=["pilot", "set_a", "set_b"], default="pilot")
     p.add_argument("--subtlex", type=Path, default=None, help="SUBTLEX-US delimited file")
     p.add_argument("--subtlex-measure", default="Lg10CD")
     p.add_argument("--mattr-window", type=int, default=50)
@@ -104,7 +106,10 @@ def main(args) -> int:
         from .frozen import enforce_frozen, pin
         frozen = enforce_frozen(args.frozen)
         pin(args, frozen, {"mattr_window": ("mattr_window",),
-                           "spacy_model": ("instruments", "spacy_model")})
+                           "spacy_model": ("instruments", "spacy_model"),
+                           "subtlex_measure": ("instruments", "subtlex_measure"),
+                           "include_domain_terms": ("instruments", "include_domain_terms")})
+        args.conditions = ",".join(frozen["conditions"])
     conditions = [c.strip() for c in args.conditions.split(",") if c.strip()]
 
     # Instruments first, and every frozen check BEFORE anything is written, so a
@@ -125,7 +130,7 @@ def main(args) -> int:
             return 2
         want = instruments.get("spacy_model_version")
         have = (spacy_prov or {}).get("model_version")
-        if want and have != want:
+        if have != want or (spacy_prov or {}).get("spacy_version") != instruments["spacy_version"]:
             print(f"spaCy model version {have} differs from the frozen {want}", file=sys.stderr)
             return 2
         want_sha = instruments.get("subtlex_sha256")
@@ -136,6 +141,12 @@ def main(args) -> int:
 
     bundles = read_jsonl(args.bundles)
     rewrites = read_jsonl(args.rewrites)
+    if frozen:
+        if sorted(bundles, key=lambda r: r["bundle_id"]) != sorted(cohort(frozen, args.split), key=lambda r: r["bundle_id"]):
+            raise ValueError("bundle selection differs from the frozen split")
+        _, errors = verify_artifact(args.rewrites, frozen, args.split)
+        if errors:
+            raise ValueError("; ".join(errors))
     assembled = assemble_condition_texts(bundles, rewrites, conditions)
     assembled_out = args.assembled_out or args.out.with_name(args.out.stem + "_assembled.jsonl")
     rows = compute_features(assembled, nlp=nlp, norms=norms, mattr_window=args.mattr_window,
@@ -144,9 +155,12 @@ def main(args) -> int:
                   "include_domain_terms": args.include_domain_terms,
                   "subtlex": norms.provenance() if norms else None,
                   "spacy": spacy_prov, "frozen_config": str(args.frozen) if args.frozen else None}
+    provenance.update(artifact_provenance(frozen, args.split, inputs={"bundles": args.bundles, "rewrites": args.rewrites}))
     write_jsonl(assembled_out, assembled)
     write_jsonl(args.out, rows)
-    dump_json(args.out.with_name(args.out.stem + "_provenance.json"), provenance)
+    provenance["assembled_sha256"] = sha256_file(assembled_out)
+    artifact_sidecar(assembled_out, provenance)
+    artifact_sidecar(args.out, provenance)
     complete = sum(1 for r in rows if r.get("complete"))
     print(f"{len(rows)} bundle x condition rows ({complete} complete) -> {args.out}")
     print(f"assembled passages -> {assembled_out}")

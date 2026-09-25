@@ -37,7 +37,7 @@ from typing import List, Optional, Set
 
 from components.judges.judge_model import THINK_OPEN
 from components.metrics.edit_distance import normalized_token_edit_distance
-from components.metrics.text_normalization import same_wording, surface_key, tokenize
+from components.metrics.text_normalization import same_wording, surface_key
 from components.rewriters.politeness_rewriter import (
     _ctx_value,
     context_predicate_name,

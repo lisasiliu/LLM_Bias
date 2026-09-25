@@ -1,8 +1,9 @@
-"""Blind English fidelity/quality worksheets and held-out gate calibration.
+"""Optional blind English worksheets and supplementary gate calibration.
 
-Labels are never filled by the program. Unknown/missing human labels cannot
-become a pass. Calibration selects at most one candidate per game so the
-binomial confidence intervals have independent sampling units.
+Worksheets collect externally supplied labels for supplementary analyses.
+Unknown or missing labels remain unresolved. Calibration selects at most one
+candidate per game to use games as the independent sampling units for binomial
+confidence intervals.
 """
 from __future__ import annotations
 
@@ -22,6 +23,29 @@ FIELDS = ("meaning", "stance", "politeness_register", "grammatical", "natural", 
 FIDELITY = FIELDS[:3]
 
 
+def select_items(rewrites, purpose, n, seed):
+    """Selection is fixed before human labels and never stratified on gate verdicts."""
+    if n < 1:
+        raise ValueError("sample size must be positive")
+    items = candidate_items(rewrites, purpose == "calibration")
+    rng = random.Random(seed)
+    groups = defaultdict(list)
+    for item in items:
+        groups[item["game_id"] if purpose == "calibration" else item["condition"]].append(item)
+    if purpose == "calibration":
+        # Sample games uniformly, then one final candidate within each game.
+        games = sorted(groups)
+        rng.shuffle(games)
+        selected = [rng.choice(groups[g]) for g in games[:n]]
+    else:
+        selected = []
+        for condition in sorted(groups):
+            rng.shuffle(groups[condition])
+            selected.extend(groups[condition][:n])
+    rng.shuffle(selected)
+    return {f"item_{i:04d}": item for i, item in enumerate(selected, 1)}
+
+
 def candidate_items(rewrites, calibration=False):
     out = []
     for r in rewrites:
@@ -35,6 +59,7 @@ def candidate_items(rewrites, calibration=False):
             continue
         out.append({"source_id": r["source_id"], "game_id": r["game_id"], "condition": r["condition"],
                     "original": r["original_text"], "candidate": text, "gate_ok": gate.get("ok"),
+                    "referenced_speech": r.get("referenced_speech"),
                     "gate_provenance": r.get("gate_provenance"), "status": r.get("status"),
                     "text_sha256": sha256_text(text)})
     return out
@@ -52,7 +77,10 @@ def worksheet(items):
              "understandable: its intended message can be understood without guessing or repairing the text.", ""]
     for key, item in items.items():
         lines += [f"### {key}", "", "Original: " + item["original"], "",
-                  "Candidate: " + item["candidate"], ""] + [f"{field}:" for field in FIELDS] + ["note:", ""]
+                  "Candidate: " + item["candidate"], ""]
+        if item.get("referenced_speech"):
+            lines += ["Referenced public statement: " + item["referenced_speech"].get("text", ""), ""]
+        lines += [f"{field}:" for field in FIELDS] + ["note:", ""]
     return "\n".join(lines)
 
 
@@ -110,8 +138,19 @@ def summarize(key, annotations, min_raters=2):
 
 
 def calibration_report(key, annotations, rules):
+    from .protocol import number
+    for k in ("min_raters", "min_broken", "min_preserved"):
+        if not number(rules.get(k), 2, integer=True):
+            raise ValueError(f"calibration rule {k} must be at least two")
+    for k in ("sensitivity_lower_min", "specificity_lower_min"):
+        if not (number(rules.get(k), 0, 1) and rules[k] > 0):
+            raise ValueError(f"calibration rule {k} must be a probability greater than 0")
+    if not (number(rules.get("max_unresolved_fraction"), 0, 1) and rules["max_unresolved_fraction"] < 1):
+        raise ValueError("calibration rule max_unresolved_fraction must be a probability below 1")
     if key.get("purpose") != "calibration":
         raise ValueError("calibration needs a calibration worksheet, including accepted and rejected candidates")
+    if len(str(rules.get("rationale") or "").strip()) < 20:
+        raise ValueError("calibration thresholds and sample size need a substantive rationale")
     report = summarize(key, annotations, rules["min_raters"])
     items = report["items"]
     if len({r["game_id"] for r in items}) != len(items):
@@ -127,6 +166,7 @@ def calibration_report(key, annotations, rules):
     sens = wilson_interval(sum(r["gate_ok"] is False for r in negatives), len(negatives))
     spec = wilson_interval(sum(r["gate_ok"] is True for r in positives), len(positives))
     report.update(rubric_version=SEMANTIC_RUBRIC_VERSION, judge_identity=identities[0],
+                  selection=key.get("selection"),
                   game_ids=sorted(r["game_id"] for r in items), rules=rules,
                   n_broken=len(negatives), n_preserved=len(positives),
                   n_unresolved=len(items)-len(negatives)-len(positives), sensitivity=sens, specificity=spec)
@@ -134,10 +174,43 @@ def calibration_report(key, annotations, rules):
         and sens[1] is not None and sens[1] >= rules["sensitivity_lower_min"]
         and spec[1] is not None and spec[1] >= rules["specificity_lower_min"]
         and report["n_unresolved"] / max(1, len(items)) <= rules["max_unresolved_fraction"])
+    report["passed"] = report["passed"] and calibration_is_valid(report)
     return report
 
 
+def calibration_is_valid(report):
+    """Recompute acceptance from the archived item-level calibration evidence."""
+    try:
+        rules, items = report["rules"], report["items"]
+        negatives = [r for r in items if r["gold_fidelity"] is False]
+        positives = [r for r in items if r["gold_fidelity"] is True]
+        sens = wilson_interval(sum(r["gate_ok"] is False for r in negatives), len(negatives))
+        spec = wilson_interval(sum(r["gate_ok"] is True for r in positives), len(positives))
+        return bool(report.get("passed") is True and report.get("selection") == "uniform games then one candidate"
+            and len(str(rules.get("rationale") or "").strip()) >= 20
+            and rules["min_raters"] >= 2 and all(r["n_raters"] >= rules["min_raters"] for r in items)
+            and rules["min_broken"] >= 2 and rules["min_preserved"] >= 2
+            and len(negatives) >= rules["min_broken"] and len(positives) >= rules["min_preserved"]
+            and report["n_broken"] == len(negatives) and report["n_preserved"] == len(positives)
+            and list(sens) == list(report["sensitivity"]) and list(spec) == list(report["specificity"])
+            and 0 < rules["sensitivity_lower_min"] <= sens[1]
+            and 0 < rules["specificity_lower_min"] <= spec[1]
+            and (len(items)-len(negatives)-len(positives))/len(items) <= rules["max_unresolved_fraction"] < 1
+            and len(set(report["game_ids"])) == len(items)
+            and sorted(report["game_ids"]) == sorted(r["game_id"] for r in items))
+    except (KeyError, TypeError, ValueError, ZeroDivisionError):
+        return False
+
+
 def quality_criteria(key, annotations, frozen, rewrites):
+    if not frozen.get("human_validation"):
+        raise ValueError("optional human QC needs its own declared sampling settings; it is not an automated criterion")
+    if key.get("purpose") != "quality":
+        raise ValueError("confirmatory human QC requires a quality worksheet")
+    expected = select_items(rewrites, "quality", frozen["human_validation"]["min_items_per_condition"],
+                            frozen["statistics"]["seed"])
+    if key.get("items") != expected:
+        raise ValueError("human quality sample differs from the frozen selection rule")
     report = summarize(key, annotations, frozen["human_validation"]["min_raters"])
     actual = {(r["source_id"], r["condition"]): r for r in rewrites}
     for item in report["items"]:
@@ -160,11 +233,14 @@ def quality_criteria(key, annotations, frozen, rewrites):
 
 
 def add_parser(sub):
-    b = sub.add_parser("build-human-qc", help="blind English fidelity/quality worksheet")
+    b = sub.add_parser("build-human-qc", help="optional English fidelity/quality worksheet")
     b.add_argument("--rewrites", type=Path, required=True)
     b.add_argument("--purpose", choices=["calibration", "quality"], required=True)
-    b.add_argument("--n-per-stratum", type=int, required=True)
+    b.add_argument("--n-per-stratum", type=int, default=None,
+                   help="calibration: total games; quality: items per condition; pinned for frozen quality")
     b.add_argument("--seed", type=int, default=101)
+    b.add_argument("--frozen", type=Path)
+    b.add_argument("--split", choices=["pilot", "set_a", "set_b"], default="pilot")
     b.add_argument("--out", type=Path, required=True)
     b.add_argument("--key", type=Path, required=True)
     b.set_defaults(func=main_build)
@@ -183,28 +259,25 @@ def add_parser(sub):
 
 
 def main_build(args):
-    items = candidate_items(read_jsonl(args.rewrites), args.purpose == "calibration")
-    rng = random.Random(args.seed)
-    rng.shuffle(items)
-    grouped = defaultdict(list)
-    for item in items:
-        grouped[(item["condition"], item["gate_ok"] if args.purpose == "calibration" else True)].append(item)
-    selected, games = [], set()
-    # Round robin avoids filling all games with the first condition/status.
-    counts = defaultdict(int)
-    while any(grouped.values()):
-        for group in sorted(grouped, key=str):
-            if not grouped[group]:
-                continue
-            item = grouped[group].pop()
-            if counts[group] >= args.n_per_stratum or (args.purpose == "calibration" and item["game_id"] in games):
-                continue
-            selected.append(item)
-            games.add(item["game_id"])
-            counts[group] += 1
-    rng.shuffle(selected)
+    if args.frozen:
+        from .frozen import enforce_frozen
+        from .protocol import verify_artifact
+        frozen = enforce_frozen(args.frozen)
+        if not frozen.get("human_validation"):
+            raise ValueError("this automated freeze has no optional human sampling settings; use an unfrozen supplementary worksheet")
+        if args.purpose != "quality":
+            raise ValueError("calibration is completed before freeze")
+        _, errors = verify_artifact(args.rewrites, frozen, args.split)
+        if errors:
+            raise ValueError(errors)
+        args.n_per_stratum = frozen["human_validation"]["min_items_per_condition"]
+        args.seed = frozen["statistics"]["seed"]
+    if args.n_per_stratum is None:
+        raise ValueError("--n-per-stratum is required outside frozen quality validation")
+    selected = select_items(read_jsonl(args.rewrites), args.purpose, args.n_per_stratum, args.seed)
     key = {"purpose": args.purpose, "seed": args.seed, "rewrites_sha256": sha256_file(args.rewrites),
-           "items": {f"item_{i:04d}": r for i, r in enumerate(selected, 1)}}
+           "selection": "uniform games then one candidate" if args.purpose == "calibration" else "uniform candidates within condition",
+           "items": selected}
     if not selected:
         raise ValueError("no eligible candidates")
     args.out.parent.mkdir(parents=True, exist_ok=True)

@@ -25,7 +25,6 @@ from experiments.proficiency_validation.code import bundles as bundles_mod
 from experiments.proficiency_validation.code import judge_benchmark as jb
 from experiments.proficiency_validation.code import listener as listener_mod
 from experiments.proficiency_validation.code.analysis import contrast_analysis, listener_analysis
-from experiments.proficiency_validation.code.cli import POLITENESS_MANUAL
 from experiments.proficiency_validation.code.frozen import frozen_hashes
 from experiments.proficiency_validation.code.semantic_gate import (
     GatedRewriter, SemanticGate, TreatmentUnavailable, generate_with_gate, generation_qc,
@@ -249,18 +248,6 @@ class ChallengeTests(unittest.TestCase):
         self.assertIn("positive_identity", kinds)
         self.assertTrue(all(i["expected"] in ("broken", "preserved") for i in items))
 
-    def test_human_benchmark_on_real_data(self):
-        if not POLITENESS_MANUAL.exists():
-            self.skipTest("politeness data not present")
-        from components.helpers import read_jsonl
-        records = read_jsonl(POLITENESS_MANUAL)
-        bench = jb.human_benchmark(records)
-        self.assertEqual(bench["n_items"], 48)
-        cons = bench["by_reference"]["consensus"]["pipeline"]
-        self.assertEqual(cons["n_broken"] + cons["n_preserved"] + bench["consensus_excluded"], 48)
-        positives = jb.human_preserved_positives(records)
-        self.assertTrue(all(p["rule"].startswith("human-preserved") for p in positives))
-        self.assertFalse(any("off_record" in p["rule"] for p in positives))
 
 
 class GateTests(unittest.TestCase):
@@ -463,7 +450,7 @@ class AnalysisTests(unittest.TestCase):
         low = out["low_vs_neutral"]["metrics"]["mattr"]
         self.assertTrue(low["direction_confirmed"])
         self.assertLess(low["p_sign_flip"], 0.05)
-        self.assertEqual(low["fdr_family"], "range (m=1)")     # nuisance metric excluded from BH
+        self.assertEqual(low["fdr_family"], "range: planned Low/High contrasts")     # nuisance metric excluded from BH
         self.assertIsNone(out["low_vs_neutral"]["metrics"]["word_count"]["q_bh"])
         self.assertTrue(out["neutral_vs_original"]["metrics"]["mattr"]["equivalence"]["equivalent"])
 
@@ -520,8 +507,8 @@ class ReviewFixTests(unittest.TestCase):
         src.speech_id = None                      # fallback: match the utterance itself
         self.assertEqual(len(history_before(src)), 2)
         src.predicate_text = "estimate(D1, P3, P7, wolf)"  # no exact entry: drop by text
-        self.assertEqual(len(history_before(src)), 3)
-        self.assertEqual(len(with_prior_history(src).public_history), 3)
+        self.assertEqual(len(history_before(src)), 2)
+        self.assertEqual(len(with_prior_history(src).public_history), 2)
         # the gate passes only the prior history to the parser
         seen = {}
 
@@ -578,7 +565,7 @@ class ReviewFixTests(unittest.TestCase):
 
     def test_criteria_never_pass_by_absence(self):
         from experiments.proficiency_validation.code.analysis import frozen_criteria, verdict
-        frozen = {"primary_range_metrics": ["mattr"], "range_effect_thresholds": {"mattr": 0.5},
+        frozen = {"primary_range_metrics": ["mattr"], "range_effect_thresholds": {"low_vs_neutral": {"mattr": 0.5}},
                   "equivalence_bounds": {"mattr": 0.05, "grammar_errors_per_100_words": 0.5, "cola_mean": 0.05},
                   "models": {"listeners": ["m1", "m2"]}, "neutral_match_min_fraction": 0.8}
         # one game only: no p-value, no CI
@@ -590,8 +577,8 @@ class ReviewFixTests(unittest.TestCase):
         by_name = {c["criterion"]: c for c in crit}
         low = next(c for n, c in by_name.items() if n.startswith("Low vs Neutral: mattr"))
         self.assertIsNone(low["passed"])
-        listeners = [c for n, c in by_name.items() if n.startswith("Listener") and "Low as more limited" in n]
-        controls = [c for n, c in by_name.items() if "Neutral vs Original control" in n]
+        listeners = [c for n, c in by_name.items() if n.startswith("Listener") and "low vs Neutral" in n]
+        controls = [c for n, c in by_name.items() if "Neutral vs Original equivalence" in n]
         self.assertEqual(len(listeners), 3)                      # m1, m2, all_models
         self.assertEqual(len(controls), 3)                       # the H3 control for the same three
         self.assertTrue(all(c["passed"] is None for c in listeners + controls))
@@ -694,7 +681,8 @@ class SecondReviewFixTests(unittest.TestCase):
         gate = SemanticGate(None, None, require_parser=False, require_validator=False)
         outcome = generate_with_gate(rw, gate, ctx, src, max_corrective_retries=2)   # must not raise
         self.assertEqual(outcome.status, STATUS_INFRASTRUCTURE_UNAVAILABLE)
-        self.assertEqual(len(outcome.attempts), 3)
+        self.assertEqual(len(outcome.anchor_outcomes["low"]["attempts"]), 3)
+        self.assertEqual(outcome.attempts, [])  # no Neutral without a valid anchor
         import tempfile
         base = LanguageProficiencyRewriter(llm_client=Dead([]), condition="neutral", neutral_match_to="low")
         wrapped = GatedRewriter(base, gate, on_unavailable="original",
@@ -853,10 +841,8 @@ class ThirdReviewFixTests(unittest.TestCase):
                  "generator_temperature": 0.0, "gate_provenance": {"judge_handle": "deepseek-chat"}}]
         checks = integrity_checks(frozen, rewrites=rows)          # must not raise
         by = {c["check"]: c for c in checks}
-        self.assertFalse(by["every rewrite was generated under the frozen prompt template"]["passed"])
-        self.assertFalse(by["rewrites gated by the frozen judge 'deepseek-chat'"]["passed"])
-        self.assertFalse(by["rewrites generated at the frozen temperature 0.0"]["passed"])
-        self.assertTrue(by["rewrite conditions within the frozen design ['low', 'neutral', 'original']"]["passed"])
+        self.assertFalse(by["complete frozen design and unchanged code"]["passed"])
+        self.assertFalse(by["explicit confirmatory split"]["passed"])
 
     def test_ledger_judge_model_books_usage(self):
         from components.api_usage import UsageLedger
@@ -907,9 +893,9 @@ class FourthReviewFixTests(unittest.TestCase):
                                         "confidence": "high", "cannot_tell": False})
         report = {"listener": listener_analysis(choices, n_boot=200, seed=1)}
         crit = {c["criterion"]: c for c in frozen_criteria(report, frozen)}
-        control = [c for n, c in crit.items() if "Neutral vs Original control" in n]
+        control = [c for n, c in crit.items() if "Neutral vs Original equivalence" in n]
         self.assertEqual(len(control), 2)                       # m1 and all_models
-        self.assertTrue(all(c["passed"] is True for c in control))
+        self.assertTrue(all(c["passed"] is None for c in control))  # no equivalence margin frozen
         low = next(c for n, c in crit.items() if n.startswith("Low vs Neutral: mattr"))
         self.assertIsNone(low["passed"])                        # no threshold frozen -> not evaluated
         matching = next(c for n, c in crit.items() if n.startswith("Neutral matching"))
@@ -927,11 +913,11 @@ class FourthReviewFixTests(unittest.TestCase):
         checks = integrity_checks(frozen, listener_paths=[d / "human.jsonl", d / "models.jsonl"])
         names = [c["check"] for c in checks]
         self.assertFalse(any("human.jsonl" in n for n in names))
-        self.assertTrue(any("models.jsonl" in n and c["passed"] is None for n, c in zip(names, checks)))
+        self.assertTrue(any(c["passed"] is False for c in checks))  # incomplete legacy freeze is rejected
 
     def test_hashed_modules_cover_the_judges(self):
         from experiments.proficiency_validation.code.frozen import HASHED_MODULES
-        for name in ("components.judges.inverse_predicate_parser", "components.judges.dimensional_semantic_validator",
+        for name in ("components.judges.inverse_predicate_parser", "experiments.proficiency_validation.code.english_validator",
                      "components.helpers", "experiments.proficiency_validation.code.common",
                      "experiments.proficiency_validation.code.bundles"):
             self.assertIn(name, HASHED_MODULES)
@@ -999,7 +985,7 @@ class FifthReviewFixTests(unittest.TestCase):
         gate = SemanticGate(None, CountingValidator(), require_parser=False)
         outcome = generate_with_gate(rw, gate, ctx, src)
         self.assertEqual(outcome.status, "ok")
-        self.assertEqual(len(CountingValidator.seen), 1)
+        self.assertEqual(len(CountingValidator.seen), 2)  # sentence boundaries are different
 
     def test_identical_flag_comes_from_structural_check(self):
         from experiments.proficiency_validation.code.semantic_gate import treatment_checks
