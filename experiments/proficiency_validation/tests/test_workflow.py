@@ -8,7 +8,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from components.helpers import SourceRecord, read_jsonl, write_jsonl, parse_history_entry
+from components.helpers import read_jsonl, write_jsonl, parse_history_entry
 from components.judges.judge_model import Completion
 from components.stats import tost_equivalence
 import experiments.proficiency_validation.validation.__main__ as cli

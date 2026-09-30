@@ -244,3 +244,6 @@ __pycache__/
 
 # Cluster job scripts and per-cluster settings for the proficiency pilot; kept local for now.
 /experiments/proficiency_validation/hpc/
+
+# Resume artifacts of interrupted proficiency runs (the manifest records completed outputs)
+*.partial

@@ -1,22 +1,23 @@
-"""Proficiency rewrite __main__."""
+"""CLI: generate gated Low/Neutral rewrites, merge verified shards, verify archived generation records."""
 from __future__ import annotations
-from experiments.proficiency_validation.rewrite.runtime import read_metadata, update_metadata
-import sys
+
 import hashlib
+import json
+import sys
 from pathlib import Path
 from typing import List, Optional, Sequence
+
 from components.api_usage import UsageLedger
 from components.helpers import SourceRecord, build_context, read_jsonl
-from experiments.proficiency_validation.rewrite.runtime import ValidationModel as JudgeModel
 from components.metrics.edit_distance import normalized_token_edit_distance
-from components.rewriters.language_rewriter import PROMPT_VERSION, CONDITIONS as REWRITE_CONDITIONS, LanguageProficiencyRewriter
-from experiments.proficiency_validation.rewrite.runtime import EXPERIMENT_NAME, git_commit, now_iso, sha256_text, with_prior_history
-from experiments.proficiency_validation.rewrite.runtime import artifact_provenance, record_artifact, assert_unique
-from experiments.proficiency_validation.validation.protocol import cohort, sha256_file
-from experiments.proficiency_validation.rewrite.runtime import source_record_from_dict
+from components.rewriters.language_rewriter import (
+    CONDITIONS as REWRITE_CONDITIONS, PROMPT_VERSION, LanguageProficiencyRewriter)
 from experiments.proficiency_validation.rewrite.gate import SemanticGate, generate_with_gate, generation_qc
-import json
-from experiments.proficiency_validation.rewrite.runtime import digest
+from experiments.proficiency_validation.rewrite.runtime import (
+    EXPERIMENT_NAME, ValidationModel as JudgeModel, artifact_provenance, assert_unique, digest,
+    git_commit, now_iso, read_metadata, record_artifact, sha256_text, source_record_from_dict,
+    update_metadata, with_prior_history)
+from experiments.proficiency_validation.validation.protocol import cohort, sha256_file
 
 
 class JudgeModelClient:
@@ -56,7 +57,6 @@ def load_source_records(path: Path) -> List[SourceRecord]:
     """Sources from a JSONL of source dicts, or from provenance.json's ``sources``."""
     path = Path(path)
     if path.suffix == ".json":
-        import json
         data = json.loads(path.read_text(encoding="utf-8"))
         rows = data.get("sources", data) if isinstance(data, dict) else data
     else:

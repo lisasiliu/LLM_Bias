@@ -1,4 +1,4 @@
-"""Proficiency validation measurements."""
+"""Family A range features and Family B grammar/acceptability guardrails on assembled passages."""
 from __future__ import annotations
 import sys
 from pathlib import Path

@@ -570,7 +570,7 @@ class ReviewFixTests(unittest.TestCase):
                                             "semantic_rubric_version": "v0_old"}, llm_client=client)
 
     def test_frozen_hashes_cover_module_sources(self):
-        from experiments.proficiency_validation.validation.protocol import HASHED_MODULES, frozen_hashes, module_file_sha256, verify_hashes
+        from experiments.proficiency_validation.validation.protocol import HASHED_MODULES, frozen_hashes, verify_hashes
         import hashlib
         import importlib
         # ``import components.judges.structural_check as x`` would bind the FUNCTION the
@@ -656,7 +656,6 @@ class SecondReviewFixTests(unittest.TestCase):
         self.assertFalse(any(line.startswith("    ") for line in user_c.splitlines()))
 
     def test_neutral_instance_hash_is_the_candidate_prompt(self):
-        from components.rewriters.language_rewriter import DEFINITION_PLACEHOLDER  # noqa: F401
         ctx = build_context(source())
         rw = LanguageProficiencyRewriter(llm_client=None, condition="neutral")
         import hashlib
@@ -679,8 +678,6 @@ class SecondReviewFixTests(unittest.TestCase):
 
 
     def test_listener_set_comparison_is_order_insensitive(self):
-        import argparse
-        import experiments.proficiency_validation.validation.perception as lm
         # emulate the check in main_probe without a frozen file on disk
         pinned = sorted(["deepseek-chat", "openai:gpt-5-mini"])
         given = sorted(h.strip() for h in "openai:gpt-5-mini, deepseek-chat".split(",") if h.strip())
@@ -783,7 +780,7 @@ class ThirdReviewFixTests(unittest.TestCase):
 
     def test_ledger_judge_model_books_usage(self):
         from components.api_usage import UsageLedger
-        from components.judges.judge_model import Completion, resolve_spec
+        from components.judges.judge_model import resolve_spec
         from experiments.proficiency_validation.rewrite.gate import LedgerJudgeModel, SemanticGate
         ledger = UsageLedger("t", run_id="r", path=Path("/dev/null"))
         model = LedgerJudgeModel(resolve_spec("deepseek-chat"), ledger=ledger, purpose="inverse_parser")

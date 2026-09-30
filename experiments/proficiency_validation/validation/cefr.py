@@ -1,4 +1,4 @@
-"""Proficiency validation cefr."""
+"""Auxiliary CEFR-referenced A/B/C ratings of whole-game passages, with optional external calibration; never a gate."""
 from __future__ import annotations
 from experiments.proficiency_validation.rewrite.runtime import read_metadata, update_metadata
 from collections import Counter, defaultdict

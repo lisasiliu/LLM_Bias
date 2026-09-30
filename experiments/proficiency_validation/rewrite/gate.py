@@ -1,4 +1,4 @@
-"""Proficiency rewrite gate."""
+"""Semantic gate (structural, treatment, parser and fidelity checks with corrective retries), GatedRewriter and generation QC."""
 from __future__ import annotations
 import re
 from math import isclose

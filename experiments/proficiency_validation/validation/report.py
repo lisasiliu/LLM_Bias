@@ -1,4 +1,4 @@
-"""Proficiency validation report."""
+"""Source audit report and pilot report rendering (VALIDATION.md and its JSON)."""
 from __future__ import annotations
 from experiments.proficiency_validation.rewrite.runtime import read_metadata, update_metadata
 from collections import Counter, defaultdict

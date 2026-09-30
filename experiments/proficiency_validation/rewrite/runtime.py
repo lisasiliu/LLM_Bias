@@ -1,11 +1,11 @@
-"""Proficiency rewrite runtime."""
+"""Shared runtime: constants, model transport (ValidationModel), checkpoints, run manifests, provenance and source helpers."""
 from __future__ import annotations
 import hashlib
 import json
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, List, Optional
 from components.helpers import SourceRecord, parse_history_entry, read_jsonl
 import os
 import requests
@@ -140,13 +140,6 @@ def with_prior_history(source: SourceRecord) -> SourceRecord:
     data["public_history"] = history_before(source)
     data["provenance"] = source.provenance if "|prior_history" in source.provenance else source.provenance + "|prior_history"
     return SourceRecord.from_dict(data)
-
-
-def group_by(records: Iterable[dict], key: str) -> Dict[Any, List[dict]]:
-    out: Dict[Any, List[dict]] = {}
-    for r in records:
-        out.setdefault(r.get(key), []).append(r)
-    return out
 
 
 def fmt(value: Optional[float], digits: int = 3) -> str:

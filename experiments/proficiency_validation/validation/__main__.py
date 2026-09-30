@@ -1,21 +1,19 @@
-"""Proficiency validation __main__."""
+"""CLI: source audit and passages, measurements, listener probes, judge calibration, CEFR ratings, protocol and reports."""
 from __future__ import annotations
-from experiments.proficiency_validation.rewrite.runtime import update_metadata
+
 import argparse
 from pathlib import Path
 from typing import List, Optional
+
 from components.helpers import read_jsonl, write_jsonl
-import experiments.proficiency_validation.validation.analysis as analysis
-import experiments.proficiency_validation.validation.measurements as features
-import experiments.proficiency_validation.validation.protocol as freeze
-import experiments.proficiency_validation.validation.measurements as guardrails
-import experiments.proficiency_validation.validation.perception as listener
-import experiments.proficiency_validation.validation.report as report
-from experiments.proficiency_validation.validation.sources import audit, load_sources, render_audit
-from experiments.proficiency_validation.validation.sources import build_bundles
-from experiments.proficiency_validation.rewrite.runtime import DATA_DIR, dump_json, now_iso
-from experiments.proficiency_validation.validation.calibration import cmd_build_challenge, cmd_run_challenge, cmd_report_challenge
-from experiments.proficiency_validation.rewrite.runtime import source_record_from_dict
+from experiments.proficiency_validation.rewrite.runtime import (
+    DATA_DIR, dump_json, now_iso, source_record_from_dict, update_metadata)
+from experiments.proficiency_validation.validation import (
+    analysis, cefr, measurements, perception, protocol, report)
+from experiments.proficiency_validation.validation.calibration import (
+    cmd_build_challenge, cmd_report_challenge, cmd_run_challenge)
+from experiments.proficiency_validation.validation.sources import (
+    audit, build_bundles, load_sources, render_audit)
 
 
 def cmd_audit(args) -> int:
@@ -59,7 +57,6 @@ def build_parser() -> argparse.ArgumentParser:
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
     report.add_parser(sub)
-    import experiments.proficiency_validation.validation.cefr as cefr
     cefr.add_parser(sub)
 
     a = sub.add_parser("audit", help="audit untreated game runs for bundle capacity")
@@ -105,11 +102,11 @@ def build_parser() -> argparse.ArgumentParser:
     rc.add_argument("--out", type=Path, default=None)
     rc.set_defaults(func=cmd_report_challenge)
 
-    features.add_features_parser(sub)
-    guardrails.add_guardrails_parser(sub)
-    listener.add_parser(sub)
+    measurements.add_features_parser(sub)
+    measurements.add_guardrails_parser(sub)
+    perception.add_parser(sub)
     analysis.add_parser(sub)
-    freeze.add_parser(sub)
+    protocol.add_parser(sub)
     return parser
 
 

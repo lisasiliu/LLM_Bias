@@ -1,4 +1,4 @@
-"""Proficiency rewrite fidelity."""
+"""English fidelity judge with quoted proposition alignments, proficiency surface checks and the blind multi-act inventory."""
 from __future__ import annotations
 from collections import Counter
 import re

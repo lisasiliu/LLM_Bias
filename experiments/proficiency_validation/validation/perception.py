@@ -1,4 +1,4 @@
-"""Proficiency validation perception."""
+"""Blind pairwise listener probes for perceived linguistic range and perceived English proficiency."""
 from __future__ import annotations
 import hashlib
 from components.judges.judge_model import JudgeModelError, JudgeTransportError

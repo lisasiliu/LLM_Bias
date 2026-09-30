@@ -1,4 +1,3 @@
-import copy
 import json
 import os
 import tempfile
@@ -8,19 +7,18 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from components.helpers import CheckResult, write_jsonl
+from components.helpers import write_jsonl
 from components.judges.judge_model import Completion, JudgeModelError
-from components.stats import cluster_bootstrap, tost_equivalence, proportion_bootstrap, wilson_interval
+from components.stats import cluster_bootstrap, tost_equivalence, proportion_bootstrap
 from components.metrics.grammar import ColaScorer
 from experiments.proficiency_validation.validation.analysis import listener_analysis, frozen_criteria, verdict, integrity_checks, paired_clusters
-from experiments.proficiency_validation.rewrite.runtime import PRIMARY_RANGE_METRICS, sha256_text, history_before
-from experiments.proficiency_validation.rewrite.fidelity import EnglishFidelityValidator, DIMENSIONS, SEMANTIC_RUBRIC_VERSION
+from experiments.proficiency_validation.rewrite.runtime import PRIMARY_RANGE_METRICS, history_before
+from experiments.proficiency_validation.rewrite.fidelity import EnglishFidelityValidator, DIMENSIONS
 from experiments.proficiency_validation.validation.protocol import frozen_hashes
-from experiments.proficiency_validation.rewrite.runtime import ValidationModel, completion_url, model_identity
-from experiments.proficiency_validation.validation.protocol import validate_design, sha256_file
+from experiments.proficiency_validation.rewrite.runtime import ValidationModel, completion_url
+from experiments.proficiency_validation.validation.protocol import validate_design
 from experiments.proficiency_validation.rewrite.runtime import record_artifact, artifact_provenance
-from experiments.proficiency_validation.rewrite.gate import SemanticGate, generate_with_gate, GateResult
-from experiments.proficiency_validation.rewrite.__main__ import generate
+from experiments.proficiency_validation.rewrite.gate import SemanticGate, generate_with_gate
 from components.rewriters.language_rewriter import LanguageProficiencyRewriter
 from experiments.proficiency_validation.tests.test_offline import source, FakeClient
 from components.helpers import build_context

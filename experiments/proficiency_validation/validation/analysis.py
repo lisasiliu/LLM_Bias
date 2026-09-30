@@ -1,4 +1,4 @@
-"""Proficiency validation analysis."""
+"""Planned contrasts, Neutral matching diagnostics, listener analysis, integrity checks and the analysis report."""
 from __future__ import annotations
 from itertools import product
 import random
@@ -459,11 +459,6 @@ def passage_retention(features):
             "retained_fraction": len(retained) / len(originals) if originals else None,
             "matched_bundle_ids": sorted(retained), **groups}
     return out
-
-
-def _criterion(name: str, passed: Optional[bool], detail=None, note: str = "") -> dict:
-    """``passed`` is True, False, or None = could not be evaluated (never a pass)."""
-    return {"criterion": name, "passed": passed, "detail": detail, "note": note}
 
 
 def frozen_criteria(report: dict, frozen: Optional[dict]) -> List[dict]:

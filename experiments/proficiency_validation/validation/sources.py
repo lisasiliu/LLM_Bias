@@ -1,4 +1,4 @@
-"""Proficiency validation sources."""
+"""Untreated source loading and audit, passage bundles (whole game, stratified, prefix) and condition text assembly."""
 from __future__ import annotations
 import random
 import re
@@ -7,7 +7,6 @@ from typing import Dict, List, Optional, Sequence
 from components.helpers import SourceRecord
 from components.metrics.text_normalization import word_count
 from experiments.proficiency_validation.rewrite.runtime import CONDITIONS
-import json
 from collections import Counter
 from pathlib import Path
 from components.helpers import TreatedSourceError, sources_from_game_dir
@@ -197,18 +196,6 @@ def load_sources(game_dirs: Sequence[Path], *, allow_treated: bool = False,
         # contain the utterance's own predicate or anything said after it.
         out[game_dir.name] = [with_prior_history(r) for r in records]
     return out
-
-
-def roles_from_manifest(game_dir: Path) -> Dict[str, str]:
-    manifest = game_dir / "manifest.json"
-    if not manifest.exists():
-        return {}
-    try:
-        data = json.loads(manifest.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        return {}
-    roles = data.get("roles") or data.get("role_assignment") or {}
-    return {str(k): str(v) for k, v in roles.items()} if isinstance(roles, dict) else {}
 
 
 def audit(sources_by_game: Dict[str, List[SourceRecord]],

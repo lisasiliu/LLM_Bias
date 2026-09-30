@@ -1,4 +1,4 @@
-"""Proficiency validation protocol."""
+"""Frozen confirmatory protocol: design validation, prompt and code hashes, enforcement, bound suggestion and freezing."""
 from __future__ import annotations
 import json
 import math

@@ -1,4 +1,4 @@
-"""Proficiency validation calibration."""
+"""Synthetic fidelity challenge set: build perturbations and minimal pairs, judge them, score sensitivity and specificity."""
 from __future__ import annotations
 import random
 import re
