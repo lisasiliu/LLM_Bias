@@ -1,8 +1,0 @@
-{
-  "frozen_sha256": null,
-  "split": "pilot",
-  "input_sha256": {
-    "sources": "c4bc58fe82d4f45c7918e0f020a598d1cd2ef03ed39fd0cbc405d7fc9097cbce"
-  },
-  "output_sha256": "3d667436c6a63a5607173ff313b64cae02621b63f7370a17280c5921eb090cc3"
-}

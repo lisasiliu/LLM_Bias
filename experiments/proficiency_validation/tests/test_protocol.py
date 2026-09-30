@@ -1,7 +1,3 @@
-"""Regression tests for scientific failure modes and the local-serving boundary.
-
-All model responses and instruments are fake; no external service is contacted.
-"""
 import copy
 import json
 import os
@@ -16,21 +12,21 @@ from components.helpers import CheckResult, write_jsonl
 from components.judges.judge_model import Completion, JudgeModelError
 from components.stats import cluster_bootstrap, tost_equivalence, proportion_bootstrap, wilson_interval
 from components.metrics.grammar import ColaScorer
-from experiments.proficiency_validation.code.analysis import (
-    listener_analysis, frozen_criteria, verdict, integrity_checks, paired_clusters)
-from experiments.proficiency_validation.code.common import PRIMARY_RANGE_METRICS, sha256_text, history_before
-from experiments.proficiency_validation.code.english_validator import EnglishFidelityValidator, DIMENSIONS, SEMANTIC_RUBRIC_VERSION
-from experiments.proficiency_validation.code.frozen import frozen_hashes
-from experiments.proficiency_validation.code.models import ValidationModel, completion_url, model_identity
-from experiments.proficiency_validation.code.protocol import validate_design, artifact_sidecar, artifact_provenance, sha256_file
-from experiments.proficiency_validation.code.semantic_gate import SemanticGate, generate_with_gate, GateResult
-from experiments.proficiency_validation.code.generate import generate
+from experiments.proficiency_validation.validation.analysis import listener_analysis, frozen_criteria, verdict, integrity_checks, paired_clusters
+from experiments.proficiency_validation.rewrite.runtime import PRIMARY_RANGE_METRICS, sha256_text, history_before
+from experiments.proficiency_validation.rewrite.fidelity import EnglishFidelityValidator, DIMENSIONS, SEMANTIC_RUBRIC_VERSION
+from experiments.proficiency_validation.validation.protocol import frozen_hashes
+from experiments.proficiency_validation.rewrite.runtime import ValidationModel, completion_url, model_identity
+from experiments.proficiency_validation.validation.protocol import validate_design, sha256_file
+from experiments.proficiency_validation.rewrite.runtime import record_artifact, artifact_provenance
+from experiments.proficiency_validation.rewrite.gate import SemanticGate, generate_with_gate, GateResult
+from experiments.proficiency_validation.rewrite.__main__ import generate
 from components.rewriters.language_rewriter import LanguageProficiencyRewriter
 from experiments.proficiency_validation.tests.test_offline import source, FakeClient
 from components.helpers import build_context
 
 
-def design():
+def design(treatment="low"):
     """Synthetic decisions for tests only, not proposed study thresholds."""
     metrics = list(PRIMARY_RANGE_METRICS)
     handles = ["generator", "judge", "listener1", "listener2", "listener3"]
@@ -38,18 +34,25 @@ def design():
         "tokenizer_revision": "b" * 40, "serving_version": "test-version", "precision": "float32",
         "chat_template": "tokenizer-default", "extra_body": {}} for h in handles}
     splits = {stage: [{"bundle_id": f"{stage}_g{i}:P1", "game_id": f"{stage}_g{i}", "speaker": "P1",
-                       "source_ids": [f"{stage}_s{i}"], "window": [150, 250]} for i in range(6 if stage == "pilot" else 4)]
+                       "source_ids": [f"{stage}_s{i}"], "window": [150, None], "selection": "whole_game"} for i in range(6 if stage == "pilot" else 4)]
               for stage in ("pilot", "set_a", "set_b")}
-    return {"schema_version": 3, "validation_scope": "automated", "conditions": ["original", "neutral", "low", "high"],
+    return {"schema_version": 6, "cefr": {"enabled": False}, "validation_scope": "automated", "conditions": ["original", "neutral", treatment],
+        "perception_constructs": ["range"],
+        "estimand": "equal_game_weight", "neutral_anchor_condition": treatment,
         "primary_range_metrics": metrics, "range_effect_thresholds": {c: {m: .1 for m in metrics}
             for c in ("low_vs_neutral", "high_vs_neutral")},
         "equivalence_bounds": {m: .1 for m in metrics + ["grammar_errors_per_100_words", "cola_mean"]},
         "bound_rationale": {m: "synthetic test rationale, not a study decision" for m in metrics + ["grammar_errors_per_100_words", "cola_mean"]},
         "min_games": 4, "min_bundles": 4, "min_valid_fraction": 1., "min_subtlex_coverage": .9,
-        "listener_equivalence_margin": .1, "neutral_edit_distance_tolerance": .1, "neutral_match_min_fraction": .8,
+        "listener_equivalence_margin": .1, "listener_min_separation": .1,
+        "min_treatment_availability": .9, "max_differential_attrition": .05,
+        "listener_effect_rationale": "synthetic meaningful separation, not an empirical choice",
+        "availability_rationale": "synthetic availability limits, not an empirical choice",
+        "neutral_edit_distance_tolerance": .1, "neutral_match_min_fraction": .8,
         "mattr_window": 50, "max_bundles_per_game": 1, "n_neutral_candidates": 2, "max_corrective_retries": 2,
         "generation_temperature": 0., "generation_max_tokens": 400, "judge_max_tokens": 800, "probe_max_tokens": 400,
-        "bundle_window_words": [150, 250], "power_rationale": "test data are not an empirical power calculation",
+        "bundle_window_words": [150, None], "bundle_selection": "whole_game",
+        "power_rationale": "test data are not an empirical power calculation",
         "listener_margin_rationale": "test margin, not a recommended empirical choice",
         "absolute_quality_rationale": "test limits, not recommended empirical thresholds",
         "absolute_quality": {"grammar_errors_max": .5, "cola_mean_min": .8},
@@ -62,7 +65,6 @@ def design():
         "models": {"generator": "generator", "judge": "judge", "listeners": handles[2:],
                    "identities": identities, "behavioral_families": ["behavior"]}, "splits": splits,
         "sources_sha256": {s: "e"*64 for s in splits}}
-
 
 
 class StatisticalBoundaryTests(unittest.TestCase):
@@ -92,7 +94,7 @@ class StatisticalBoundaryTests(unittest.TestCase):
         self.assertIs(c["passed"], False)
 
     def test_high_is_required_and_perception_direction_reversed(self):
-        f = design()
+        f = design("high")
         c = frozen_criteria({}, f)
         self.assertTrue(any(x["criterion"].startswith("High vs Neutral") and x["passed"] is None for x in c))
         row = {"n_games": 75, "n_bundles": 200, "cluster_bootstrap_ci": [.05, .2],
@@ -113,6 +115,8 @@ class EnglishContractTests(unittest.TestCase):
             def complete_json(self, **kwargs):
                 result = {k: True for k in DIMENSIONS}
                 result["politeness_preserved"] = False
+                result["alignments"] = [{"original": source().original_nl, "rewrite": "candidate",
+                                         "equivalent": True, "reason": "fixture"}]
                 return result, Completion("", "fake", "fake")
         check = EnglishFidelityValidator(Model()).validate(source(), "candidate")
         self.assertIs(check.ok, False)
@@ -135,34 +139,35 @@ class EnglishContractTests(unittest.TestCase):
         result = gate.evaluate(src, "P7 is a werewolf. P2 is a villager.", "low")
         self.assertTrue(result.passed)
 
-    def test_neutral_uses_gated_low_and_high_in_runtime(self):
+    def test_neutral_uses_one_exact_accepted_treatment_anchor(self):
         src = source()
         texts = ["P7 is a werewolf. He pushed the vote onto P2. He gave no read.",
                  "P7 is a werewolf because he redirected the vote toward P2 without offering his own read."]
         neutral = "P7 is a werewolf since he pushed the vote onto P2 without giving any read of his own."
-        client = FakeClient(texts + [json.dumps([neutral])])
-        rw = LanguageProficiencyRewriter(llm_client=client, condition="neutral", neutral_anchor_conditions=["low", "high"])
+        client = FakeClient([texts[0], json.dumps([neutral])])
+        rw = LanguageProficiencyRewriter(llm_client=client, condition="neutral", neutral_anchor_conditions=["low"])
         gate = SemanticGate(require_parser=False, require_validator=False)
         result = generate_with_gate(rw, gate, build_context(src), src)
         self.assertEqual(result.status, "ok")
-        self.assertEqual(set(result.anchor_outcomes), {"low", "high"})
+        self.assertEqual(set(result.anchor_outcomes), {"low"})
         self.assertTrue(all(r["attempts"][0]["gate"]["ok"] for r in result.anchor_outcomes.values()))
-        self.assertEqual(len(client.calls), 3)
+        self.assertEqual(len(client.calls), 2)
+        from components.metrics.edit_distance import normalized_token_edit_distance
+        self.assertEqual(result.target_edit_distance, normalized_token_edit_distance(texts[0], src.original_nl))
 
 
 class FrozenProtocolTests(unittest.TestCase):
-    def test_automated_protocol_can_pass_without_human_data(self):
+    def test_confirmation_requires_all_automated_criteria(self):
         f = design()
-        self.assertNotIn("human_validation", f)
-        self.assertNotIn("calibration", f)
         self.assertEqual(validate_design(f), [])
         sample = {"n_games": 4, "n_bundles": 4}
         metric = {**sample, "reject_fdr_05": True, "direction_confirmed": True,
                   "cohens_dz": .5, "equivalence": {"equivalent": True}}
         r = {"expected_bundles": 4, "range": {}, "guardrails": {}, "listener": {},
+             "generation_qc": {c: {"final_success_rate": 1.} for c in ("low", "neutral")},
              "neutral_matching_by_condition": {}, "absolute_quality": {},
              "integrity": [{"check": "synthetic fixture only", "passed": True}]}
-        for treatment in ("low", "high"):
+        for treatment in ("low",):
             contrast = f"{treatment}_vs_neutral"
             r["range"][contrast] = {"metrics": {m: dict(metric) for m in f["primary_range_metrics"]}}
             r["guardrails"][contrast] = {"metrics": {m: dict(metric) for m in ("grammar_errors_per_100_words", "cola_mean")}}
@@ -178,13 +183,13 @@ class FrozenProtocolTests(unittest.TestCase):
         r["absolute_quality"] = {c: {**sample, "grammar_mean": .1, "cola_mean": .9} for c in f["conditions"]}
         criteria = frozen_criteria(r, f)
         self.assertTrue(verdict(criteria)["confirmed"])
-        self.assertFalse(any(c["criterion"].startswith("Human") for c in criteria))
-        r["human_quality_criteria"] = [{"criterion": "optional evidence", "passed": False}]
-        self.assertEqual(criteria, frozen_criteria(r, f))
+        r["listener"]["low:neutral"]["listeners"]["unregistered"] = row
+        self.assertFalse(verdict(frozen_criteria(r, f))["confirmed"])
+        del r["listener"]["low:neutral"]["listeners"]["unregistered"]
         del r["guardrails"]
         self.assertFalse(verdict(frozen_criteria(r, f))["confirmed"])
 
-    def test_old_human_required_schema_is_not_silently_reinterpreted(self):
+    def test_unsupported_schema_is_rejected(self):
         f = design()
         f["schema_version"] = 2
         self.assertTrue(any("schema_version" in e for e in validate_design(f)))
@@ -215,7 +220,7 @@ class FrozenProtocolTests(unittest.TestCase):
             provenance = {**artifact_provenance(f, "set_a"), "mattr_window": 50, "include_domain_terms": True,
                           "subtlex": {"sha256": "wrong", "measure": "FREQcount"},
                           "spacy": {"lang": "en", "model": "core_web_sm", "model_version": "test", "spacy_version": "test"}}
-            artifact_sidecar(path, provenance)
+            record_artifact(path, provenance)
             checks = integrity_checks(f, features_path=path, split="set_a")
             result = next(r for r in checks if r["check"] == "feature instruments and lexical definition match freeze")
             self.assertIs(result["passed"], False)
@@ -242,7 +247,7 @@ class LocalModelTests(unittest.TestCase):
                 self.assertEqual(completion_url(a.spec.base_url), "http://node-a:8000/v1/chat/completions")
                 response = SimpleNamespace(raise_for_status=lambda: None, json=lambda: {
                     "model": "served-a", "choices": [{"message": {"content": "ready"}, "finish_reason": "stop"}]})
-                with patch("experiments.proficiency_validation.code.models.requests.post", return_value=response) as post:
+                with patch("experiments.proficiency_validation.rewrite.runtime.requests.post", return_value=response) as post:
                     self.assertEqual(a.complete(system="s", user="u").text, "ready")
                     self.assertNotIn("Authorization", post.call_args.kwargs["headers"])
                     with self.assertRaises(JudgeModelError):
@@ -251,7 +256,3 @@ class LocalModelTests(unittest.TestCase):
     def test_gemini_compatible_url_is_not_double_versioned(self):
         self.assertEqual(completion_url("https://generativelanguage.googleapis.com/v1beta/openai"),
                          "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions")
-
-
-if __name__ == "__main__":
-    unittest.main()

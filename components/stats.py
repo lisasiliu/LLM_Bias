@@ -9,7 +9,7 @@ sign-flipping whole game clusters rather than individual bundles:
   benjamini_hochberg       FDR within a metric family
   bradley_terry            MM-estimated strengths from pairwise choices, with
                            pseudo-counts so a unanimous pair stays finite
-  wilson_interval, paired_cohens_dz, cohen_kappa, descriptive helpers
+  wilson_interval, paired_cohens_dz, descriptive helpers
 
 Nothing here calls numpy or scipy, so every number a report prints can be
 recomputed on a plain interpreter.
@@ -182,7 +182,7 @@ def benjamini_hochberg(pvalues: Mapping[str, Optional[float]], q: float = 0.05) 
     return out
 
 
-# ── proportions and agreement ──
+# ── proportions ──
 
 def wilson_interval(successes: int, n: int, z: float = 1.959964) -> Tuple[Optional[float], Optional[float], Optional[float]]:
     if n <= 0:
@@ -192,18 +192,6 @@ def wilson_interval(successes: int, n: int, z: float = 1.959964) -> Tuple[Option
     centre = (p + z * z / (2 * n)) / denom
     half = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / denom
     return p, max(0.0, centre - half), min(1.0, centre + half)
-
-
-def cohen_kappa(pairs: Sequence[Tuple[str, str]]) -> Optional[float]:
-    """Unweighted Cohen's kappa for nominal labels."""
-    if not pairs:
-        return None
-    labels = sorted({x for p in pairs for x in p})
-    n = len(pairs)
-    observed = sum(1 for a, b in pairs if a == b) / n
-    expected = sum((sum(1 for a, _ in pairs if a == l) / n)
-                   * (sum(1 for _, b in pairs if b == l) / n) for l in labels)
-    return None if expected == 1 else (observed - expected) / (1 - expected)
 
 
 def shannon_entropy(counts: Mapping[str, int]) -> Optional[float]:

@@ -1,6 +1,6 @@
 """Linguistic-proficiency-cue Stage-3 rewriter for LURK Werewolf.
 
-Conditions (experiments/proficiency_validation/PLAN.md, section 1):
+Conditions (experiments/proficiency_validation/README.md, Construct and conditions):
 
     low      the treatment: a RESTRICTED linguistic range -- basic, repetitive
              vocabulary and narrow, simple syntax -- that stays grammatical,
@@ -18,7 +18,7 @@ The rewriter shares the politeness rewriter's context parser and prompt.json
 predicate-definition lookup, so both treatments run under one predicate
 contract.  It knows nothing about the semantic gate: gating, corrective retries
 and the ``treatment_unavailable`` policy live in
-``experiments.proficiency_validation.code.semantic_gate.GatedRewriter``.
+``experiments.proficiency_validation.rewrite.gate.GatedRewriter``.
 
 The neutral condition generates several candidate paraphrases in ONE call (so
 temperature 0 still yields distinct candidates) and picks the one whose
@@ -37,7 +37,7 @@ from typing import List, Optional, Set
 
 from components.judges.judge_model import THINK_OPEN
 from components.metrics.edit_distance import normalized_token_edit_distance
-from components.metrics.text_normalization import same_wording, surface_key
+from components.metrics.text_normalization import same_wording, surface_key, tokenize
 from components.rewriters.politeness_rewriter import (
     _ctx_value,
     context_predicate_name,
@@ -48,7 +48,7 @@ from lurkingwolf.utils.speech_nl import clean_natural_text, strip_reasoning
 
 CONDITIONS: tuple = ("low", "neutral", "high")
 
-PROMPT_VERSION = "range_v2"
+PROMPT_VERSION = "range_v6"
 
 # What each condition asks for.  These are the construct definitions; the paper
 # quotes them.  Nothing here mentions errors, accents or learners: the cue is a
@@ -57,14 +57,16 @@ CONDITION_SPECS: dict = {
     "low": dedent("""\
         Represent a speaker with a RESTRICTED linguistic range who is nevertheless clear and correct.
         - Vocabulary: use basic, high-frequency, concrete words. Where the original uses a less common, abstract, figurative or idiomatic word or phrase, replace it with a common plain word or phrase that carries the same meaning. Reuse the same simple words rather than varying them with synonyms.
-        - Syntax: use short sentences, mostly one clause each, in plain subject-verb-object order with simple tense forms. Link ideas with common connectors (and, but, so, because, then). Avoid relative clauses, nested subordination, participial phrases, inversion, cleft constructions and long noun phrases.
-        - Cohesion: present the original's points as a simple sequence. Repeat the name or the noun instead of using elaborate reference.
+        - Syntax: prefer simpler, less embedded structures and a narrower range of constructions. Use common connectors such as and, but, so, because and then while preserving the original logical relations. Combine closely related ideas naturally; do not mechanically put every proposition in a separate sentence.
+        - Cohesion: maintain natural spoken flow. Use clear, simple references and consistent vocabulary. Preserve causal, conditional, temporal and contrastive links between ideas.
         - Grammar: fully correct and natural. Do not insert errors. A restricted range is not broken English.
-        - Content: every game-relevant point of the original must still be expressed. If a complex sentence has to be split into several simple ones, the text may become longer; that is acceptable. Do not drop a point to keep it short."""),
+        - Content: preserve every proposition, qualification and reason. Sentence boundaries may change when helpful, but avoid telegraphic fragments, repetitive sentence openings and padding. Do not drop a point to keep the text short."""),
     "neutral": dedent("""\
         Produce a paraphrase control: NEW surface wording at the SAME linguistic range as the original.
-        - Change the wording: use different words, phrasings and sentence constructions from the original wherever the meaning allows. The paraphrase must not be a near-copy of the original.
+        - Reword the whole utterance using synonyms and phrase substitutions of comparable sophistication to the original. Distribute changes across its clauses, including equivalent connective phrases. Preserve its construction pattern and the relations between clauses. Changing just one or two words may be insufficient for the supplied edit-distance target. A copy of the original is not a candidate.
         - Do not change the level: keep vocabulary sophistication, sentence length, number of sentences, syntactic complexity, cohesion, idiomaticity and register approximately equal to the original. Do not simplify and do not elaborate.
+        - Keep repeated content words repeated. If a repeated phrase is reworded, use the same replacement throughout the passage. Do not diversify synonyms or turn ordinary words such as real into more formal words such as authentic.
+        - Preserve clause boundaries, subordinate links and embedding. New wording does not require a new construction. Matching the amount of editing never takes precedence over these constraints.
         - Keep politeness, directness, certainty and interpersonal stance exactly as in the original."""),
     "high": dedent("""\
         Represent a speaker with a WIDE and PRECISE linguistic range.
@@ -115,6 +117,9 @@ _SYSTEM_TEMPLATE = dedent("""\
     6. Do not intentionally change politeness, warmth, deference, directness, aggression or formality. Politeness is a separate experimental treatment; keep the interpersonal stance of the original.
     7. Do not simulate an accent, nationality or first-language stereotype. Do not insert grammatical errors, misspellings or broken English. Every condition must be natural, grammatical English.
     8. Write natural spoken dialogue for the same player in the same live game. No essay framing, greetings, labels or explanations. Stop when the source content is fully expressed; do not pad.
+    9. Preserve attribution and evidence. A seer claimant is a person who says they are the seer, not an established seer. 'He cleared me in his seer claim' means HE claims to be the seer and reports ME as village-side. Do not turn it into 'he said I am a seer'. An unspecified divination result must remain unspecified.
+    10. Retain every numerical qualification, including the sheriff's 1.5 vote. Keep stated reasons and whose behavior they describe. Do not add please or remove an existing courtesy marker.
+    11. Distinguish identity from association: dissociating from P2 does not mean saying that you are not P2. Preserve qualifiers such as unverifiable, publicly and confirmed. Control of speaking order must not become control over who may speak.
 
     %(COND)s SPECIFICATION:
     %(spec)s
@@ -154,12 +159,55 @@ def _feedback_block(feedback: Optional[dict], condition: str) -> str:
         return ""
     reasons = feedback.get("reasons") or []
     previous = (feedback.get("previous") or "").strip()
-    lines = ["", "A previous rewrite failed these semantic checks: "
-             + ("; ".join(str(r) for r in reasons) or "unspecified") + "."]
+    if not reasons:
+        return ""
+    matching_only = all(str(r).startswith("neutral_edit_distance_mismatch") for r in reasons)
+    lines = ["", ("The previous candidate passed the fidelity checks but missed the edit-distance target: "
+                  if matching_only else "The previous rewrite failed these checks: ")
+             + "; ".join(str(r) for r in reasons) + "."]
     if previous:
         lines.append(f"Previous rewrite: {previous}")
-    lines.append(f"Produce a corrected rewrite that fixes exactly these problems while "
+    lines.append(f"Produce a corrected rewrite that resolves these failures while "
                  f"still meeting the {condition.upper()} specification.")
+    return "\n".join(lines)
+
+
+def _matching_block(original: str, feedback: Optional[dict]) -> str:
+    """Give the generator the measured editing requirement and retry direction."""
+    if not feedback or feedback.get("target_edit_distance") is None:
+        return ""
+    target = feedback["target_edit_distance"]
+    tolerance = feedback.get("edit_tolerance")
+    n_words = len(tokenize(original))
+    lines = ["", f"Edit-distance target: {target:.6f}.",
+             "Distance is the minimum number of word-token substitutions, insertions and deletions "
+             "divided by the larger token count of the two texts. Case and surrounding punctuation "
+             "do not count; apostrophes and hyphens within words are retained. Player and statement "
+             "IDs count as tokens but must stay unchanged.",
+             f"The original has {n_words} word tokens. At the same length, the target is roughly "
+             f"{target * n_words:.1f} token edits. This is a planning guide, not an exact word quota."]
+    if tolerance is not None:
+        lines.append(f"Allowed distance interval: {max(0., target - tolerance):.6f} to "
+                     f"{min(1., target + tolerance):.6f}; absolute tolerance {tolerance:.6f}.")
+    previous = feedback.get("best_candidate") or feedback.get("previous")
+    if previous:
+        distance = normalized_token_edit_distance(original, previous)
+        if feedback.get("best_candidate"):
+            lines.append(f"Closest candidate that passed fidelity checks so far: {previous}")
+        lines.append(f"Measured candidate distance: {distance:.6f}; target minus distance: {target - distance:+.6f}.")
+        if distance < target:
+            lines.append("Increase the amount of rewording across the utterance. Replace additional phrases "
+                         "of the same register and complexity while preserving their meaning and clause structure.")
+        elif distance > target:
+            lines.append("Reduce the amount of rewording by restoring some original phrases while retaining "
+                         "a distinct paraphrase and the same register and complexity.")
+    history = feedback.get("previous_candidates") or []
+    if history:
+        lines.append("Candidates already considered; produce different wording rather than returning these again:")
+        lines.extend(f"- {text}" for text in history)
+    lines.append("Aim near the target, not the edge of the interval. Use equivalent wording without "
+                 "adding filler, deleting information, simplifying the original or making it more formal. "
+                 "The fidelity and range requirements apply even when the distance is hard to match.")
     return "\n".join(lines)
 
 
@@ -345,6 +393,7 @@ class LanguageProficiencyRewriter(Rewriter):
         system = _shared_system_prompt("neutral", definition, _candidate_output_block(n))
         user = _user_header(ctx) + _feedback_block(feedback, "neutral") + \
             f"\n\nWrite {n} different NEUTRAL paraphrases as a JSON array:"
+        user += _matching_block(ctx.original_nl, feedback)
         return system, user
 
     def prompt_sha256(self, ctx: RewriteContext, condition: Optional[str] = None, *,
@@ -441,7 +490,7 @@ class LanguageProficiencyRewriter(Rewriter):
         target = (target_distance if target_distance is not None
                   else self.neutral_target_distance(ctx))
         if candidates is None:
-            candidates = self.generate_candidates(ctx, feedback=feedback)
+            candidates = self.generate_candidates(ctx, feedback={**(feedback or {}), "target_edit_distance": target})
         selection = select_candidate(candidates, ctx.original_nl, target)
         self.last_selection = selection
         return selection

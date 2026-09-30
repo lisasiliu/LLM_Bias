@@ -136,6 +136,7 @@ celerybeat.pid
 
 # Environments
 .env
+/env
 .envrc
 .venv
 env/
@@ -240,3 +241,6 @@ games_fresh/
 /experiments/validation/
 __pycache__/
 *.pyc
+
+# Cluster job scripts and per-cluster settings for the proficiency pilot; kept local for now.
+/experiments/proficiency_validation/hpc/
