@@ -4,7 +4,7 @@
     "sources.jsonl": {
       "provenance": {
         "schema_version": 1,
-        "created_at": "2026-09-25T02:08:01+00:00",
+        "created_at": "2026-10-04T06:38:28+00:00",
         "source_runs": [
           {
             "run_id": "run01",
@@ -59,7 +59,8 @@
         "planned_test_model_family": "Qwen3.5",
         "possible_additional_test_model_family": "DeepSeek",
         "sampling": {
-          "rule": "all public speech records; one prefix bundle per game/speaker",
+          "rule": "all public speech records; one passage per game/speaker drawn from the early, middle and late thirds of the speaker's timeline with a fixed seed",
+          "selection": "phase_stratified",
           "window_words": [
             150,
             250
@@ -81,8 +82,8 @@
         },
         "artifacts": {
           "sources.jsonl": "490be7c819a668100ea4d29a2b5c94788e50d4d7bec2eb68c1e8e82d5251fd19",
-          "bundles.jsonl": "dcd3ec21c9fe7a76b8e2cef8c6d8b8475c853991fca03aae53a565be5776e61f",
-          "original_features.jsonl": "036b57ad1f74fb73383d5142a207b033df24a195fca2abf3d02cae83cfde2659"
+          "bundles.jsonl": "9f64106ad4c86215efa68dac99671c96bb0ea64d2c7a836f32f12e93c72b63b8",
+          "original_features.jsonl": "ca5124d6401c0d5dbff6a8c7b2cd9386652891ded6b8bae42bea805328bb71a1"
         },
         "validation_scope": "automated linguistic measures and model perception",
         "validation_evidence": {

@@ -127,24 +127,24 @@ class RewriterTests(unittest.TestCase):
                  "P7 is a werewolf since he pushed the vote onto P2",               # small change
                  "P7 is a werewolf since he pushed the vote onto P2",               # duplicate
                  "I am sure P7 is a wolf: he steered the whole vote toward P2 himself"]  # large
-        sel = select_candidate(cands, original, target_distance=0.9)
-        self.assertEqual(sel.chosen, cands[3])
+        sel = select_candidate(cands, original, seed=1)
+        self.assertEqual(sel.chosen, cands[1])                  # same sentence count, fewest word changes
         self.assertEqual(sorted(d["reason"] for d in sel.dropped), ["duplicate", "identical_to_original"])
-        sel = select_candidate(cands, original, target_distance=0.0)
-        self.assertEqual(sel.chosen, cands[1])
-        sel = select_candidate(cands, original, target_distance=None)
-        self.assertEqual(sel.rule, "median_distance")
+        self.assertEqual(sel.rule, "closest_surface_profile_v1")
+        self.assertEqual(len(sel.distances), 2)                 # exposure is recorded for every kept candidate
         with self.assertRaises(RuntimeError):
-            select_candidate([original], original, 0.5)
+            select_candidate([original], original, seed=1)
 
-    def test_neutral_uses_target_distance_and_records_selection(self):
+    def test_neutral_records_its_selection_and_never_calls_for_an_anchor(self):
         client = FakeClient([json.dumps(["P7 is a werewolf, since he pushed the vote onto P2 without ever giving a read of his own.",
                                          "P7 is a wolf: he steered the vote toward P2 and never offered one read of his own."])])
-        rw = LanguageProficiencyRewriter(llm_client=client, condition="neutral", target_edit_distance=0.5)
+        rw = LanguageProficiencyRewriter(llm_client=client, condition="neutral")
         text = rw.rewrite(self.ctx)
         self.assertEqual(text, rw.last_selection.chosen)
-        self.assertEqual(rw.last_selection.target_distance, 0.5)
-        self.assertEqual(len(client.calls), 1)   # no anchor call when the target is given
+        self.assertEqual(rw.last_selection.rule, "closest_surface_profile_v1")
+        self.assertEqual(len(rw.last_selection.distances), 2)        # recorded, not used for ranking
+        self.assertEqual(len(client.calls), 1)                        # one candidate call, no Low anchor
+        self.assertNotIn("edit-distance", client.calls[0]["messages"][1]["content"].lower())
 
 
 class LexicalTests(unittest.TestCase):
@@ -313,15 +313,13 @@ class GateTests(unittest.TestCase):
     def test_neutral_target_computed_once(self):
         src = source()
         ctx = build_context(src)
-        anchor = "P7 is a wolf. He pushed the vote onto P2. He gave no read."
         cands = json.dumps(["Perhaps P7 is a werewolf because he pushed the vote onto P2."])  # hedged: fails
-        client = FakeClient([anchor, cands, cands, cands])
-        rw = LanguageProficiencyRewriter(llm_client=client, condition="neutral", neutral_match_to="low")
+        client = FakeClient([cands, cands, cands])
+        rw = LanguageProficiencyRewriter(llm_client=client, condition="neutral")
         gate = SemanticGate(None, None, require_parser=False, require_validator=False)
         outcome = generate_with_gate(rw, gate, ctx, src, max_corrective_retries=2)
         self.assertEqual(outcome.status, "treatment_unavailable")
-        self.assertEqual(len(client.calls), 4)               # 1 anchor + 3 candidate calls, not 3 anchors
-        self.assertIsNotNone(outcome.target_edit_distance)
+        self.assertEqual(len(client.calls), 3)               # three candidate rounds, nothing else
 
     def test_gated_rewriter_fallback_and_raise(self):
         gate = SemanticGate(None, None, require_parser=False, require_validator=False)
@@ -358,7 +356,7 @@ class GateTests(unittest.TestCase):
                  "P7 is a werewolf: he pushed the vote onto P2 and never once gave a read of his own.",
                  "P7 is a werewolf, given that he pushed the vote onto P2 without ever offering his own read."]
         rw = LanguageProficiencyRewriter(llm_client=FakeClient([json.dumps(cands)]), condition="neutral")
-        outcome = generate_with_gate(rw, gate, ctx, src, target_edit_distance=0.3)
+        outcome = generate_with_gate(rw, gate, ctx, src)
         self.assertEqual(outcome.status, "ok")
         self.assertIn(outcome.text, cands[2:])
         sel = outcome.attempts[0].neutral_selection
@@ -454,6 +452,7 @@ class AnalysisTests(unittest.TestCase):
                                         "chosen_condition": "low" if chose_low else "neutral", "confidence": "high"})
         la = listener_analysis(choices, n_boot=300, seed=1)["low:neutral"]["listeners"]
         self.assertTrue(la["all_models"]["ci_lower_above_half"])
+        self.assertTrue(la["all_models"]["signed_ci_excludes_zero"]); self.assertGreater(la["all_models"]["signed_preference"], .5)
         self.assertGreater(la["all_models"]["bradley_terry"]["estimate"], 0)
         self.assertEqual(set(la), {"m1", "m2", "all_models"})
 
@@ -517,7 +516,7 @@ class ReviewFixTests(unittest.TestCase):
         from experiments.proficiency_validation.validation.analysis import frozen_criteria, verdict
         frozen = {"primary_range_metrics": ["mattr"], "range_effect_thresholds": {"low_vs_neutral": {"mattr": 0.5}},
                   "equivalence_bounds": {"mattr": 0.05, "grammar_errors_per_100_words": 0.5, "cola_mean": 0.05},
-                  "models": {"listeners": ["m1", "m2"]}, "neutral_match_min_fraction": 0.8}
+                  "models": {"listeners": ["m1", "m2"]}}
         # one game only: no p-value, no CI
         features = [{"bundle_id": "g1:P1", "game_id": "g1", "condition": c, "complete": True,
                      "mattr": {"original": 0.7, "neutral": 0.69, "low": 0.6}[c]}
@@ -609,15 +608,15 @@ class SecondReviewFixTests(unittest.TestCase):
         src = source()
         ctx = build_context(src)
         copies = json.dumps([src.original_nl, src.original_nl])
-        rw = LanguageProficiencyRewriter(llm_client=FakeClient([copies] * 3), condition="neutral", neutral_match_to=None)
+        rw = LanguageProficiencyRewriter(llm_client=FakeClient([copies] * 3), condition="neutral")
         gate = SemanticGate(None, None, require_parser=False, require_validator=False)
-        outcome = generate_with_gate(rw, gate, ctx, src, max_corrective_retries=2, target_edit_distance=.3)
+        outcome = generate_with_gate(rw, gate, ctx, src, max_corrective_retries=2)
         self.assertEqual(outcome.status, "treatment_unavailable")       # not an infrastructure error
         self.assertTrue(all(a.error == "" for a in outcome.attempts))
         self.assertIn("identical_to_original", outcome.attempts[1].feedback_reasons)
         self.assertEqual(outcome.attempts[0].neutral_selection["rule"], "fallback_all_dropped")
 
-    def test_anchor_failure_is_an_attempt_not_an_exception(self):
+    def test_generator_failure_is_an_attempt_not_an_exception(self):
         from experiments.proficiency_validation.rewrite.gate import STATUS_INFRASTRUCTURE_UNAVAILABLE
 
         class Dead(FakeClient):
@@ -626,14 +625,14 @@ class SecondReviewFixTests(unittest.TestCase):
                 raise RuntimeError("connection refused")
         src = source()
         ctx = build_context(src)
-        rw = LanguageProficiencyRewriter(llm_client=Dead([]), condition="neutral", neutral_match_to="low")
+        rw = LanguageProficiencyRewriter(llm_client=Dead([]), condition="neutral")
         gate = SemanticGate(None, None, require_parser=False, require_validator=False)
         outcome = generate_with_gate(rw, gate, ctx, src, max_corrective_retries=2)   # must not raise
         self.assertEqual(outcome.status, STATUS_INFRASTRUCTURE_UNAVAILABLE)
-        self.assertEqual(len(outcome.anchor_outcomes["low"]["attempts"]), 3)
-        self.assertEqual(outcome.attempts, [])  # no Neutral without a valid anchor
+        self.assertEqual(len(outcome.attempts), 3)
+        self.assertTrue(all(a.text is None and a.error for a in outcome.attempts))
         import tempfile
-        base = LanguageProficiencyRewriter(llm_client=Dead([]), condition="neutral", neutral_match_to="low")
+        base = LanguageProficiencyRewriter(llm_client=Dead([]), condition="neutral")
         wrapped = GatedRewriter(base, gate, on_unavailable="original",
                                 log_path=str(Path(tempfile.mkdtemp()) / "log.jsonl"))
         self.assertEqual(wrapped.rewrite(ctx), src.original_nl)          # falls back as promised
@@ -739,10 +738,9 @@ class ThirdReviewFixTests(unittest.TestCase):
         ctx = build_context(src)
         x = "P7 is a werewolf: he pushed the vote onto P2 and never once gave a read of his own."
         y = "P7 is a werewolf, given that he pushed the vote onto P2 without ever offering his own read."
-        rw = LanguageProficiencyRewriter(llm_client=FakeClient([json.dumps([x, x, y, x])]), condition="neutral",
-                                         neutral_match_to=None)
+        rw = LanguageProficiencyRewriter(llm_client=FakeClient([json.dumps([x, x, y, x])]), condition="neutral")
         gate = SemanticGate(None, CountingValidator(), require_parser=False)
-        outcome = generate_with_gate(rw, gate, ctx, src, target_edit_distance=.3)
+        outcome = generate_with_gate(rw, gate, ctx, src)
         self.assertEqual(outcome.status, "ok")
         self.assertEqual(sorted(CountingValidator.seen), sorted([x, y]))
         self.assertEqual(outcome.attempts[0].neutral_selection["n_candidates"], 2)
@@ -817,8 +815,7 @@ class FourthReviewFixTests(unittest.TestCase):
         self.assertTrue(all(c["passed"] is None for c in control))  # no equivalence margin frozen
         low = next(c for n, c in crit.items() if n.startswith("Low vs Neutral: mattr"))
         self.assertIsNone(low["passed"])                        # no threshold frozen -> not evaluated
-        matching = next(c for n, c in crit.items() if n.startswith("Neutral matching"))
-        self.assertIsNone(matching["passed"])
+        self.assertFalse(any(n.startswith("Neutral matching") for n in crit))   # no edit-distance matching criterion
         self.assertFalse(verdict(list(crit.values()))["confirmed"])
 
 
@@ -887,10 +884,9 @@ class FifthReviewFixTests(unittest.TestCase):
         ctx = build_context(src)
         a = "P7 is a werewolf; he pushed the vote onto P2 and never gave a read of his own."
         b = "P7 is a werewolf. He pushed the vote onto P2 and never gave a read of his own"
-        rw = LanguageProficiencyRewriter(llm_client=FakeClient([json.dumps([a, b])]), condition="neutral",
-                                         neutral_match_to=None)
+        rw = LanguageProficiencyRewriter(llm_client=FakeClient([json.dumps([a, b])]), condition="neutral")
         gate = SemanticGate(None, CountingValidator(), require_parser=False)
-        outcome = generate_with_gate(rw, gate, ctx, src, target_edit_distance=.3)
+        outcome = generate_with_gate(rw, gate, ctx, src)
         self.assertEqual(outcome.status, "ok")
         self.assertEqual(len(CountingValidator.seen), 2)  # sentence boundaries are different
 

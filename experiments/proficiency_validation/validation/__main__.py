@@ -11,7 +11,7 @@ from experiments.proficiency_validation.rewrite.runtime import (
 from experiments.proficiency_validation.validation import (
     analysis, cefr, measurements, perception, protocol, report)
 from experiments.proficiency_validation.validation.calibration import (
-    cmd_build_challenge, cmd_report_challenge, cmd_run_challenge)
+    cmd_build_challenge, cmd_merge_challenge, cmd_report_challenge, cmd_run_challenge)
 from experiments.proficiency_validation.validation.sources import (
     audit, build_bundles, load_sources, render_audit)
 
@@ -73,8 +73,8 @@ def build_parser() -> argparse.ArgumentParser:
     b.add_argument("--sources", type=Path, default=None, help="use a sources JSONL instead of game dirs")
     b.add_argument("--sources-out", type=Path, default=None, help="also dump the per-utterance sources")
     b.add_argument("--window", type=int, nargs=2, default=[150, 250], metavar=("MIN", "MAX"))
-    b.add_argument("--selection", choices=["whole_game", "phase_stratified", "prefix"], default="whole_game",
-                   help="whole-game speaker transcript, chronological-thirds sensitivity, or prefix baseline; whole_game uses MIN only")
+    b.add_argument("--selection", choices=["whole_game", "phase_stratified", "prefix"], default="phase_stratified",
+                   help="chronological-thirds speaker passage (primary), whole-game transcript (robustness; MIN only) or prefix baseline")
     b.add_argument("--max-per-game", type=int, default=None)
     b.add_argument("--seed", type=int, default=101)
     b.add_argument("--allow-treated", action="store_true")
@@ -85,6 +85,8 @@ def build_parser() -> argparse.ArgumentParser:
     c.add_argument("--sources", type=Path, default=DATA_DIR / "sources.jsonl",
                    help="untreated proficiency source records")
     c.add_argument("--seed", type=int, default=101)
+    c.add_argument("--max-items", type=int, default=None,
+                   help="seeded random subset of the generated items; constructed minimal pairs are always kept")
     c.add_argument("--out", type=Path, required=True)
     c.set_defaults(func=cmd_build_challenge)
 
@@ -94,8 +96,17 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--judge-max-tokens", type=int, default=3072)
     r.add_argument("--resume", action="store_true")
     r.add_argument("--limit", type=int, default=None)
+    r.add_argument("--shard-index", type=int, default=0)
+    r.add_argument("--shard-count", type=int, default=1,
+                   help="judge every shard-count-th item; shards run concurrently and are joined by merge-challenge")
     r.add_argument("--out", type=Path, required=True)
     r.set_defaults(func=cmd_run_challenge)
+
+    mc = sub.add_parser("merge-challenge", help="join judged challenge shards into one complete artifact")
+    mc.add_argument("--items", type=Path, required=True)
+    mc.add_argument("--shards", nargs="+", type=Path, required=True)
+    mc.add_argument("--out", type=Path, required=True)
+    mc.set_defaults(func=cmd_merge_challenge)
 
     rc = sub.add_parser("report-challenge", help="sensitivity/specificity per challenge type")
     rc.add_argument("--items", type=Path, required=True)
@@ -107,6 +118,9 @@ def build_parser() -> argparse.ArgumentParser:
     perception.add_parser(sub)
     analysis.add_parser(sub)
     protocol.add_parser(sub)
+    from experiments.proficiency_validation.validation import power, export
+    power.add_parser(sub)
+    export.add_parser(sub)
     return parser
 
 

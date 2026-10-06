@@ -67,8 +67,8 @@ class DecisionTests(unittest.TestCase):
 
     def test_small_perception_effect_does_not_pass_meaningful_separation(self):
         f = design()
-        row = {"n_games": 1000, "n_bundles": 1000, "cluster_bootstrap_ci": [.51, .53],
-               "by_order": {o: {"n_games": 1000, "n_bundles": 1000, "ci95": [.51, .53]} for o in ("ab", "ba")}}
+        row = {"n_games": 1000, "n_bundles": 1000, "signed_preference": .04, "signed_ci95": [.02, .06],
+               "by_order": {o: {"n_games": 1000, "n_bundles": 1000, "signed": .04, "ci95": [.02, .06]} for o in ("ab", "ba")}}
         report = {"listener": {"low:neutral": {"listeners": {"listener1": row}}}}
         c = next(c for c in frozen_criteria(report, f) if c["criterion"] == "Listener listener1: low vs Neutral, both orders")
         self.assertIs(c["passed"], False)
@@ -82,25 +82,23 @@ class DecisionTests(unittest.TestCase):
         f["models"]["identities"]["judge"]["family"] = "generator"
         self.assertTrue(any("semantic judge" in e for e in validate_design(f)))
 
-    def test_high_failure_does_not_block_accepted_low_anchor(self):
+    def test_neutral_outcome_does_not_depend_on_other_conditions(self):
         src = source()
-        anchor = "P7 is a werewolf. He pushed the vote onto P2. He gave no read."
         neutral = "P7 is a werewolf since he pushed the vote onto P2 without giving his own read."
         client = FakeClient([json.dumps([neutral])])
         rw = LanguageProficiencyRewriter(llm_client=client, condition="neutral")
         result = generate_with_gate(rw, SemanticGate(require_parser=False, require_validator=False),
-            build_context(src), src, anchor_outcomes={"low": {"status": "ok", "text": anchor},
-                                                     "high": {"status": "treatment_unavailable", "text": None}})
-        self.assertEqual(result.status, "ok")
-        self.assertEqual(set(result.anchor_outcomes), {"low"})
+                                    build_context(src), src)
+        self.assertEqual((result.status, result.text), ("ok", neutral))
         self.assertEqual(len(client.calls), 1)
 
-    def test_anchor_blocked_and_own_failure_are_counted_separately(self):
-        rows = [{"condition": "neutral", "status": "treatment_unavailable", "n_attempts": 0, "anchor_outcomes": {"low": {}}},
+    def test_failed_attempts_and_infrastructure_losses_are_counted_separately(self):
+        rows = [{"condition": "neutral", "status": "infrastructure_unavailable", "n_attempts": 3},
                 {"condition": "neutral", "status": "treatment_unavailable", "n_attempts": 2},
                 {"condition": "neutral", "status": "ok", "n_attempts": 1}]
         q = generation_qc(rows)["neutral"]
-        self.assertEqual((q["anchor_blocked"], q["own_failed_attempts"], q["final_success"]), (1, 1, 1))
+        self.assertEqual((q["infrastructure_unavailable"], q["own_failed_attempts"], q["final_success"]), (1, 2, 1))
+        self.assertNotIn("anchor_blocked", q)
 
 
 class TransportTests(unittest.TestCase):

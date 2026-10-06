@@ -247,3 +247,6 @@ __pycache__/
 
 # Resume artifacts of interrupted proficiency runs (the manifest records completed outputs)
 *.partial
+
+# Raw baselines and replays of the proficiency flip pilot; summaries live in experiments/proficiency_flip/data/
+/experiments/proficiency_flip/games/

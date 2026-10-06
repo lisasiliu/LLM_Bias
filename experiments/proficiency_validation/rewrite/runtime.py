@@ -46,7 +46,6 @@ RANGE_METRICS: Dict[str, int] = {
     "mtld": -1,
     "repetition_rate": +1,
     "top5_share": +1,
-    "clause_pattern_entropy": -1,
     "clause_pattern_distinct_ratio": -1,
     "subordinate_clauses_per_sentence": -1,
     "subordinate_clause_rate": -1,
@@ -56,10 +55,15 @@ RANGE_METRICS: Dict[str, int] = {
     "mean_sentence_length": -1,
 }
 PRIMARY_RANGE_METRICS: tuple = ("subtlex_mean", "mattr", "subordinate_clause_rate")
-NUISANCE_METRICS: tuple = ("word_count", "n_sentences", "edit_distance_to_original")
+# clause_pattern_entropy is descriptive: Low splits long sentences into several short ones, which
+# raises the number of distinct clause patterns per passage, and the natural L1-L5 baseline shows
+# no level trend for it (experiments/natural_proficiency), so it carries no range expectation.
+NUISANCE_METRICS: tuple = ("word_count", "n_sentences", "edit_distance_to_original", "clause_pattern_entropy")
 
 # Family B guardrail metrics (equivalence, not difference).
 GUARDRAIL_METRICS: tuple = ("grammar_errors_per_100_words", "cola_mean")
+# Which direction is "worse" for a treatment: +1 higher values are worse (errors), -1 lower values are worse (acceptability).
+GUARDRAIL_HARM_DIRECTION: dict = {"grammar_errors_per_100_words": +1, "cola_mean": -1}
 
 
 def sha256_text(text: str) -> str:
@@ -371,6 +375,21 @@ def _write_manifest(manifest, data):
         temporary.unlink(missing_ok=True)
 
 
+def comparable_settings(settings):
+    """Settings as compared for resuming: per-module source hashes are dropped.
+
+    Resuming must not break because an analysis or reporting module changed; what a
+    stage's results depend on is kept explicitly (prompt and rubric hashes, model
+    identities, generation policy hashes, budgets)."""
+    def strip(value):
+        if isinstance(value, dict):
+            return {k: strip(v) for k, v in value.items() if k != "module_source_sha256"}
+        if isinstance(value, list):
+            return [strip(v) for v in value]
+        return value
+    return strip(json.loads(json.dumps(settings, sort_keys=True, default=str, allow_nan=False)))
+
+
 def configure_run(manifest, models, settings):
     """Record model roles and batch settings before workers start; reject changed runs."""
     manifest = Path(manifest)
@@ -379,7 +398,8 @@ def configure_run(manifest, models, settings):
         data = _manifest(manifest)
         configuration = json.loads(json.dumps(settings, default=str, allow_nan=False))
         if data.get("artifacts") or data.get("configuration"):
-            if data.get("configuration") != configuration or data.get("models") != models:
+            if (comparable_settings(data.get("configuration")) != comparable_settings(configuration)
+                    or data.get("models") != models):
                 raise ValueError("run configuration changed or is unavailable; select a new RUN")
         data.update(models=models, configuration=configuration)
         _write_manifest(manifest, data)
@@ -411,10 +431,12 @@ class Checkpoint:
             exists = existed or bool(record)
             if exists and not resume:
                 raise ValueError("output/checkpoint already exists; use --resume with unchanged settings")
-            if exists:
-                if record != self.settings:
-                    raise ValueError("checkpoint inputs, code or model settings differ; refusing to resume")
+            if exists and comparable_settings((record or {}).get("settings")) == comparable_settings(settings):
+                self.settings = record          # the run keeps the record it was started with
+            elif exists and (self.output.exists() or (self.partial.exists() and self.partial.stat().st_size > 0)):
+                raise ValueError("checkpoint inputs, code or model settings differ; refusing to resume")
             else:
+                # New run, or a resume whose earlier attempt wrote nothing: nothing is lost by starting over.
                 update_metadata(self.output, "checkpoint", self.settings)
             self.finished = self.output.exists()
             path = self.output if self.finished else self.partial

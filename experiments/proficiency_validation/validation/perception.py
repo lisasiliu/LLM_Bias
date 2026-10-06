@@ -18,10 +18,15 @@ from experiments.proficiency_validation.rewrite.runtime import EXPERIMENT_NAME, 
 
 
 CONSTRUCTS = ("range", "perceived_proficiency")
-VERSIONS = {"range": "range_pairwise_v4", "perceived_proficiency": "perceived_proficiency_pairwise_v2"}
-RANGE_PROMPT = system_prompt().replace(
-    "two short passages, A and B,\neach spoken by a different player during a Werewolf (Mafia) game.",
-    "two transcripts, A and B. Each transcript contains one player's speech from a Werewolf game.")
+VERSIONS = {"range": "range_pairwise_v5", "perceived_proficiency": "perceived_proficiency_pairwise_v3"}
+THREE_WAY = ('Answer "A" if passage A shows the more limited range, "B" if passage B does, or "same" when you\n'
+             'cannot find a meaningful difference between them. Do not force a choice.')
+RANGE_PROMPT = (system_prompt()
+    .replace("two short passages, A and B,\neach spoken by a different player during a Werewolf (Mafia) game.",
+             "two transcripts, A and B. Each transcript contains one player's speech from a Werewolf game.")
+    .replace("If they seem equal, still choose the one that is\neven slightly more limited.", THREE_WAY)
+    .replace('{"more_limited": "A" | "B",', '{"more_limited": "A" | "B" | "same",'))
+assert THREE_WAY in RANGE_PROMPT and '"same"' in RANGE_PROMPT, "three-way range prompt did not apply"
 PROFICIENCY_PROMPT = """You are a blind rater in a study of perceived English proficiency.
 You will read two transcripts, A and B. Each contains one player's speech from a
 Werewolf game. Which speaker appears to have a weaker command of English from
@@ -36,10 +41,24 @@ player identities and how much the speaker talks. Do not assume anything about
 nationality, first language or education. The judgment concerns the impression
 from this sample, not an established ability level or a CEFR classification.
 
-Choose A or B, even if the difference is small. Return JSON only:
-{"more_limited": "A" | "B", "confidence": "low" | "medium" | "high",
+Answer "A" or "B" for the speaker with the weaker command of English, or "same" when you
+cannot find a meaningful difference; do not force a choice. Return JSON only:
+{"more_limited": "A" | "B" | "same", "confidence": "low" | "medium" | "high",
  "reason": "brief explanation about the English"}
 """
+
+SAME_WORDS = ("same", "neither", "equal", "no difference", "no meaningful", "cannot", "tie", "none")
+
+
+def parse_three_way(value):
+    """``"A"`` / ``"B"`` / ``"same"`` from the model's answer; ``None`` when unreadable."""
+    choice = parse_choice(value)
+    if choice:
+        return choice
+    text = str(value or "").strip().lower()
+    if text and any(word in text for word in SAME_WORDS):
+        return "same"
+    return None
 
 
 def prompt(construct):
@@ -70,7 +89,7 @@ class BlindLanguageProbe:
         provenance = {**completion.to_dict(), "construct": self.construct, "prompt_version": self.prompt_version}
         if not isinstance(parsed, dict):
             return ProbeResult(ok=False, error="unparseable_json", provenance=provenance)
-        choice = parse_choice(parsed.get("more_limited"))
+        choice = parse_three_way(parsed.get("more_limited"))
         if choice is None:
             return ProbeResult(ok=False, error="unknown_choice", provenance=provenance)
         return ProbeResult(ok=True, choice=choice, confidence=str(parsed.get("confidence", "")),
@@ -97,57 +116,84 @@ def passages(assembled: Sequence[dict]) -> Dict[Tuple[str, str], dict]:
 
 def run_probe(assembled: Sequence[dict], listeners: Dict[str, BlindLanguageProbe],
               pairs: Sequence[Tuple[str, str]], *, ledger: Optional[UsageLedger] = None,
-              limit: Optional[int] = None, log=print, completed_rows=None, on_row=None) -> List[dict]:
+              limit: Optional[int] = None, log=print, completed_rows=None, on_row=None,
+              concurrency: int = 1) -> List[dict]:
+    """Every (pair, passage, listener, order) comparison once. Model calls run on ``concurrency``
+    threads; rows are appended to the checkpoint from the main thread as they complete."""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
     texts = passages(assembled)
-    rows: List[dict] = []
     prior = list(completed_rows or [])
     assert_unique(prior, ("bundle_id", "pair", "listener", "order"))
     done = {(r["bundle_id"], r["pair"], r["listener"], r["order"]): r for r in prior}
-    reused = set()
+    tasks, reused = [], set()
     for a, b in pairs:
         ids = matched_complete(assembled, (a, b))
         if limit:
             ids = ids[:limit]
-        for index, bundle_id in enumerate(ids, 1):
-            ra = texts[(bundle_id, a)]
+        for bundle_id in ids:
             for handle, probe in listeners.items():
                 for order, (left, right) in (("ab", (a, b)), ("ba", (b, a))):
                     key = (bundle_id, f"{a}:{b}", handle, order)
                     if key in done:
-                        rows.append(done[key])
                         reused.add(key)
-                        continue
-                    left_row, right_row = texts[(bundle_id, left)], texts[(bundle_id, right)]
-                    left_text = "\n\n".join(left_row["utterances"]) if left_row.get("utterances") else left_row["text"]
-                    right_text = "\n\n".join(right_row["utterances"]) if right_row.get("utterances") else right_row["text"]
-                    result = probe.compare(left_text, right_text)
-                    chosen = None
-                    if result.ok:
-                        chosen = left if result.choice == "A" else right
-                    if ledger is not None and result.provenance:
-                        ledger.record(probe.model.spec.provider,
-                                      result.provenance.get("model_served") or probe.model.spec.model,
-                                      "listener_probe", result.provenance.get("usage"))
-                    rows.append({
-                        "bundle_id": bundle_id, "game_id": ra["game_id"], "speaker": ra["speaker"],
-                        "pair": f"{a}:{b}", "treatment": a, "comparator": b,
-                        "listener": handle, "listener_family": probe.model.family,
-                        "order": order, "left_condition": left, "right_condition": right,
-                        "ok": result.ok, "choice": result.choice, "chosen_condition": chosen,
-                        "chose_treatment": (chosen == a) if chosen else None,
-                        "confidence": result.confidence, "reason": result.reason,
-                        "error": result.error, "construct": probe.construct,
-                        "prompt_version": probe.prompt_version,
-                        "model_served": result.provenance.get("model_served"),
-                        "provenance": result.provenance, "max_tokens": probe.max_tokens,
-                        "created_at": now_iso(),
-                    })
-                    if on_row:
-                        on_row(rows[-1])
-            if index % 10 == 0:
-                log(f"  probe {a}:{b} {index}/{len(ids)}")
+                    else:
+                        tasks.append((key, a, b, bundle_id, handle, probe, order, left, right))
     if reused != set(done):
         raise ValueError("checkpoint contains unexpected probe rows")
+
+    def passage_text(bundle_id, condition):
+        row = texts[(bundle_id, condition)]
+        return "\n\n".join(row["utterances"]) if row.get("utterances") else row["text"]
+
+    def make_row(task, result):
+        key, a, b, bundle_id, handle, probe, order, left, right = task
+        ra = texts[(bundle_id, a)]
+        chosen, signed = None, None
+        if result.ok and result.choice == "same":
+            signed = 0                       # no meaningful difference: a tie, not a missing answer
+        elif result.ok:
+            chosen = left if result.choice == "A" else right
+            signed = 1 if chosen == a else -1
+        if ledger is not None and result.provenance:
+            ledger.record(probe.model.spec.provider, result.provenance.get("model_served") or probe.model.spec.model,
+                          "listener_probe", result.provenance.get("usage"))
+        return {"bundle_id": bundle_id, "game_id": ra["game_id"], "speaker": ra["speaker"],
+                "pair": f"{a}:{b}", "treatment": a, "comparator": b,
+                "listener": handle, "listener_family": probe.model.family,
+                "order": order, "left_condition": left, "right_condition": right,
+                "ok": result.ok, "choice": result.choice, "position": result.choice if result.ok else None,
+                "chosen_condition": chosen, "tie": bool(result.ok and result.choice == "same"),
+                "signed": signed, "chose_treatment": (chosen == a) if chosen else None,
+                "confidence": result.confidence, "reason": result.reason,
+                "error": result.error, "construct": probe.construct,
+                "prompt_version": probe.prompt_version,
+                "model_served": result.provenance.get("model_served"),
+                "provenance": result.provenance, "max_tokens": probe.max_tokens,
+                "created_at": now_iso()}
+    produced: Dict[tuple, dict] = {}
+    finished = 0
+    with ThreadPoolExecutor(max_workers=max(1, int(concurrency))) as pool:
+        futures = {pool.submit(task[5].compare, passage_text(task[3], task[7]), passage_text(task[3], task[8])): task
+                   for task in tasks}
+        for future in as_completed(futures):
+            task = futures[future]
+            row = make_row(task, future.result())
+            produced[task[0]] = row
+            if on_row:
+                on_row(row)
+            finished += 1
+            if finished % 20 == 0:
+                log(f"  probe {finished}/{len(tasks)}")
+    rows: List[dict] = []
+    for a, b in pairs:
+        ids = matched_complete(assembled, (a, b))
+        if limit:
+            ids = ids[:limit]
+        for bundle_id in ids:
+            for handle in listeners:
+                for order in ("ab", "ba"):
+                    key = (bundle_id, f"{a}:{b}", handle, order)
+                    rows.append(done.get(key) or produced[key])
     return rows
 
 
@@ -163,6 +209,7 @@ def add_parser(sub) -> None:
     p.add_argument("--limit", type=int, default=None)
     p.add_argument("--max-tokens", type=int, default=768,
                    help="completion budget per comparison; raise for reasoning listeners")
+    p.add_argument("--concurrency", type=int, default=8, help="parallel comparison requests")
     p.add_argument("--run-id", default=None)
     p.add_argument("--resume", action="store_true")
     p.add_argument("--split", choices=["pilot", "set_a", "set_b"], default="pilot")
@@ -212,7 +259,8 @@ def main_probe(args) -> int:
     checkpoint = Checkpoint(args.out, json.loads(json.dumps(settings)), resume=args.resume)
     try:
         rows = run_probe(assembled, listeners, pairs, ledger=ledger, limit=args.limit,
-                         completed_rows=checkpoint.rows, on_row=checkpoint.append)
+                         completed_rows=checkpoint.rows, on_row=checkpoint.append,
+                         concurrency=getattr(args, "concurrency", 1))
         checkpoint.finish()
     finally:
         checkpoint.close()

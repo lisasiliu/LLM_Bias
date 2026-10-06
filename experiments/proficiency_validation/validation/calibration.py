@@ -17,7 +17,7 @@ from experiments.proficiency_validation.rewrite.runtime import source_record_fro
 
 # ── scoring ──
 
-JUDGES = ("structural", "parser", "validator", "pipeline")
+JUDGES = ("structural", "parser", "validator", "pipeline", "pipeline_strict")
 
 
 def confusion(rows: Sequence[Tuple[bool, Optional[bool]]]) -> dict:
@@ -215,8 +215,12 @@ def perturb(source: SourceRecord, kind: str, rng: random.Random) -> Optional[dic
     raise ValueError(f"unknown challenge type {kind!r}")
 
 
-def build_challenge_set(sources: Sequence[SourceRecord], *, seed: int = 101) -> List[dict]:
-    """Perturbed negatives for every applicable rule, plus positive controls."""
+def build_challenge_set(sources: Sequence[SourceRecord], *, seed: int = 101,
+                        max_items: Optional[int] = None) -> List[dict]:
+    """Perturbed negatives for every applicable rule, plus positive controls.
+
+    ``max_items`` keeps a seeded random subset of the generated items; the fixed
+    controlled minimal pairs are always included on top of it."""
     rng = random.Random(seed)
     items: List[dict] = []
     for src in sources:
@@ -224,6 +228,9 @@ def build_challenge_set(sources: Sequence[SourceRecord], *, seed: int = 101) -> 
                 "predicate": src.predicate_text, "predicate_name": src.predicate_name,
                 "phase": src.phase, "speaker": src.speaker_id, "original_text": src.original_nl,
                 "referenced_speech": src.referenced_speech,
+                # The loader already cut the history at this turn; keep the marker that says so,
+                # otherwise the judges refuse the item as an ambiguous history.
+                "provenance": src.provenance if "|prior_history" in (src.provenance or "") else (src.provenance or "") + "|prior_history",
                 "public_history": list(src.public_history)}
         items.append({**base, "item_id": f"pos_identity_{len(items):03d}",
                       "challenge_type": "positive_identity", "expected": "preserved",
@@ -235,6 +242,12 @@ def build_challenge_set(sources: Sequence[SourceRecord], *, seed: int = 101) -> 
             items.append({**base, "item_id": f"neg_{kind}_{len(items):03d}",
                           "challenge_type": kind, "expected": "broken",
                           "candidate_text": out["text"], "rule": out["rule"]})
+    if max_items is not None:
+        if max_items < 1:
+            raise ValueError("max_items must be positive")
+        sampler = random.Random(seed)
+        sampler.shuffle(items)
+        items = sorted(items[:max_items], key=lambda item: item["item_id"])
     for i, (kind, expected, predicate, original, candidate) in enumerate(CONTROLLED_CASES):
         src = source_record_from_dict({"source_id": f"constructed:{i}", "game_id": "constructed",
             "speech_id": "s2", "predicate": predicate, "speaker": "P3", "original_text": original,
@@ -271,8 +284,9 @@ def run_challenge(items: Sequence[dict], gate, *, completed_rows=None, on_row=No
         if item["item_id"] in done:
             out.append(done[item["item_id"]])
             continue
+        provenance = item.get("provenance") or "challenge|prior_history"   # items are built from prior-only sources
         src = source_record_from_dict({**item, "original_nl": item["original_text"],
-                                       "predicate_text": item["predicate"]})
+                                       "predicate_text": item["predicate"], "provenance": provenance})
         verdicts = gate.judge_all(src, item["candidate_text"])
         parser = verdicts.get("parser")
         semantic = verdicts.get("semantic")
@@ -283,15 +297,21 @@ def run_challenge(items: Sequence[dict], gate, *, completed_rows=None, on_row=No
         }
         applicable = [j for j in ("structural", "parser", "validator")
                       if (j != "parser" or parser is not None) and (j != "validator" or semantic is not None)]
-        known = [flags[j] for j in applicable if flags[j] is not None]
-        flags["pipeline"] = (True if any(known)
-                             else (False if len(known) == len(applicable) else None))
-        if (not flags["pipeline"] and verdicts["structural"]["details"].get("requires_semantic_adjudication")
-                and (semantic or {}).get("ok") is not True):
-            flags["pipeline"] = None
-        if (flags["pipeline"] is False and (parser or {}).get("comparison_basis") in ("original_parse", "act_inventory")
-                and (semantic or {}).get("ok") is not True):
-            flags["pipeline"] = None
+
+        def combine(judges):
+            known = [flags[j] for j in judges if flags[j] is not None]
+            verdict = True if any(known) else (False if len(known) == len(judges) else None)
+            if (not verdict and verdicts["structural"]["details"].get("requires_semantic_adjudication")
+                    and (semantic or {}).get("ok") is not True):
+                verdict = None
+            if (verdict is False and (parser or {}).get("comparison_basis") in ("original_parse", "act_inventory")
+                    and (semantic or {}).get("ok") is not True):
+                verdict = None
+            return verdict
+        # strict: a parser that recovers nothing leaves no verdict; production (defer): the judge decides alone.
+        abstained = bool(parser) and not parser["ok"] and parser.get("error") == "predicate_not_recoverable"
+        flags["pipeline_strict"] = combine(applicable)
+        flags["pipeline"] = combine([j for j in applicable if not (j == "parser" and abstained)])
         out.append({**item, "judges": verdicts, "flags": flags, "judged_at": now_iso()})
         if on_row:
             on_row(out[-1])
@@ -317,14 +337,14 @@ def render_challenge(report: dict) -> str:
              f"Items judged: {report['n_items']}.", "",
              "Scores describe the constructed cases. Fixed minimal pairs are development regressions, "
              "including examples represented in the rubric. They do not provide held-out accuracy on natural rewrites.", "",
-             "| challenge type | expected | n | structural flags | parser flags | validator flags | pipeline flags |",
-             "| --- | --- | ---: | ---: | ---: | ---: | ---: |"]
+             "| challenge type | expected | n | structural flags | parser flags | validator flags | pipeline flags | pipeline flags (strict) |",
+             "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |"]
     for kind, row in report["per_type"].items():
         def hits(judge):
             c = row[judge]
             return f"{c['tp'] + c['fp']}/{c['n'] - c['no_verdict']}"
         lines.append(f"| {kind} | {row['expected']} | {row['n']} | {hits('structural')} | "
-                     f"{hits('parser')} | {hits('validator')} | {hits('pipeline')} |")
+                     f"{hits('parser')} | {hits('validator')} | {hits('pipeline')} | {hits('pipeline_strict')} |")
     lines += ["", "Sensitivity and specificity below condition on a valid verdict. Coverage and all-item rates include missing judgments in their denominators.", "",
               "| judge | sensitivity, valid verdicts | specificity, valid verdicts | valid fraction | broken flagged, all items | preserved passed, all items |",
               "| --- | ---: | ---: | ---: | ---: | ---: |"]
@@ -339,7 +359,7 @@ def render_challenge(report: dict) -> str:
 
 def cmd_build_challenge(args) -> int:
     sources = generate.load_source_records(args.sources)
-    items = build_challenge_set(sources, seed=args.seed)
+    items = build_challenge_set(sources, seed=args.seed, max_items=args.max_items)
     write_jsonl(args.out, items)
     counts = {}
     for item in items:
@@ -355,6 +375,12 @@ def cmd_run_challenge(args) -> int:
     items = read_jsonl(args.items)
     if args.limit:
         items = items[:args.limit]
+    shard_index, shard_count = getattr(args, "shard_index", 0), getattr(args, "shard_count", 1)
+    if shard_count < 1 or not 0 <= shard_index < shard_count:
+        raise ValueError("invalid challenge shard index/count")
+    items = items[shard_index::shard_count]          # interleaved, so every shard mixes challenge types
+    if not items:
+        raise ValueError("no challenge items in this shard")
     gate = SemanticGate.from_handle(args.judge, max_tokens=args.judge_max_tokens)
     ok, msg = gate.judge_model.preflight()
     if not ok:
@@ -365,7 +391,8 @@ def cmd_run_challenge(args) -> int:
     from experiments.proficiency_validation.rewrite.runtime import artifact_provenance, record_artifact
     provenance = artifact_provenance(None, "pilot", inputs={"challenge_items": args.items})
     settings = {**provenance, "hashes": frozen_hashes(), "judge": gate.judge_model.identity_record,
-                "judge_max_tokens": args.judge_max_tokens, "limit": args.limit}
+                "judge_max_tokens": args.judge_max_tokens, "limit": args.limit,
+                "shard": [shard_index, shard_count]}
     checkpoint = Checkpoint(args.out, settings, resume=args.resume)
     try:
         judged = run_challenge(items, gate, completed_rows=checkpoint.rows, on_row=checkpoint.append)
@@ -373,8 +400,56 @@ def cmd_run_challenge(args) -> int:
     finally:
         checkpoint.close()
     record_artifact(args.out, {**provenance, "created_at": now_iso(), "gate": gate.provenance(),
-                               "n_items": len(judged), "code_hashes": settings["hashes"]})
+                               "n_items": len(judged), "code_hashes": settings["hashes"],
+                               "shard": [shard_index, shard_count]})
     print(f"{len(judged)} judged items -> {args.out}")
+    return 0
+
+
+def merge_challenge(items_path, shard_paths, out_path):
+    """Concatenate judged shards into one artifact once they cover every item exactly once
+    and were judged under the same settings; the shard files and their records are then removed."""
+    from experiments.proficiency_validation.rewrite.runtime import (artifact_provenance, assert_unique, comparable_settings,
+                                                                     read_metadata, record_artifact, sha256_file, update_metadata)
+    items_path, out_path = Path(items_path), Path(out_path)
+    shard_paths = [Path(p) for p in shard_paths]
+    if out_path.exists():
+        raise ValueError("merged challenge output already exists")
+    rows, policies = [], []
+    for path in shard_paths:
+        record = read_metadata(path, "checkpoint")
+        if not record or not path.exists():
+            raise ValueError(f"missing shard or its checkpoint record: {path.name}")
+        settings = dict(record["settings"])
+        settings.pop("shard", None)
+        policies.append(comparable_settings(settings))
+        rows.extend(read_jsonl(path))
+    if not policies or any(p != policies[0] for p in policies):
+        raise ValueError("challenge shards were judged under different settings")
+    assert_unique(rows, ("item_id",))
+    expected = {i["item_id"] for i in read_jsonl(items_path)}
+    if {r["item_id"] for r in rows} != expected:
+        raise ValueError("merged challenge lacks complete item coverage")
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    write_jsonl(out_path, rows)
+    record_artifact(out_path, {**artifact_provenance(None, "pilot", inputs={"challenge_items": items_path}),
+                               "created_at": now_iso(), "n_items": len(rows),
+                               "merged_shards": [{"name": p.name, "output_sha256": sha256_file(p),
+                                                  "checkpoint": read_metadata(p, "checkpoint")} for p in shard_paths],
+                               "gate": read_metadata(shard_paths[0]).get("gate"),
+                               "code_hashes": policies[0].get("hashes")})
+    for path in shard_paths:
+        path.unlink()
+        update_metadata(path, None, None)
+    for directory in {p.parent for p in shard_paths}:
+        if directory != out_path.parent and not any(directory.iterdir()):
+            directory.rmdir()
+    return rows
+
+
+def cmd_merge_challenge(args) -> int:
+    rows = merge_challenge(args.items, args.shards, args.out)
+    print(f"{len(rows)} judged items -> {args.out}")
     return 0
 
 

@@ -1,7 +1,8 @@
 """Semantic gate (structural, treatment, parser and fidelity checks with corrective retries), GatedRewriter and generation QC."""
 from __future__ import annotations
+import hashlib
+from collections import Counter
 import re
-from math import isclose
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
@@ -78,6 +79,9 @@ def treatment_checks(source: SourceRecord, rewritten: str, condition: str, *,
     return CheckResult(ok=not reasons, reasons=reasons, details={"condition": condition})
 
 
+PARSER_ABSTENTION_POLICIES = ("defer", "no_verdict")
+
+
 @dataclass
 class GateResult:
     ok: Optional[bool]                 # True pass, False fail, None no verdict
@@ -87,10 +91,24 @@ class GateResult:
     parser: Dict[str, Any] = field(default_factory=dict)
     semantic: Dict[str, Any] = field(default_factory=dict)
     skipped: List[str] = field(default_factory=list)
+    second_opinion: Dict[str, Any] = field(default_factory=dict)
 
     @property
     def passed(self) -> bool:
         return self.ok is True
+
+    @property
+    def parser_status(self) -> Optional[str]:
+        """recovered_match | recovered_mismatch | abstained | no_verdict | outside_grammar | not_run."""
+        if "parser_predicate_outside_grammar" in self.skipped:
+            return "outside_grammar"
+        if not self.parser:
+            return "not_run"
+        if self.parser.get("abstained"):
+            return "abstained"
+        if not self.parser.get("ok"):
+            return "no_verdict"
+        return "recovered_match" if self.parser.get("structural_match") else "recovered_mismatch"
 
     @property
     def permanent_transport_failure(self) -> bool:
@@ -99,8 +117,8 @@ class GateResult:
 
     def to_dict(self) -> dict:
         return {"ok": self.ok, "reasons": list(self.reasons), "structural": self.structural,
-                "treatment": self.treatment, "parser": self.parser, "semantic": self.semantic,
-                "skipped": list(self.skipped)}
+                "treatment": self.treatment, "parser": self.parser, "parser_status": self.parser_status,
+                "semantic": self.semantic, "second_opinion": self.second_opinion, "skipped": list(self.skipped)}
 
 
 class LedgerJudgeModel(JudgeModel):
@@ -125,15 +143,32 @@ class SemanticGate:
     def __init__(self, parser: Optional[InversePredicateParser] = None,
                  validator: Optional[EnglishFidelityValidator] = None, *,
                  require_parser: bool = True, require_validator: bool = True,
-                 judge_handle: Optional[str] = None):
+                 judge_handle: Optional[str] = None, parser_abstention: str = "defer",
+                 second_opinion: Optional[EnglishFidelityValidator] = None):
+        if parser_abstention not in PARSER_ABSTENTION_POLICIES:
+            raise ValueError(f"parser_abstention must be one of {PARSER_ABSTENTION_POLICIES}")
         self.parser = parser
         self.validator = validator
+        # An independent-family fidelity judge consulted only when the parser abstained and the
+        # primary judge passed: agreement passes, disagreement or no answer leaves no verdict.
+        self.second_opinion = second_opinion
+        # Active-paraphrase floor for Neutral: a gate-passing candidate that changed fewer than this
+        # share of the tokens is a near-copy and is not selectable. Rejects copies, never matches Low.
+        self.neutral_exposure_floor = 0.05
+        # Prior-history budget for the parser and the act inventory (words). Referenced speech first,
+        # then the current phase, then the most recent remaining entries; speech order is restored.
+        self.parser_context_words = 6000
         self.require_parser = require_parser
         self.require_validator = require_validator
+        # "defer": when the parser runs but recovers no predicate from the candidate, the English
+        # fidelity judge decides alone (as it already does for predicates outside the parser
+        # grammar) and the row records the abstention. "no_verdict": such a candidate gets no
+        # verdict (the stricter pre-October policy). A recovered predicate that mismatches is a
+        # rejection under both policies.
+        self.parser_abstention = parser_abstention
         self.judge_handle = judge_handle
         self._original_parses = {}
         self._original_inventories = {}
-        self.neutral_edit_tolerance = None
 
     @classmethod
     def from_handle(cls, handle: str = "deepseek-chat", *, ledger: Optional[UsageLedger] = None,
@@ -156,7 +191,7 @@ class SemanticGate:
         """
         if self.parser is None or source.predicate_name not in PARSEABLE_PREDICATES:
             return None
-        history = history_before(source)
+        history, context_record = parser_context(source, budget_words=self.parser_context_words)
         key = (source.source_id, source.predicate_text, source.original_nl, tuple(history))
         baseline = self._original_parses.get(key)
         if baseline is None:
@@ -205,12 +240,13 @@ class SemanticGate:
                                      [s for s in comparison["mismatched_slots"] if s in comparison["gated_slots"]]),
                 "comparison_basis": basis, "act_inventory": inventory,
                 "source_predicate_match": original_comparison["structural_match"],
-                "original_parse": baseline.to_dict(), "original_comparison": original_comparison,
+                "original_parse": baseline.to_dict(), "candidate_parse": parsed.to_dict(),
+                "original_comparison": original_comparison,
                 "candidate_comparison": comparison,
                 "error": parsed.error or ("predicate_not_recoverable" if not candidate_usable else ""),
                 "provenance": parsed.provenance,
                 "transport": getattr(getattr(self.parser, "model", None), "last_error", None),
-                "history_entries": len(history_before(source)), "source_id": source.source_id}
+                "history_entries": len(history), "context": context_record, "source_id": source.source_id}
 
     def _run_validator(self, source: SourceRecord, rewritten: str, condition=None) -> Optional[Dict[str, Any]]:
         if self.validator is None:
@@ -273,10 +309,23 @@ class SemanticGate:
         # the wording of its reason strings.
         no_verdict = False
         hard_fail = False
-        parser_result = self._run_parser(source, rewritten)
+        # The parser and the fidelity judge are independent model calls: run them side by side.
+        if self.parser is not None and self.validator is not None:
+            from concurrent.futures import ThreadPoolExecutor
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                parser_future = pool.submit(self._run_parser, source, rewritten)
+                validator_future = pool.submit(self._run_validator, source, rewritten, condition)
+                parser_result, semantic_result = parser_future.result(), validator_future.result()
+        else:
+            parser_result = self._run_parser(source, rewritten)
+            semantic_result = self._run_validator(source, rewritten, condition)
         if parser_result is not None:
             result.parser = parser_result
-            if not parser_result["ok"]:
+            if not parser_result["ok"] and (self.parser_abstention == "defer"
+                                            and parser_result["error"] == "predicate_not_recoverable"):
+                parser_result["abstained"] = True
+                skipped.append("parser_abstained")
+            elif not parser_result["ok"]:
                 no_verdict = True
                 reasons.append(f"parser_no_verdict:{parser_result['error']}")
             elif not parser_result["structural_match"]:
@@ -287,7 +336,6 @@ class SemanticGate:
         else:
             skipped.append("parser")
 
-        semantic_result = self._run_validator(source, rewritten, condition)
         if semantic_result is not None:
             result.semantic = semantic_result
             if semantic_result["ok"] is None:
@@ -300,10 +348,21 @@ class SemanticGate:
             skipped.append("semantic")
 
         needs_semantic = (structural.details.get("requires_semantic_adjudication")
+                          or "parser_abstained" in skipped
                           or (parser_result or {}).get("comparison_basis") in ("original_parse", "act_inventory"))
         if needs_semantic and (semantic_result or {}).get("ok") is None:
             no_verdict = True
             reasons.append("semantic_adjudication_required")
+        if ("parser_abstained" in skipped and (semantic_result or {}).get("ok") is True
+                and self.second_opinion is not None and not hard_fail):
+            verdict = self.second_opinion.validate(source, rewritten, condition=condition)
+            spec = getattr(getattr(self.second_opinion, "model", None), "spec", None)
+            result.second_opinion = {"ok": verdict.ok, "reasons": list(verdict.reasons),
+                                     "rubric_version": (verdict.details or {}).get("rubric_version"),
+                                     "handle": getattr(spec, "handle", None), "family": getattr(spec, "family", None)}
+            if verdict.ok is not True:
+                no_verdict = True
+                reasons.append("second_opinion_conflict" if verdict.ok is False else "second_opinion_unavailable")
 
         if hard_fail:
             result.ok = False
@@ -328,7 +387,11 @@ class SemanticGate:
             "commitment_may_be_indirect": False,
             "validator_max_tokens": getattr(self.validator, "max_tokens", None),
             "parser_max_tokens": getattr(self.parser, "max_tokens", None),
-            "neutral_edit_tolerance": self.neutral_edit_tolerance,
+            "parser_abstention": self.parser_abstention,
+            "neutral_exposure_floor": self.neutral_exposure_floor,
+            "parser_context_words": self.parser_context_words,
+            "second_opinion": (getattr(self.second_opinion.model, "identity_record", None)
+                               if self.second_opinion is not None else None),
         }
 
 
@@ -363,8 +426,6 @@ class GenerationOutcome:
     text: Optional[str]
     attempts: List[Attempt]
     fallback_to_original: bool = False
-    target_edit_distance: Optional[float] = None
-    anchor_outcomes: Dict[str, dict] = field(default_factory=dict)
 
     @property
     def first_pass_ok(self) -> bool:
@@ -375,32 +436,23 @@ class GenerationOutcome:
         return max(0, len(self.attempts) - 1)
 
     def to_dict(self) -> dict:
-        last_gate = self.attempts[-1].gate if self.attempts else None
-        matching_failure = bool(last_gate and any(
-            r.startswith("neutral_edit_distance_mismatch") for r in last_gate.reasons))
         return {"condition": self.condition, "status": self.status, "text": self.text,
                 "failure_kind": (None if self.status == STATUS_OK else
-                    "anchor_unavailable" if self.anchor_outcomes and not self.attempts else
-                    "control_matching_failure" if matching_failure else
                     "fidelity_failure" if self.status == STATUS_TREATMENT_UNAVAILABLE else "infrastructure_failure"),
                 "first_pass_ok": self.first_pass_ok, "n_attempts": len(self.attempts),
                 "n_retries": self.n_retries, "fallback_to_original": self.fallback_to_original,
-                "target_edit_distance": self.target_edit_distance,
-                "anchor_outcomes": self.anchor_outcomes,
                 "attempts": [a.to_dict() for a in self.attempts]}
 
 
 def generate_with_gate(rewriter: LanguageProficiencyRewriter, gate: SemanticGate,
                        ctx: RewriteContext, source: SourceRecord, *,
-                       max_corrective_retries: int = 2,
-                       target_edit_distance: Optional[float] = None,
-                       anchor_outcomes: Optional[Dict[str, dict]] = None) -> GenerationOutcome:
+                       max_corrective_retries: int = 2) -> GenerationOutcome:
     """Gated generation for one utterance in one condition.
 
     Low/High: rewrite -> gate -> corrective retry.  Neutral: generate all
-    candidates -> cheap-check each -> model-judge the survivors -> choose, among
-    the passers, the one closest to the target edit distance; retry
-    with the closest failure's reasons when nothing passes.
+    candidates -> cheap-check each -> model-judge the survivors -> choose among
+    the passers by the neutrality rule; retry with the failure reasons when
+    nothing passes. Every condition is generated independently of the others.
     """
     attempts: List[Attempt] = []
     feedback: Optional[dict] = None
@@ -410,32 +462,12 @@ def generate_with_gate(rewriter: LanguageProficiencyRewriter, gate: SemanticGate
     neutral_history: List[str] = []
     condition = rewriter.condition
     saw_real_failure = False
-    need_anchor = condition == "neutral" and target_edit_distance is None
-    anchors = dict(anchor_outcomes or {})
-    if need_anchor:
-        if len(rewriter.neutral_anchor_conditions) != 1:
-            raise ValueError("Neutral requires one treatment anchor; run Low and High with separate controls")
-        anchors = {c: anchors[c] for c in rewriter.neutral_anchor_conditions if c in anchors}
-        for anchor_condition in rewriter.neutral_anchor_conditions:
-            if anchor_condition not in anchors:
-                params = rewriter.to_config()["params"]
-                params["condition"] = anchor_condition
-                anchor_rw = LanguageProficiencyRewriter(llm_client=rewriter.llm_client, **params)
-                anchor = generate_with_gate(anchor_rw, gate, ctx, source,
-                                            max_corrective_retries=max_corrective_retries)
-                anchors[anchor_condition] = anchor.to_dict()
-            if anchors[anchor_condition]["status"] != STATUS_OK:
-                return GenerationOutcome(condition, anchors[anchor_condition]["status"], None, [],
-                                         anchor_outcomes=anchors)
-        anchor = anchors[rewriter.neutral_anchor_conditions[0]]
-        target_edit_distance = normalized_token_edit_distance(anchor["text"], ctx.original_nl)
-        need_anchor = False
     for index in range(1 + max_corrective_retries):
         prior_reasons = list((feedback or {}).get("reasons", []))
         try:
             if condition == "neutral":
                 text, selection, gate_result = _neutral_attempt(
-                    rewriter, gate, ctx, source, feedback, target_edit_distance,
+                    rewriter, gate, ctx, source, feedback,
                     verdict_cache=neutral_verdicts, history=neutral_history)
                 attempt = Attempt(index, text, gate_result, feedback_reasons=prior_reasons,
                                   neutral_selection=selection)
@@ -455,8 +487,7 @@ def generate_with_gate(rewriter: LanguageProficiencyRewriter, gate: SemanticGate
             continue
         attempts.append(attempt)
         if attempt.gate.passed:
-            return GenerationOutcome(condition, STATUS_OK, attempt.text, attempts,
-                                     target_edit_distance=target_edit_distance, anchor_outcomes=anchors)
+            return GenerationOutcome(condition, STATUS_OK, attempt.text, attempts)
         if attempt.gate.ok is None:
             # No verdict even after re-judging: the judges, not the rewrite, are
             # at fault. Do not feed infrastructure errors back as failure reasons.
@@ -469,8 +500,39 @@ def generate_with_gate(rewriter: LanguageProficiencyRewriter, gate: SemanticGate
             break
         feedback = {"reasons": list(attempt.gate.reasons), "previous": attempt.text or ""}
     status = STATUS_TREATMENT_UNAVAILABLE if saw_real_failure else STATUS_INFRASTRUCTURE_UNAVAILABLE
-    return GenerationOutcome(condition, status, None, attempts,
-                             target_edit_distance=target_edit_distance, anchor_outcomes=anchors)
+    return GenerationOutcome(condition, status, None, attempts)
+
+
+def parser_context(source: SourceRecord, *, budget_words: Optional[int] = 6000):
+    """Prior public history under a word budget. Priority: the speech this utterance answers,
+    then entries of the current phase, then the most recent remaining entries. The kept
+    entries are returned in speech order with a record of what was included."""
+    history = history_before(source)
+    words = [len((entry or "").split()) for entry in history]
+    total = sum(words)
+    if budget_words is None or total <= budget_words:
+        return history, {"budget_words": budget_words, "words": total, "n_included": len(history), "n_dropped": 0,
+                         "included_speech_ids": [parse_history_entry(e).get("sid") for e in history]}
+    referenced = {(source.referenced_speech or {}).get("speech_id")} - {None}
+    phase = context_phase(source)
+    def priority(index):
+        entry = history[index]
+        sid = parse_history_entry(entry).get("sid")
+        if sid in referenced:
+            return 0
+        if phase and f"({phase}," in entry:
+            return 1
+        return 2
+    order = sorted(range(len(history)), key=lambda i: (priority(i), -i))
+    kept, used = set(), 0
+    for index in order:
+        if used + words[index] <= budget_words:
+            kept.add(index)
+            used += words[index]
+    selected = [history[i] for i in range(len(history)) if i in kept]
+    return selected, {"budget_words": budget_words, "words": used, "n_included": len(selected),
+                      "n_dropped": len(history) - len(selected),
+                      "included_speech_ids": [parse_history_entry(e).get("sid") for e in selected]}
 
 
 def _evaluate_with_rejudge(gate: SemanticGate, source: SourceRecord, text: str,
@@ -485,18 +547,16 @@ def _evaluate_with_rejudge(gate: SemanticGate, source: SourceRecord, text: str,
     return result
 
 
-def _neutral_attempt(rewriter, gate, ctx, source, feedback, target, *,
-                     verdict_cache=None, history=None):
+def _neutral_attempt(rewriter, gate, ctx, source, feedback, *, verdict_cache=None, history=None):
+    """One Neutral round: generate the candidates, cheap-check all of them, model-judge the
+    survivors, and choose among the passers by the neutrality rule. Nothing about Low, its
+    text or its edit distance enters this step; edit distances are recorded as diagnostics."""
     # The within-round key ignores case and spacing but retains punctuation.
     # Cross-round reuse requires an exact text match to the judged candidate.
     verdict_cache = {} if verdict_cache is None else verdict_cache
     history = [] if history is None else history
-    previous_passers = [c for c, v in verdict_cache.items() if v.passed]
-    best = select_candidate(previous_passers, ctx.original_nl, target).chosen if previous_passers else None
+    generation_feedback = {**(feedback or {}), "previous_candidates": list(history)}
     unique: Dict[tuple, str] = {}
-    generation_feedback = {**(feedback or {}), "target_edit_distance": target,
-                           "edit_tolerance": getattr(gate, "neutral_edit_tolerance", None),
-                           "best_candidate": best, "previous_candidates": list(history)}
     for cand in rewriter.generate_candidates(ctx, feedback=generation_feedback):
         unique.setdefault(surface_key(cand), cand)
     candidates = list(unique.values())
@@ -506,10 +566,26 @@ def _neutral_attempt(rewriter, gate, ctx, source, feedback, target, *,
     verdicts: Dict[str, GateResult] = {}
     for cand in candidates:
         verdicts[cand] = verdict_cache.get(cand) or gate.evaluate(source, cand, "neutral", cheap_only=True)
+    floor = getattr(gate, "neutral_exposure_floor", 0.0) or 0.0
+    distance_of = {c: normalized_token_edit_distance(c, ctx.original_nl) for c in candidates}
+    # Near-copies (below the active-paraphrase floor) can never be selected, so they are not
+    # sent to the model judges; they are recorded with the floor as their reason.
+    for cand in candidates:
+        if not verdicts[cand].reasons and distance_of[cand] < floor - 1e-12:
+            verdicts[cand] = GateResult(ok=False, reasons=[f"below_exposure_floor:only {100 * distance_of[cand]:.0f}% of the tokens "
+                                                           f"changed (floor {100 * floor:.0f}%); reword more of the utterance"],
+                                        structural=verdicts[cand].structural, treatment={"ok": False, "reasons": ["below_exposure_floor"]},
+                                        skipped=["parser", "semantic"])
     survivors = [c for c in candidates if not verdicts[c].reasons]
+    to_judge = [c for c in survivors if c not in reused]
+    if to_judge:
+        # Every surviving candidate is judged at the same time; each judgment is itself independent.
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=len(to_judge)) as pool:
+            futures = {c: pool.submit(_evaluate_with_rejudge, gate, source, c, "neutral") for c in to_judge}
+            for c, future in futures.items():
+                verdicts[c] = future.result()
     for cand in survivors:
-        if cand not in reused:
-            verdicts[cand] = _evaluate_with_rejudge(gate, source, cand, "neutral")
         if verdicts[cand].permanent_transport_failure:
             record = {"candidate_gates": [{"text": c, **verdicts[c].to_dict()} for c in candidates],
                       "n_candidates": len(candidates), "stopped_on_transport_error": True}
@@ -518,19 +594,11 @@ def _neutral_attempt(rewriter, gate, ctx, source, feedback, target, *,
     # repeatedly until the judge happens to accept an unchanged candidate.
     verdict_cache.update({c: v for c, v in verdicts.items() if v.ok is not None})
     passers = [c for c in survivors if verdicts[c].passed]
-    pool = passers + ([best] if best is not None and best not in passers else [])
-    if pool:
-        selection = select_candidate(pool, ctx.original_nl, target)
+    seed = int(hashlib.sha256(f"{source.source_id}".encode()).hexdigest()[:8], 16)
+    if passers:
+        selection = select_candidate(passers, ctx.original_nl, seed=seed)
         chosen = selection.chosen
-        verdict = verdict_cache[chosen]
-        tolerance = getattr(gate, "neutral_edit_tolerance", None)
-        gap = abs(normalized_token_edit_distance(chosen, ctx.original_nl) - target) if target is not None else None
-        if (tolerance is not None and gap is not None and gap > tolerance
-                and not isclose(gap, tolerance, rel_tol=0., abs_tol=1e-12)):
-            verdict = GateResult(ok=False,
-                reasons=[f"neutral_edit_distance_mismatch:gap={gap:.6f},tolerance={tolerance}"],
-                structural=verdict.structural, parser=verdict.parser, semantic=verdict.semantic,
-                treatment={"ok": False, "reasons": ["neutral_edit_distance_mismatch"]})
+        verdict = verdicts[chosen]
     else:
         # Nothing passed. Prefer a candidate with a REAL failure verdict as the
         # thing to report and feed back; only when every judged candidate got no
@@ -538,7 +606,7 @@ def _neutral_attempt(rewriter, gate, ctx, source, feedback, target, *,
         failed = [c for c in candidates if verdicts[c].ok is False]
         pool = failed or candidates
         try:
-            selection = select_candidate(pool, ctx.original_nl, target)
+            selection = select_candidate(pool, ctx.original_nl, seed=seed)
             chosen = selection.chosen
         except RuntimeError:
             # Every candidate was dropped (e.g. all copies of the original): keep a
@@ -546,22 +614,45 @@ def _neutral_attempt(rewriter, gate, ctx, source, feedback, target, *,
             selection = NeutralSelection(
                 chosen=pool[0] if pool else "", candidates=list(pool),
                 distances=[normalized_token_edit_distance(c, ctx.original_nl) for c in pool],
-                target_distance=target, rule="fallback_all_dropped")
+                rule="fallback_all_dropped", seed=seed)
             chosen = selection.chosen
         verdict = verdicts.get(chosen, GateResult(ok=False, reasons=["no_candidate"]))
     record = selection.to_dict()
     record["candidate_gates"] = [{"text": c, **verdicts[c].to_dict(),
                                   "edit_distance": normalized_token_edit_distance(c, ctx.original_nl),
                                   "reused_verdict": c in reused} for c in candidates]
-    record["carried_candidate"] = ({"text": best, **verdict_cache[best].to_dict()}
-                                    if best is not None and best not in candidates else None)
-    record["edit_tolerance"] = getattr(gate, "neutral_edit_tolerance", None)
     record["n_reused_verdicts"] = len(reused)
     record["n_candidates"] = len(candidates)
     record["n_passed_gate"] = len(passers)
+    record["exposure_floor"] = floor
+    record["n_below_floor"] = sum(1 for c in candidates if any(r.startswith("below_exposure_floor") for r in verdicts[c].reasons))
     record["n_no_verdict"] = sum(1 for c in survivors if verdicts[c].ok is None)
     rewriter.last_selection = selection
     return chosen, record, verdict
+
+
+def _engine_defaults() -> dict:
+    """Log path and identifiers for a rewriter built by ``lurkingwolf.eval.replay_cli``
+    or ``lurkingwolf.run_game`` (``--output`` and ``--config-name`` are theirs)."""
+    import sys
+    argv = sys.argv
+    out = {}
+    try:
+        if "--output" in argv:
+            target = Path(argv[argv.index("--output") + 1])
+            run_dir = target.parent if target.suffix == ".json" else target
+            out["log_path"] = str(run_dir / "rewrites.jsonl")
+        if "--config-name" in argv:
+            out["branch_id"] = argv[argv.index("--config-name") + 1]
+        if "--checkpoint" in argv:
+            # .../<experiment root>/<comparison>/baseline/checkpoints/day_N_start.pkl
+            ckpt = Path(argv[argv.index("--checkpoint") + 1])
+            out["game_id"] = ckpt.resolve().parents[3].name if len(ckpt.resolve().parents) > 3 else None
+        elif "--seed" in argv:
+            out["game_id"] = argv[argv.index("--seed") + 1]
+    except (IndexError, ValueError):
+        return {}
+    return {k: v for k, v in out.items() if v}
 
 
 @register
@@ -591,6 +682,12 @@ class GatedRewriter(Rewriter):
                  game_id: Optional[str] = None, branch_id: Optional[str] = None,
                  source_builder: Callable[[RewriteContext], SourceRecord] = source_from_context,
                  log: Optional[List[dict]] = None, **base_params):
+        # Inside a LURK replay or game subprocess the engine never passes these, so take
+        # them from that process's own command line: the log lands next to its outputs.
+        inferred = _engine_defaults()
+        log_path = log_path or inferred.get("log_path")
+        game_id = game_id or inferred.get("game_id")
+        branch_id = branch_id or inferred.get("branch_id")
         self.frozen_path, self.generator_handle = frozen_path, generator_handle
         self.game_id, self.branch_id = game_id, branch_id
         frozen = None
@@ -601,8 +698,10 @@ class GatedRewriter(Rewriter):
                 raise ValueError("frozen replay requires game_id, branch_id and log_path")
             generator_handle = frozen["models"]["generator"]
             self.generator_handle = generator_handle
-            gate = SemanticGate.from_handle(frozen["models"]["judge"], max_tokens=frozen["judge_max_tokens"])
-            gate.neutral_edit_tolerance = frozen["neutral_edit_distance_tolerance"]
+            gate = SemanticGate.from_handle(frozen["models"]["judge"], max_tokens=frozen["judge_max_tokens"],
+                                            parser_abstention=frozen.get("parser_abstention_policy", "no_verdict"))
+            gate.neutral_exposure_floor = frozen["neutral_exposure_floor"]
+            gate.parser_context_words = frozen["parser_context_words"]
             max_corrective_retries = frozen["max_corrective_retries"]
             params = dict(base.to_config()["params"] if isinstance(base, LanguageProficiencyRewriter)
                           else base.get("params", base) if isinstance(base, dict) else {"condition": base or "low"})
@@ -611,9 +710,7 @@ class GatedRewriter(Rewriter):
             if params.get("applies_to") or params.get("applies_to_predicates"):
                 raise ValueError("frozen persistent treatment must cover every public speech predicate")
             params.update(temperature=frozen["generation_temperature"], max_tokens=frozen["generation_max_tokens"],
-                          n_neutral_candidates=frozen["n_neutral_candidates"],
-                          neutral_anchor_conditions=[frozen["neutral_anchor_condition"]],
-                          target_edit_distance=None)
+                          n_neutral_candidates=frozen["n_neutral_candidates"])
             base = params
         if generator_handle:
             from experiments.proficiency_validation.rewrite.__main__ import JudgeModelClient
@@ -731,14 +828,12 @@ def failure_cause(row):
     if row.get("status") == STATUS_OK:
         return "accepted"
     attempts = row.get("attempts") or []
-    if row.get("anchor_outcomes") and not attempts:
-        return "anchor_unavailable"
     gate = (attempts[-1].get("gate") or {}) if attempts else {}
     reasons = gate.get("reasons", [])
-    if any(r.startswith("neutral_edit_distance_mismatch") for r in reasons):
-        return "control_matching_failure"
     if reasons and set(reasons) == {"identical_to_original"}:
         return "unchanged_candidate"
+    if reasons and all(r.startswith("below_exposure_floor") for r in reasons):
+        return "near_copy_only"
     if any(r.startswith(("english_validator_missing:", "parser_no_verdict:predicate_not_recoverable")) for r in reasons):
         return "evaluation_output_failure"
     if row.get("status") == STATUS_TREATMENT_UNAVAILABLE:
@@ -756,8 +851,6 @@ def generation_qc(outcomes: List[dict]) -> Dict[str, dict]:
             "n": n,
             "final_success": sum(o.get("status") == STATUS_OK for o in rows),
             "final_success_rate": sum(o.get("status") == STATUS_OK for o in rows) / n if n else None,
-            "anchor_blocked": sum(o.get("status") != STATUS_OK and bool(o.get("anchor_outcomes"))
-                                  and not o.get("n_attempts") for o in rows),
             "own_failed_attempts": sum(o.get("status") != STATUS_OK and bool(o.get("n_attempts")) for o in rows),
             "first_pass_success": sum(1 for o in rows if o.get("first_pass_ok")),
             "first_pass_success_rate": sum(1 for o in rows if o.get("first_pass_ok")) / n if n else None,
@@ -767,6 +860,15 @@ def generation_qc(outcomes: List[dict]) -> Dict[str, dict]:
             "treatment_unavailable_rate": (sum(1 for o in rows if o.get("status") == STATUS_TREATMENT_UNAVAILABLE) / n
                                            if n else None),
             "infrastructure_unavailable": sum(1 for o in rows if o.get("status") == STATUS_INFRASTRUCTURE_UNAVAILABLE),
+            "accepted_with_parser_abstention": sum(
+                1 for o in rows if o.get("status") == STATUS_OK and "parser_abstained" in
+                (((o.get("attempts") or [{}])[-1].get("gate") or {}).get("skipped") or [])),
+            "accepted_by_parser_status": dict(Counter(
+                ((o.get("attempts") or [{}])[-1].get("gate") or {}).get("parser_status") or "unknown"
+                for o in rows if o.get("status") == STATUS_OK)),
+            "second_opinion": dict(Counter(
+                {True: "agree", False: "conflict", None: "unavailable"}[((a.get("gate") or {}).get("second_opinion") or {}).get("ok")]
+                for o in rows for a in (o.get("attempts") or []) if (a.get("gate") or {}).get("second_opinion"))),
             "fallback_to_original": sum(1 for o in rows if o.get("fallback_to_original")),
             "mean_attempts": (sum(o.get("n_attempts", 0) for o in rows) / n) if n else None,
         }

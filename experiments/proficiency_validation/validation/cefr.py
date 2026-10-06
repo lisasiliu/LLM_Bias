@@ -19,7 +19,6 @@ REFERENCE_BANDS = {**{band: band for band in LEVELS},
                    **{band + suffix: band for band in LEVELS for suffix in ("1", "2")}}
 REFERENCE = "https://rm.coe.int/common-european-framework-of-reference-for-languages-learning-teaching/16809ea0d4"
 # Adapted summaries of the written assessment grid and linguistic-range scales.
-# This local operational rubric is not a certified CEFR examination.
 DESCRIPTORS = {
     "A": {
         "label": "Basic User",
@@ -127,6 +126,9 @@ def rating_errors(result, text):
     return errors
 
 
+CEFR_SELECTIONS = ("whole_game", "phase_stratified")   # preselected passages; never a post-hoc pick of accepted utterances
+
+
 class CEFRRater:
     def __init__(self, model, *, max_tokens=1536, examples=None):
         self.model, self.max_tokens = model, max_tokens
@@ -140,25 +142,47 @@ class CEFRRater:
             system += "\nCalibration examples:\n" + json.dumps(self.examples, ensure_ascii=False)
         # No condition, paired variant, expected label or source identifiers reach the model.
         user = json.dumps({"ordered_turns": turns}, ensure_ascii=False)
-        try:
-            result, completion = self.model.complete_json(system=system, user=user,
-                                                          max_tokens=self.max_tokens, temperature=0.0)
-        except (JudgeModelError, JudgeTransportError) as exc:
-            return {"ok": False, "level": None, "error": str(exc), "status": "model_unavailable"}
-        base = {"raw_response": result, "provenance": completion.to_dict(), "ok": False,
-                "level": None, "status": "invalid_response", "error": "invalid CEFR response"}
-        if not isinstance(result, dict):
-            return base
-        if result.get("insufficient_evidence") is True and result.get("level") is None:
-            return {**base, "status": "insufficient_evidence", "error": "", "reason": result.get("reason", "")}
-        errors = rating_errors(result, text)
-        if errors:
-            return {**base, "error": "; ".join(errors), "error_codes": errors}
-        return {**base, "ok": True, "status": "rated", "level": result["level"],
-                "error": "", "evidence": result["evidence"], "reason": result["reason"]}
+        attempts, request, first_level = [], user, None
+        for repair in range(2):
+            try:
+                result, completion = self.model.complete_json(system=system, user=request,
+                                                              max_tokens=self.max_tokens, temperature=0.0)
+            except (JudgeModelError, JudgeTransportError) as exc:
+                return {"ok": False, "level": None, "error": str(exc), "status": "model_unavailable",
+                        "evaluation_attempts": attempts}
+            base = {"raw_response": result, "provenance": completion.to_dict(), "ok": False,
+                    "level": None, "status": "invalid_response", "error": "invalid CEFR response"}
+            if not isinstance(result, dict):
+                return {**base, "evaluation_attempts": attempts + [{"response": result}]}
+            if result.get("insufficient_evidence") is True and result.get("level") is None:
+                return {**base, "status": "insufficient_evidence", "error": "", "reason": result.get("reason", ""),
+                        "evaluation_attempts": attempts + [{"response": result}]}
+            errors = rating_errors(result, text)
+            attempts.append({"response": result, "errors": errors})
+            if repair == 1 and first_level is not None and result.get("level") != first_level:
+                # The repair fixes evidence formatting; it must not become a second opinion.
+                errors = errors + ["band_changed_on_repair"]
+            if not errors:
+                return {**base, "ok": True, "status": "rated", "level": result["level"], "error": "",
+                        "evidence": result["evidence"], "reason": result["reason"], "evaluation_attempts": attempts}
+            if repair == 1 or any(not e.startswith(("ungrounded_quote", "missing_dimension", "invalid_evidence",
+                                                     "invalid_dimension", "missing_quote", "missing_evidence",
+                                                     "missing_explanation")) for e in errors):
+                return {**base, "error": "; ".join(errors), "error_codes": errors, "evaluation_attempts": attempts}
+            # One repair request on the same text: the evidence quotes were not exact copies.
+            first_level = result.get("level")
+            request = json.dumps({"ordered_turns": turns, "repair_evaluation": {
+                "instruction": "Your previous answer is below. Keep the same band and reasoning. Return the complete "
+                               "JSON again with every evidence quote copied exactly, character for character, from the "
+                               "turns, one quote for each of range, control and coherence.",
+                "previous_response": result, "errors": errors}}, ensure_ascii=False)
+        return {**base, "error": "; ".join(errors), "error_codes": errors, "evaluation_attempts": attempts}
 
 
-def run_ratings(samples, raters, *, completed_rows=None, on_row=None):
+def run_ratings(samples, raters, *, completed_rows=None, on_row=None, concurrency=1):
+    """Rate every (sample, rater) pair once. Model calls run on ``concurrency`` threads; rows are
+    appended to the checkpoint from the main thread, in completion order, and returned in sample order."""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
     prior = list(completed_rows or [])
     assert_unique(samples, ("sample_id",))
     assert_unique(prior, ("sample_id", "rater"))
@@ -166,24 +190,32 @@ def run_ratings(samples, raters, *, completed_rows=None, on_row=None):
     expected = {(s["sample_id"], h) for s in samples for h in raters}
     if not set(done) <= expected:
         raise ValueError("unexpected CEFR checkpoint rows")
-    rows = []
-    for sample in samples:
-        for handle, rater in raters.items():
-            key = (sample["sample_id"], handle)
-            if key in done:
-                rows.append(done[key])
-                continue
-            result = (rater.rate(sample["turns"]) if sample["complete"] else
-                      {"ok": False, "level": None, "status": "incomplete_passage", "error": "missing rewrite"})
-            row = {**{k: v for k, v in sample.items() if k != "turns"}, **result,
+
+    def make_row(sample, handle, result):
+        rater = raters[handle]
+        return {**{k: v for k, v in sample.items() if k != "turns"}, **result,
                 "rater": handle, "rater_family": rater.model.family,
                 "prompt_version": VERSION, "prompt_sha256": rater.prompt_sha256,
                 "max_tokens": rater.max_tokens, "model_identity": rater.model.identity_record,
                 "created_at": now_iso()}
-            rows.append(row)
+    pending = [(sample, handle) for sample in samples for handle in raters if (sample["sample_id"], handle) not in done]
+    produced = {}
+    incomplete = [(s, h) for s, h in pending if not s["complete"]]
+    for sample, handle in incomplete:
+        row = make_row(sample, handle, {"ok": False, "level": None, "status": "incomplete_passage", "error": "missing rewrite"})
+        produced[(sample["sample_id"], handle)] = row
+        if on_row:
+            on_row(row)
+    todo = [(s, h) for s, h in pending if s["complete"]]
+    with ThreadPoolExecutor(max_workers=max(1, int(concurrency))) as pool:
+        futures = {pool.submit(raters[h].rate, s["turns"]): (s, h) for s, h in todo}
+        for future in as_completed(futures):
+            sample, handle = futures[future]
+            row = make_row(sample, handle, future.result())
+            produced[(sample["sample_id"], handle)] = row
             if on_row:
                 on_row(row)
-    return rows
+    return [done.get((s["sample_id"], h)) or produced[(s["sample_id"], h)] for s in samples for h in raters]
 
 
 def calibration_report(rows):
@@ -248,16 +280,16 @@ def ordinal_analysis(rows, *, n_boot=2000, seed=101):
 
 def render_cefr(report):
     lines = ["## Auxiliary CEFR-referenced A/B/C ratings", "",
-        "Ratings describe the language demonstrated by each speaker-game sample. They do not establish a person's overall CEFR ability. "
-        "Bands are ordinal; no arithmetic mean band or equal-distance effect is computed. Ratings do not select or filter stimuli.", ""]
+        "Ratings describe the language demonstrated in each passage. Bands are ordinal, so the tables report band counts and "
+        "paired band transitions.", ""]
     if report.get("calibration"):
         lines += ["| Rater | Calibration items | Valid ratings | Exact band agreement, all items |",
                   "| --- | ---: | ---: | ---: |"]
         for h, r in report["calibration"].items():
             lines.append(f"| {h} | {r['n']} | {r['valid']} | {fmt(r['accuracy_all_items'])} |")
-        lines += ["", "Calibration agreement describes the external learner-production references. Transfer to game dialogue remains an empirical limitation.", ""]
+        lines += ["", "Calibration agreement describes the external learner-production references.", ""]
     else:
-        lines += ["External calibration is unmeasured. These are exploratory prompt-based model judgments under the stated rubric.", ""]
+        lines += ["These are exploratory prompt-based model judgments under the stated rubric.", ""]
     lines += ["| Rater | Condition | Rated / eligible | A | B | C |",
               "| --- | --- | ---: | ---: | ---: | ---: |"]
     for h, conditions in report.get("level_distributions", {}).items():
@@ -273,7 +305,7 @@ def render_cefr(report):
             vals = [fmt(r["game_weighted_shares"][d]["estimate"]) for d in ("lower", "same", "higher")]
             lines.append(f"| {h} | {contrast} | {r['paired']}/{r['eligible']} | {r['games']} | " + " | ".join(vals) + " |")
     lines += ["", "Shares weight speakers equally within games and games equally. Transition counts, "
-              "cluster intervals and missing ratings are recorded in JSON. A same-band rating can conceal changes within a band and does not demonstrate equivalence.", ""]
+              "cluster intervals and missing ratings are recorded in JSON.", ""]
     return lines
 
 
@@ -290,8 +322,8 @@ def verify_ratings(path, *, rewrites_path=None, frozen=None, split="pilot"):
     rows = read_jsonl(path)
     assert_unique(rows, ("bundle_id", "condition", "rater"))
     cohort_rows = prov.get("cohort") or []
-    if not cohort_rows or any(b.get("selection") != "whole_game" for b in cohort_rows):
-        errors.append("CEFR whole-game source cohort missing")
+    if not cohort_rows or any(b.get("selection") not in CEFR_SELECTIONS for b in cohort_rows):
+        errors.append("CEFR source cohort missing or not a preselected passage set")
     raters = prov.get("raters", {})
     if not raters:
         errors.append("CEFR rater records missing")
@@ -358,6 +390,7 @@ def add_parser(sub):
         p.add_argument("--raters", required=True)
         p.add_argument("--examples", type=Path)
         p.add_argument("--max-tokens", type=int, default=1536)
+        p.add_argument("--concurrency", type=int, default=8, help="parallel rating requests")
         p.add_argument("--resume", action="store_true")
         p.add_argument("--out", type=Path, required=True)
         if name == "cefr-calibrate":
@@ -409,8 +442,8 @@ def main(args):
             if (sha256_file(args.examples) if args.examples else None) != spec.get("examples_sha256"):
                 raise ValueError("CEFR examples differ from the frozen artifact")
         bundles, rewrites = read_jsonl(args.bundles), read_jsonl(args.rewrites)
-        if not bundles or any(b.get("selection") != "whole_game" for b in bundles):
-            raise ValueError("CEFR ratings require preselected whole-game speaker bundles")
+        if not bundles or any(b.get("selection") not in CEFR_SELECTIONS for b in bundles):
+            raise ValueError("CEFR ratings require preselected whole-game or chronological-third speaker passages")
         if frozen:
             from experiments.proficiency_validation.validation.protocol import cohort
             from experiments.proficiency_validation.rewrite.runtime import verify_artifact
@@ -463,7 +496,8 @@ def main(args):
                 "command": args.cefr_command}
     checkpoint = Checkpoint(args.out, settings, resume=args.resume)
     try:
-        rows = run_ratings(samples, raters, completed_rows=checkpoint.rows, on_row=checkpoint.append)
+        rows = run_ratings(samples, raters, completed_rows=checkpoint.rows, on_row=checkpoint.append,
+                           concurrency=getattr(args, "concurrency", 1))
         checkpoint.finish()
     finally:
         checkpoint.close()

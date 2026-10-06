@@ -10,7 +10,8 @@ import importlib
 import inspect
 import sys
 from typing import Dict, List, Optional
-from experiments.proficiency_validation.rewrite.fidelity import SEMANTIC_RUBRIC_VERSION, semantic_prompt_sha
+from experiments.proficiency_validation.rewrite.fidelity import (SEMANTIC_RUBRIC_VERSION, semantic_prompt_sha,
+                                                                 VERSION as INVENTORY_VERSION, inventory_prompt_sha)
 from components.judges.inverse_predicate_parser import build_system_prompt as parser_system_prompt
 from components.rewriters.language_rewriter import PROMPT_VERSION, LanguageProficiencyRewriter
 from lurkingwolf.rewriter import RewriteContext
@@ -32,7 +33,7 @@ def validate_design(f):
     def require(ok, message):
         if not ok:
             errors.append(message)
-    require(f.get("schema_version") == 6, "schema_version must be 6")
+    require(f.get("schema_version") == 7, "schema_version must be 7")
     require(f.get("validation_scope") == "automated", "validation_scope must be automated")
     require(f.get("estimand") == "equal_game_weight", "estimand must be equal_game_weight")
     constructs = f.get("perception_constructs", [])
@@ -43,8 +44,12 @@ def validate_design(f):
     require(isinstance(conditions, list) and len(conditions) == 3
             and set(conditions) in ({"original", "neutral", "low"}, {"original", "neutral", "high"}),
             "one treatment and its Neutral control are required per frozen study")
-    require(f.get("neutral_anchor_condition") in ("low", "high") and f.get("neutral_anchor_condition") in conditions,
-            "neutral_anchor_condition must name the declared treatment")
+    require(f.get("treatment_condition") in ("low", "high") and f.get("treatment_condition") in conditions,
+            "treatment_condition must name the declared treatment")
+    require(f.get("neutral_generation") == "independent",
+            "neutral_generation must be independent: Neutral never reads the treatment rewrite or its edit distance")
+    require(f.get("parser_abstention_policy") == "no_verdict",
+            "confirmatory runs freeze parser_abstention_policy = no_verdict (a parseable predicate the parser cannot recover leaves no verdict)")
     primary = f.get("primary_range_metrics", [])
     require(bool(primary) and len(primary) == len(set(primary)) and set(primary) <= set(RANGE_METRICS), "invalid primary_range_metrics")
     families = ({"subtlex_mean"}, {"mattr", "mtld", "repetition_rate", "top5_share"},
@@ -54,16 +59,20 @@ def validate_design(f):
     for m in set(primary) | set(GUARDRAIL_METRICS):
         require(number(f.get("equivalence_bounds", {}).get(m), 1e-12), f"positive equivalence bound required: {m}")
         require(len(str(f.get("bound_rationale", {}).get(m, "")).strip()) >= 20, f"substantive bound rationale required: {m}")
+    for m in GUARDRAIL_METRICS:
+        require(number(f.get("noninferiority_margins", {}).get(m), 1e-12), f"positive non-inferiority margin required: {m}")
+    require(len(str(f.get("noninferiority_rationale", "")).strip()) >= 20, "noninferiority_rationale required")
     for c in (c for c in ("low", "high") if c in conditions):
         for m in primary:
             require(number(f.get("range_effect_thresholds", {}).get(f"{c}_vs_neutral", {}).get(m), 0), f"effect threshold required: {c}/{m}")
     limits = {
         "min_games": (2, None, True), "min_bundles": (2, None, True),
         "min_valid_fraction": (0.01, 1, False), "min_subtlex_coverage": (0.01, 1, False),
-        "listener_equivalence_margin": (1e-6, .49, False),
-        "listener_min_separation": (1e-6, .49, False),
+        "listener_equivalence_margin": (1e-6, 1, False),     # on the signed preference scale (-1 .. +1)
+        "listener_min_effect": (1e-6, 2, False),
+        "position_bias_margin": (1e-6, 1, False), "neutral_exposure_floor": (0, .5, False),
+        "parser_context_words": (100, None, True),
         "min_treatment_availability": (.01, 1, False), "max_differential_attrition": (0, 1, False),
-        "neutral_edit_distance_tolerance": (0, 1, False), "neutral_match_min_fraction": (.01, 1, False),
         "mattr_window": (2, None, True), "max_bundles_per_game": (1, None, True),
         "n_neutral_candidates": (1, None, True), "max_corrective_retries": (0, None, True),
         "generation_temperature": (0, 2, False), "generation_max_tokens": (1, None, True),
@@ -195,6 +204,8 @@ def frozen_hashes(n_neutral_candidates: int = 5) -> dict:
         "cefr_rubric_version": CEFR_VERSION,
         "cefr_rubric_sha256": cefr_prompt_sha(),
         "parser_prompt_sha256": sha256_text(parser_system_prompt()),
+        "inventory_prompt_version": INVENTORY_VERSION,
+        "inventory_prompt_sha256": inventory_prompt_sha(),
         "module_source_sha256": {name: module_file_sha256(name) for name in HASHED_MODULES},
     }
 
@@ -227,14 +238,33 @@ def expected_template_hash(frozen: dict, condition: str) -> Optional[str]:
     return prompts.get("neutral_candidates" if condition == "neutral" else condition)
 
 
-def enforce_frozen(path: Optional[Path] = None, *, check_models: bool = False) -> dict:
-    """Load the frozen config and stop unless the code still matches it."""
+def working_tree_clean() -> Optional[bool]:
+    """True when ``git status`` reports no modified tracked files; ``None`` without git."""
+    try:
+        import subprocess
+        out = subprocess.check_output(["git", "status", "--porcelain", "--untracked-files=no"], text=True,
+                                      stderr=subprocess.DEVNULL)
+        return not out.strip()
+    except Exception:
+        return None
+
+
+def enforce_frozen(path: Optional[Path] = None, *, check_models: bool = False, check_commit: bool = True) -> dict:
+    """Load the frozen config and stop unless the code still matches it. A confirmatory command
+    must also run at the exact clean commit the freeze recorded."""
     path = Path(path) if path else FROZEN_CONFIG
     if not path.exists():
         raise SystemExit(f"no frozen config at {path}")
     frozen = load_json(path)
 
     problems = validate_design(frozen) + verify_hashes(frozen)
+    recorded = frozen.get("git_commit")
+    if check_commit and recorded:
+        if "+dirty" in recorded:
+            problems.append("the freeze was recorded on a dirty working tree")
+        head = git_commit()
+        if head != recorded:
+            problems.append(f"HEAD {head} is not the frozen commit {recorded} (or the tree is dirty)")
     if check_models:
         from experiments.proficiency_validation.rewrite.runtime import model_identity
         for handle, expected in frozen.get("models", {}).get("identities", {}).items():
@@ -313,8 +343,14 @@ def main_suggest(args):
 def main_freeze(args):
     if args.out.exists():
         raise ValueError("Refusing to overwrite an existing freeze; use a new protocol filename.")
+    if working_tree_clean() is not True:
+        raise ValueError("Refusing to freeze: the working tree has uncommitted changes or git is unavailable. "
+                         "Commit everything first; a confirmatory freeze records one clean commit.")
     config = json.loads(args.decisions.read_text(encoding="utf-8"))
-    config.update(schema_version=6, validation_scope="automated", frozen_at=now_iso(), git_commit=git_commit())
+    commit = git_commit()
+    if not commit or "+dirty" in commit:
+        raise ValueError("Refusing to freeze without a clean commit hash")
+    config.update(schema_version=7, validation_scope="automated", frozen_at=now_iso(), git_commit=commit)
     config["splits"] = {key: read_jsonl(path) for key, path in (
         ("pilot", args.pilot_bundles), ("set_a", args.set_a_bundles), ("set_b", args.set_b_bundles))}
     config["sources_sha256"] = {key: sha256_file(path) for key, path in (

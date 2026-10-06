@@ -2,10 +2,11 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from dataclasses import replace
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from components.helpers import build_context, read_jsonl, write_jsonl
+from components.helpers import CheckResult, build_context, read_jsonl, write_jsonl
 from components.judges.inverse_predicate_parser import ParseResult
 from components.judges.judge_model import Completion
 from components.rewriters.language_rewriter import LanguageProficiencyRewriter
@@ -97,18 +98,17 @@ class EvidenceRepairTests(unittest.TestCase):
         self.assertEqual(len(model.calls), 2)
         self.assertEqual(failure_cause(result.to_dict()), "evaluation_output_failure")
 
-    def test_neutral_matching_is_an_acceptance_requirement(self):
+    def test_light_but_faithful_neutral_candidate_is_accepted_without_a_distance_gate(self):
         src = source()
         candidate = src.original_nl.replace("because", "since")
         client = FakeClient([json.dumps([candidate])])
         rw = LanguageProficiencyRewriter(llm_client=client, condition="neutral")
         gate = SemanticGate(require_parser=False, require_validator=False)
-        gate.neutral_edit_tolerance = .05
-        result = generate_with_gate(rw, gate, build_context(src), src, target_edit_distance=.5,
-                                    max_corrective_retries=0)
-        self.assertEqual(failure_cause(result.to_dict()), "control_matching_failure")
-        self.assertIn("0.5000", client.calls[0]["messages"][1]["content"])
-        self.assertIsNone(result.text)
+        result = generate_with_gate(rw, gate, build_context(src), src, max_corrective_retries=0)
+        self.assertEqual((result.status, result.text), ("ok", candidate))
+        self.assertEqual(failure_cause(result.to_dict()), "accepted")
+        self.assertNotIn("edit", client.calls[0]["messages"][1]["content"].lower())
+        self.assertLess(result.attempts[0].neutral_selection["chosen_distance"], .1)   # recorded as exposure
 
 
 class InventoryTests(unittest.TestCase):
@@ -150,10 +150,12 @@ class CEFRTests(unittest.TestCase):
                                  for d in ("range", "control", "coherence")]}
         self.assertEqual(cefr.rating_errors(response, text), [])
         response["evidence"][0]["quote"] = "I suspect P7... he changed his vote."
-        result = cefr.CEFRRater(ScriptedModel([response])).rate([text])
+        # The misquote earns one repair request; when the repair misquotes again the rating stays missing.
+        result = cefr.CEFRRater(ScriptedModel([response, response])).rate([text])
         self.assertFalse(result["ok"])
         self.assertIsNone(result["level"])
         self.assertEqual(result["error_codes"], ["ungrounded_quote:0:range"])
+        self.assertEqual(len(result["evaluation_attempts"]), 2)
 
     def test_rater_accepts_only_broad_bands(self):
         text = "I think P2 is a wolf."
@@ -216,7 +218,7 @@ class CEFRTests(unittest.TestCase):
         self.assertEqual(report["level_distributions"]["fixture"]["low"], {"A": 2, "C": 1})
         rendered = "\n".join(cefr.render_cefr(report))
         self.assertIn("| A | B | C |", rendered)
-        self.assertIn("same-band", rendered)
+        self.assertIn("Transition counts", rendered)
         self.assertNotIn("| A1 |", rendered)
         self.assertFalse(report["used_for_selection"])
 
@@ -278,7 +280,7 @@ class CEFRTests(unittest.TestCase):
             self.assertEqual(main(["analyze", "--no-frozen", "--rewrites", str(rewrites),
                 "--cefr", str(output), "--out", str(report), "--n-boot", "30"]), 0)
             text = report.read_text()
-            self.assertIn("External calibration is unmeasured", text)
+            self.assertIn("exploratory prompt-based model judgments", text)
             self.assertIn("| A | B | C |", text)
             # A legacy scale or an invented calibration claim cannot masquerade as this run.
             for overrides in ({"prompt_version": "cefr_text_v1"}, {"calibration_status": "measured"}):
@@ -402,3 +404,72 @@ class GenerationRecordTests(unittest.TestCase):
             metadata["compacted_shards"][0]["checkpoint"]["settings"]["source_ids"] = ["changed"]
             update_metadata(output, "provenance", metadata)
             self.assertTrue(any("settings digest mismatch" in error for error in audit_generation(output)))
+
+
+class SecondaryJudgeAndCalibrationTests(unittest.TestCase):
+    def test_challenge_subset_keeps_every_constructed_pair(self):
+        from experiments.proficiency_validation.validation.calibration import CONTROLLED_CASES, build_challenge_set
+        sources = [source(), replace(source(), source_id="g:s9", speech_id="s9", original_nl="P2 is a villager because P2 voted with us.")]
+        full = build_challenge_set(sources)
+        small = build_challenge_set(sources, max_items=3)
+        constructed = [i for i in small if i.get("construction") == "controlled minimal pair"]
+        self.assertEqual(len(constructed), len(CONTROLLED_CASES))
+        self.assertEqual(len(small), 3 + len(CONTROLLED_CASES))
+        self.assertLess(len(small), len(full))
+        self.assertEqual(small, build_challenge_set(sources, max_items=3))      # seeded, reproducible
+        with self.assertRaises(ValueError):
+            build_challenge_set(sources, max_items=0)
+        # every item can be judged: its history is prior-only and says so
+        from experiments.proficiency_validation.rewrite.runtime import history_before, source_record_from_dict
+        for item in small:
+            record = source_record_from_dict({**item, "original_nl": item["original_text"], "predicate_text": item["predicate"]})
+            history_before(record)
+
+    def test_secondary_judge_is_recorded_but_never_gates(self):
+        from experiments.proficiency_validation.rewrite.__main__ import generate
+        from experiments.proficiency_validation.rewrite.gate import SemanticGate
+        src = source()
+        rewritten = "P7 is a werewolf. He pushed the vote onto P2 without giving a read of his own."
+        client = FakeClient([rewritten])
+        generator = SimpleNamespace(spec=SimpleNamespace(handle="g", model="fake", provider="local", family="fixture"),
+                                    model_served="fake", provenance=lambda: {}, identity_record={})
+        generator.complete = lambda **kw: SimpleNamespace(text=client.create(messages=kw.get("messages", [
+            {"role": "system", "content": kw.get("system", "")}, {"role": "user", "content": kw.get("user", "")}]),
+            model=kw.get("model")).choices[0].message.content, model_served="fake", usage={})
+        gate = SemanticGate(require_parser=False, require_validator=False)
+        class Disagreeing:
+            model = SimpleNamespace(spec=SimpleNamespace(handle="second", family="other"))
+            def validate(self, source_record, text, *, condition=None, **_):
+                return CheckResult(ok=False, reasons=["not_preserved:content_preserved"], details={"rubric_version": "test"})
+        rows = generate([src], conditions=["low"], generator=generator, gate=gate, secondary_validator=Disagreeing())
+        self.assertEqual(rows[0]["status"], "ok")                     # the second opinion does not gate
+        self.assertEqual(rows[0]["secondary_judge"]["ok"], False)
+        self.assertEqual(rows[0]["secondary_judge"]["handle"], "second")
+        plain = generate([src], conditions=["low"], generator=generator, gate=gate)
+        self.assertIsNone(plain[0]["secondary_judge"])
+
+
+class CEFRRepairTests(unittest.TestCase):
+    def good(self, text, level="B"):
+        return {"level": level, "insufficient_evidence": False, "reason": "Fixture",
+                "evidence": [{"dimension": d, "quote": text, "explanation": "Fixture"} for d in ("range", "control", "coherence")]}
+
+    def test_misquoted_evidence_gets_one_repair_and_keeps_the_band(self):
+        text = "I think P2 is a wolf because P2 changed votes."
+        bad = self.good(text); bad["evidence"][1]["quote"] = "P2 changed his votes"       # not in the text
+        model = ScriptedModel([bad, self.good(text)])
+        result = cefr.CEFRRater(model).rate([text])
+        self.assertTrue(result["ok"]); self.assertEqual(result["level"], "B")
+        self.assertEqual(len(model.calls), 2)
+        self.assertIn("repair_evaluation", model.calls[1]["user"])
+        self.assertEqual(len(result["evaluation_attempts"]), 2)
+
+    def test_repair_cannot_change_the_band_and_is_not_offered_twice(self):
+        text = "I think P2 is a wolf."
+        bad = self.good(text); bad["evidence"][0]["quote"] = "fabricated"
+        changed = cefr.CEFRRater(ScriptedModel([bad, self.good(text, level="A")])).rate([text])
+        self.assertFalse(changed["ok"]); self.assertIn("band_changed_on_repair", changed["error_codes"])
+        still_bad = cefr.CEFRRater(ScriptedModel([bad, bad, self.good(text)])).rate([text])
+        self.assertFalse(still_bad["ok"]); self.assertEqual(len(still_bad["evaluation_attempts"]), 2)
+        insufficient = {"level": None, "insufficient_evidence": True, "reason": "Too little"}
+        self.assertEqual(cefr.CEFRRater(ScriptedModel([insufficient])).rate([text])["status"], "insufficient_evidence")

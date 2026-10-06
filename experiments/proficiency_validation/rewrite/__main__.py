@@ -68,9 +68,8 @@ def generate(sources: Sequence[SourceRecord], *, conditions: Sequence[str],
              generator: JudgeModel, gate: SemanticGate, n_neutral_candidates: int = 5,
              max_corrective_retries: int = 2, max_tokens: int = 400, temperature: float = 0.0,
              ledger: Optional[UsageLedger] = None, log=print,
-             completed_rows=None, on_row=None, settings_sha256=None) -> List[dict]:
-    if "neutral" in conditions and not any(c in conditions for c in ("low", "high")):
-        raise ValueError("Neutral needs its treatment anchor in the same run; include low or high")
+             completed_rows=None, on_row=None, settings_sha256=None,
+             secondary_validator=None) -> List[dict]:
     client = JudgeModelClient(generator, ledger, purpose="rewrite")
     rows: List[dict] = []
     commit = git_commit()
@@ -82,29 +81,28 @@ def generate(sources: Sequence[SourceRecord], *, conditions: Sequence[str],
         raise ValueError("checkpoint contains unexpected source/condition rows")
     for index, src in enumerate(sources, 1):
         ctx = build_context(src)
-        anchors = {}
+        # Every condition is generated independently; Neutral never sees Low.
         ordered = [c for c in ("low", "high", "neutral") if c in conditions]
         for condition in ordered:
             previous = done.get((src.source_id, condition))
             if previous is not None:
                 rows.append(previous)
-                if condition in ("low", "high"):
-                    anchors[condition] = outcome_from_row(previous)
                 continue
             rewriter = LanguageProficiencyRewriter(
                 llm_client=client, condition=condition, model=generator.spec.model,
                 temperature=temperature, max_tokens=max_tokens,
-                n_neutral_candidates=n_neutral_candidates,
-                neutral_match_to="low" if "low" in conditions else "high",
-                neutral_anchor_conditions=["low" if "low" in conditions else "high"])
-            outcome = generate_with_gate(rewriter, gate, ctx, src,
-                                         max_corrective_retries=max_corrective_retries,
-                                         anchor_outcomes={c: anchors[c] for c in rewriter.neutral_anchor_conditions if c in anchors}
-                                         if condition == "neutral" else None)
+                n_neutral_candidates=n_neutral_candidates)
+            outcome = generate_with_gate(rewriter, gate, ctx, src, max_corrective_retries=max_corrective_retries)
             text = outcome.text
             distance = normalized_token_edit_distance(text, src.original_nl) if text else None
-            if condition in ("low", "high"):
-                anchors[condition] = outcome.to_dict()
+            # An independent second opinion on accepted rewrites. It is recorded, never gating.
+            secondary = None
+            if secondary_validator is not None and outcome.status == "ok" and text:
+                verdict = secondary_validator.validate(src, text, condition=condition)
+                secondary = {"handle": secondary_validator.model.spec.handle,
+                             "family": secondary_validator.model.spec.family,
+                             "ok": verdict.ok, "reasons": list(verdict.reasons),
+                             "rubric_version": verdict.details.get("rubric_version")}
             row = {
                 "item_id": f"{src.source_id}::{condition}", "source_id": src.source_id,
                 "game_id": src.game_id, "speech_id": src.speech_id, "predicate": src.predicate_text,
@@ -125,6 +123,7 @@ def generate(sources: Sequence[SourceRecord], *, conditions: Sequence[str],
                 "prompt_sha256": _safe_instance_hash(rewriter, ctx, condition),
                 "gate_provenance": gate.provenance(), "git_commit": commit, "created_at": now_iso(),
                 "generation_settings_sha256": settings_sha256,
+                "secondary_judge": secondary,
             }
             rows.append(row)
             if on_row:
@@ -135,7 +134,7 @@ def generate(sources: Sequence[SourceRecord], *, conditions: Sequence[str],
 
 
 OUTCOME_KEYS = ("condition", "status", "failure_kind", "first_pass_ok", "n_attempts", "n_retries",
-                "fallback_to_original", "target_edit_distance", "anchor_outcomes", "attempts")
+                "fallback_to_original", "attempts")
 
 
 def outcome_from_row(row: dict) -> dict:
@@ -180,8 +179,16 @@ def add_generate_parser(sub) -> None:
     p.add_argument("--generator", default="generator", help="handle in PROFICIENCY_MODEL_CONFIG")
     p.add_argument("--judge", default="judge", help="handle in PROFICIENCY_MODEL_CONFIG")
     p.add_argument("--judge-max-tokens", type=int, default=3072)
-    p.add_argument("--neutral-edit-tolerance", type=float, default=.10,
-                   help="maximum absolute token-edit-distance gap per accepted Neutral; pilot default, justify before freezing")
+    p.add_argument("--parser-abstention", choices=["defer", "no_verdict"], default="defer",
+                   help="when the parser recovers no predicate from a candidate: let the fidelity judge decide "
+                        "(defer, recorded per row) or give no verdict (no_verdict)")
+    p.add_argument("--neutral-exposure-floor", type=float, default=.05,
+                   help="a gate-passing Neutral candidate must change at least this share of the tokens (near-copy floor)")
+    p.add_argument("--parser-context-words", type=int, default=6000,
+                   help="prior-history word budget for the parser: referenced speech, then the current phase, then the most recent")
+    p.add_argument("--secondary-judge", default=None,
+                   help="optional second fidelity judge (handle, e.g. deepseek-chat) that re-judges accepted "
+                        "rewrites for agreement; recorded per row, never gates, no calls when unset")
     p.add_argument("--split", choices=["pilot", "set_a", "set_b"], default="pilot")
     p.add_argument("--n-neutral-candidates", type=int, default=5)
     p.add_argument("--max-retries", type=int, default=2)
@@ -210,7 +217,9 @@ def generate_command(args) -> int:
                            "generator": ("models", "generator"), "judge": ("models", "judge"),
                            "temperature": ("generation_temperature",),
                            "max_tokens": ("generation_max_tokens",), "judge_max_tokens": ("judge_max_tokens",),
-                           "neutral_edit_tolerance": ("neutral_edit_distance_tolerance",)})
+                           "neutral_exposure_floor": ("neutral_exposure_floor",),
+                           "parser_context_words": ("parser_context_words",),
+                           "parser_abstention": ("parser_abstention_policy",)})
         args.conditions = ",".join(c for c in frozen["conditions"] if c != "original")
     conditions = [c.strip() for c in args.conditions.split(",") if c.strip()]
     if frozen:
@@ -224,12 +233,7 @@ def generate_command(args) -> int:
     if bad:
         print(f"unknown conditions {bad}; choose from {REWRITE_CONDITIONS}", file=sys.stderr)
         return 2
-    if "neutral" in conditions and not any(c in conditions for c in ("low", "high")):
-        print("neutral needs its anchor in the same run: include low or high in --conditions", file=sys.stderr)
-        return 2
     sources = load_source_records(args.sources)
-    if not 0 <= args.neutral_edit_tolerance <= 1:
-        raise ValueError("neutral edit tolerance must be between zero and one")
     assert_unique([s.to_dict() for s in sources], ("source_id",))
     if frozen:
         if sha256_file(args.sources) != frozen["sources_sha256"].get(args.split):
@@ -263,10 +267,25 @@ def generate_command(args) -> int:
     run_id = args.run_id or f"generate_{now_iso().replace(':', '')}"
     ledger = UsageLedger(EXPERIMENT_NAME, run_id=run_id)
     gate = SemanticGate.from_handle(args.judge, ledger=ledger, max_tokens=args.judge_max_tokens)
-    gate.neutral_edit_tolerance = args.neutral_edit_tolerance
+    gate.parser_abstention = args.parser_abstention
+    if not 0 <= args.neutral_exposure_floor <= .5:
+        raise ValueError("neutral exposure floor must be between 0 and 0.5")
+    gate.neutral_exposure_floor = args.neutral_exposure_floor
+    if args.parser_context_words < 100:
+        raise ValueError("parser context budget must be at least 100 words")
+    gate.parser_context_words = args.parser_context_words
     ok, msg = gate.judge_model.preflight()
     if not ok:
         raise RuntimeError(f"judge preflight failed: {msg}")
+    secondary = None
+    if args.secondary_judge:
+        from experiments.proficiency_validation.rewrite.fidelity import EnglishFidelityValidator
+        secondary_model = JudgeModel.resolve(args.secondary_judge, ledger=ledger, purpose="secondary_judge")
+        ok, msg = secondary_model.preflight()
+        if not ok:
+            raise RuntimeError(f"secondary judge preflight failed: {msg}")
+        secondary = EnglishFidelityValidator(secondary_model, max_tokens=args.judge_max_tokens)
+        gate.second_opinion = secondary        # gates parser-abstained candidates; also audits every accepted rewrite
     from experiments.proficiency_validation.rewrite.runtime import Checkpoint
     from experiments.proficiency_validation.validation.protocol import frozen_hashes
     hashes = frozen_hashes(args.n_neutral_candidates)
@@ -280,7 +299,9 @@ def generate_command(args) -> int:
                 "generator": generator.identity_record, "judge": gate.judge_model.identity_record,
                 "temperature": args.temperature, "max_tokens": args.max_tokens, "judge_max_tokens": args.judge_max_tokens,
                 "n_neutral_candidates": args.n_neutral_candidates, "retries": args.max_retries,
-                "neutral_edit_tolerance": args.neutral_edit_tolerance,
+                "parser_abstention": args.parser_abstention, "neutral_exposure_floor": args.neutral_exposure_floor,
+                "parser_context_words": args.parser_context_words,
+                "secondary_judge": secondary.model.identity_record if secondary else None,
                 "source_ids": [s.source_id for s in sources]}
     checkpoint = Checkpoint(args.out, settings, resume=args.resume)
     try:
@@ -289,7 +310,8 @@ def generate_command(args) -> int:
                         max_corrective_retries=args.max_retries, max_tokens=args.max_tokens,
                         temperature=args.temperature, ledger=ledger,
                         completed_rows=checkpoint.rows, on_row=checkpoint.append,
-                        settings_sha256=checkpoint.settings["settings_sha256"])
+                        settings_sha256=checkpoint.settings["settings_sha256"],
+                        secondary_validator=secondary)
         checkpoint.finish()
     finally:
         checkpoint.close()
@@ -356,7 +378,8 @@ def check_generation_rows(rows, record, name):
         if row.get("generation_settings_sha256"):
             if ((row.get("generator_provenance") or {}).get("identity") != settings.get("generator")
                     or row.get("generator_temperature") != settings.get("temperature")
-                    or gate.get("neutral_edit_tolerance") != settings.get("neutral_edit_tolerance")):
+                    or gate.get("parser_abstention") != settings.get("parser_abstention")
+                    or gate.get("neutral_exposure_floor") != settings.get("neutral_exposure_floor")):
                 bad.append(row["source_id"])
     if bad:
         errors.append(f"{path.name}: {len(set(bad))} sources disagree with recorded prompt/rubric/settings")

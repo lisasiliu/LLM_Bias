@@ -34,19 +34,21 @@ def design(treatment="low"):
     splits = {stage: [{"bundle_id": f"{stage}_g{i}:P1", "game_id": f"{stage}_g{i}", "speaker": "P1",
                        "source_ids": [f"{stage}_s{i}"], "window": [150, None], "selection": "whole_game"} for i in range(6 if stage == "pilot" else 4)]
               for stage in ("pilot", "set_a", "set_b")}
-    return {"schema_version": 6, "cefr": {"enabled": False}, "validation_scope": "automated", "conditions": ["original", "neutral", treatment],
+    return {"schema_version": 7, "cefr": {"enabled": False}, "validation_scope": "automated", "conditions": ["original", "neutral", treatment],
         "perception_constructs": ["range"],
-        "estimand": "equal_game_weight", "neutral_anchor_condition": treatment,
+        "estimand": "equal_game_weight", "treatment_condition": treatment, "neutral_generation": "independent",
+        "parser_abstention_policy": "no_verdict", "neutral_exposure_floor": .05, "parser_context_words": 6000,
         "primary_range_metrics": metrics, "range_effect_thresholds": {c: {m: .1 for m in metrics}
             for c in ("low_vs_neutral", "high_vs_neutral")},
         "equivalence_bounds": {m: .1 for m in metrics + ["grammar_errors_per_100_words", "cola_mean"]},
+        "noninferiority_margins": {"grammar_errors_per_100_words": .5, "cola_mean": .05},
+        "noninferiority_rationale": "synthetic test margins, not a study decision",
         "bound_rationale": {m: "synthetic test rationale, not a study decision" for m in metrics + ["grammar_errors_per_100_words", "cola_mean"]},
         "min_games": 4, "min_bundles": 4, "min_valid_fraction": 1., "min_subtlex_coverage": .9,
-        "listener_equivalence_margin": .1, "listener_min_separation": .1,
+        "listener_equivalence_margin": .1, "listener_min_effect": .1, "position_bias_margin": .2,
         "min_treatment_availability": .9, "max_differential_attrition": .05,
         "listener_effect_rationale": "synthetic meaningful separation, not an empirical choice",
         "availability_rationale": "synthetic availability limits, not an empirical choice",
-        "neutral_edit_distance_tolerance": .1, "neutral_match_min_fraction": .8,
         "mattr_window": 50, "max_bundles_per_game": 1, "n_neutral_candidates": 2, "max_corrective_retries": 2,
         "generation_temperature": 0., "generation_max_tokens": 400, "judge_max_tokens": 800, "probe_max_tokens": 400,
         "bundle_window_words": [150, None], "bundle_selection": "whole_game",
@@ -85,8 +87,8 @@ class StatisticalBoundaryTests(unittest.TestCase):
 
     def test_wide_control_ci_is_not_equivalence(self):
         f = design()
-        row = {"n_games": 75, "n_bundles": 200, "equivalence_ci90": [.25, .8],
-               "by_order": {o: {"n_games": 75, "n_bundles": 200, "ci90": [.25, .8]} for o in ("ab", "ba")}}
+        row = {"n_games": 75, "n_bundles": 200, "signed_ci90": [-.5, .6],
+               "by_order": {o: {"n_games": 75, "n_bundles": 200, "ci90": [-.5, .6]} for o in ("ab", "ba")}}
         report = {"listener": {"neutral:original": {"listeners": {"listener1": row}}}}
         c = next(c for c in frozen_criteria(report, f) if c["criterion"].startswith("Listener listener1: Neutral"))
         self.assertIs(c["passed"], False)
@@ -95,8 +97,8 @@ class StatisticalBoundaryTests(unittest.TestCase):
         f = design("high")
         c = frozen_criteria({}, f)
         self.assertTrue(any(x["criterion"].startswith("High vs Neutral") and x["passed"] is None for x in c))
-        row = {"n_games": 75, "n_bundles": 200, "cluster_bootstrap_ci": [.05, .2],
-               "by_order": {o: {"n_games": 75, "n_bundles": 200, "ci95": [.05, .2]} for o in ("ab", "ba")}}
+        row = {"n_games": 75, "n_bundles": 200, "signed_preference": -.8, "signed_ci95": [-.9, -.6],
+               "by_order": {o: {"n_games": 75, "n_bundles": 200, "signed": -.8, "ci95": [-.9, -.6]} for o in ("ab", "ba")}}
         report = {"listener": {"high:neutral": {"listeners": {"listener1": row}}}}
         c = next(c for c in frozen_criteria(report, f) if c["criterion"] == "Listener listener1: high vs Neutral, both orders")
         self.assertIs(c["passed"], True)
@@ -137,21 +139,20 @@ class EnglishContractTests(unittest.TestCase):
         result = gate.evaluate(src, "P7 is a werewolf. P2 is a villager.", "low")
         self.assertTrue(result.passed)
 
-    def test_neutral_uses_one_exact_accepted_treatment_anchor(self):
+    def test_neutral_is_generated_without_any_treatment_anchor(self):
         src = source()
-        texts = ["P7 is a werewolf. He pushed the vote onto P2. He gave no read.",
-                 "P7 is a werewolf because he redirected the vote toward P2 without offering his own read."]
         neutral = "P7 is a werewolf since he pushed the vote onto P2 without giving any read of his own."
-        client = FakeClient([texts[0], json.dumps([neutral])])
-        rw = LanguageProficiencyRewriter(llm_client=client, condition="neutral", neutral_anchor_conditions=["low"])
+        client = FakeClient([json.dumps([neutral])])
+        rw = LanguageProficiencyRewriter(llm_client=client, condition="neutral")
         gate = SemanticGate(require_parser=False, require_validator=False)
         result = generate_with_gate(rw, gate, build_context(src), src)
-        self.assertEqual(result.status, "ok")
-        self.assertEqual(set(result.anchor_outcomes), {"low"})
-        self.assertTrue(all(r["attempts"][0]["gate"]["ok"] for r in result.anchor_outcomes.values()))
-        self.assertEqual(len(client.calls), 2)
-        from components.metrics.edit_distance import normalized_token_edit_distance
-        self.assertEqual(result.target_edit_distance, normalized_token_edit_distance(texts[0], src.original_nl))
+        self.assertEqual((result.status, result.text), ("ok", neutral))
+        self.assertEqual(len(client.calls), 1)
+        self.assertNotIn("target_edit_distance", result.to_dict())
+        self.assertNotIn("anchor_outcomes", result.to_dict())
+        prompt = client.calls[0]["messages"][1]["content"]
+        for word in ("edit distance", "Low", "anchor"):
+            self.assertNotIn(word, prompt)
 
 
 class FrozenProtocolTests(unittest.TestCase):
@@ -160,23 +161,23 @@ class FrozenProtocolTests(unittest.TestCase):
         self.assertEqual(validate_design(f), [])
         sample = {"n_games": 4, "n_bundles": 4}
         metric = {**sample, "reject_fdr_05": True, "direction_confirmed": True,
-                  "cohens_dz": .5, "equivalence": {"equivalent": True}}
+                  "cohens_dz": .5, "equivalence": {"equivalent": True}, "noninferiority": {"noninferior": True}}
         r = {"expected_bundles": 4, "range": {}, "guardrails": {}, "listener": {},
              "generation_qc": {c: {"final_success_rate": 1.} for c in ("low", "neutral")},
-             "neutral_matching_by_condition": {}, "absolute_quality": {},
+             "absolute_quality": {},
              "integrity": [{"check": "synthetic fixture only", "passed": True}]}
         for treatment in ("low",):
             contrast = f"{treatment}_vs_neutral"
             r["range"][contrast] = {"metrics": {m: dict(metric) for m in f["primary_range_metrics"]}}
             r["guardrails"][contrast] = {"metrics": {m: dict(metric) for m in ("grammar_errors_per_100_words", "cola_mean")}}
-            r["neutral_matching_by_condition"][treatment] = {"fraction_within_tolerance": 1.}
-            interval = [.7, .9] if treatment == "low" else [.1, .3]
-            row = {**sample, "cluster_bootstrap_ci": interval,
-                   "by_order": {o: {**sample, "ci95": interval} for o in ("ab", "ba")}}
+            interval = [.6, .9] if treatment == "low" else [-.9, -.6]
+            bias = {"position_bias": {"score": 0., "ci90": [-.05, .05]}}
+            row = {**sample, **bias, "signed_preference": .8 if treatment == "low" else -.8, "signed_ci95": interval,
+                   "by_order": {o: {**sample, "signed": .8 if treatment == "low" else -.8, "ci95": interval} for o in ("ab", "ba")}}
             r["listener"][f"{treatment}:neutral"] = {"listeners": {h: row for h in f["models"]["listeners"] + ["all_models"]}}
         r["range"]["neutral_vs_original"] = {"metrics": {m: dict(metric) for m in f["primary_range_metrics"]}}
-        control = {**sample, "equivalence_ci90": [.47, .53],
-                   "by_order": {o: {**sample, "ci90": [.47, .53]} for o in ("ab", "ba")}}
+        control = {**sample, **bias, "signed_ci90": [-.05, .05],
+                   "by_order": {o: {**sample, "ci90": [-.05, .05]} for o in ("ab", "ba")}}
         r["listener"]["neutral:original"] = {"listeners": {h: control for h in f["models"]["listeners"] + ["all_models"]}}
         r["absolute_quality"] = {c: {**sample, "grammar_mean": .1, "cola_mean": .9} for c in f["conditions"]}
         criteria = frozen_criteria(r, f)

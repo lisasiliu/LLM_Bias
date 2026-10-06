@@ -31,7 +31,7 @@ class SourceReportTests(unittest.TestCase):
         self.assertEqual(result["corpus"]["n_games"], 3)
         self.assertEqual(result["corpus"]["predicates"]["claim_divine"], 20)
         self.assertEqual(result["n_bundles"], 24)
-        self.assertEqual(result["validation_status"], "NOT YET VALIDATED")
+        self.assertEqual(result["validation_status"], "pilot")
         self.assertEqual(result["provenance"]["validation_scope"],
                          "automated linguistic measures and model perception")
         self.assertIn("The validation scope is measured linguistic range and model perception",
@@ -101,12 +101,20 @@ class MissingEvidenceTests(unittest.TestCase):
                 pilot_sources=root / "pilot_sources.jsonl", set_a_sources=root / "set_a_sources.jsonl",
                 set_b_sources=root / "set_b_sources.jsonl", subtlex=root / "subtlex.txt", out=root / "frozen.json")
             with patch("experiments.proficiency_validation.validation.protocol.model_identity",
-                       side_effect=lambda h: f["models"]["identities"][h]):
+                       side_effect=lambda h: f["models"]["identities"][h]), \
+                 patch("experiments.proficiency_validation.validation.protocol.working_tree_clean", return_value=True), \
+                 patch("experiments.proficiency_validation.validation.protocol.git_commit", return_value="a" * 40):
                 self.assertEqual(main_freeze(args), 0)
-            self.assertEqual(enforce_frozen(args.out)["schema_version"], 6)
-            self.assertEqual(enforce_frozen(args.out)["validation_scope"], "automated")
-            code = cli.main(["analyze", "--frozen", str(args.out), "--split", "set_a",
-                             "--json", str(root / "result.json"), "--out", str(root / "result.md")])
+                with patch("experiments.proficiency_validation.validation.protocol.working_tree_clean", return_value=False):
+                    with self.assertRaisesRegex(ValueError, "uncommitted"):
+                        main_freeze(SimpleNamespace(**{**vars(args), "out": root / "frozen2.json"}))
+            with self.assertRaises(SystemExit):              # not at the frozen commit: refused
+                enforce_frozen(args.out)
+            with patch("experiments.proficiency_validation.validation.protocol.git_commit", return_value="a" * 40):
+                self.assertEqual(enforce_frozen(args.out)["schema_version"], 7)
+                self.assertEqual(enforce_frozen(args.out)["validation_scope"], "automated")
+                code = cli.main(["analyze", "--frozen", str(args.out), "--split", "set_a",
+                                 "--json", str(root / "result.json"), "--out", str(root / "result.md")])
             self.assertEqual(code, 1)
             result = json.loads((root / "result.json").read_text())
             self.assertFalse(result["verdict"]["confirmed"])
@@ -172,6 +180,35 @@ class CheckpointTests(unittest.TestCase):
             self.assertEqual(len(read_jsonl(output)), 2)
             self.assertFalse(Path(str(output) + ".partial").exists())
 
+    def test_resume_tolerates_changed_source_hashes_but_not_changed_models(self):
+        from experiments.proficiency_validation.rewrite.runtime import configure_run
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp) / "rows.jsonl"
+            first = Checkpoint(output, {"model": "fake", "hashes": {"rubric": "r1", "module_source_sha256": {"a": "1"}}})
+            first.append({"id": 1}); first.finish(); first.close()
+            resumed = Checkpoint(output, {"model": "fake", "hashes": {"rubric": "r1", "module_source_sha256": {"a": "2"}}}, resume=True)
+            self.assertEqual(resumed.rows, [{"id": 1}]); resumed.close()
+            with self.assertRaisesRegex(ValueError, "settings differ"):
+                Checkpoint(output, {"model": "fake", "hashes": {"rubric": "r2", "module_source_sha256": {"a": "2"}}}, resume=True)
+            manifest = Path(tmp) / "run" / "manifest.json"
+            configure_run(manifest, {"judge": {"model": "m"}}, {"hashes": {"module_source_sha256": {"a": "1"}}, "tolerance": .25})
+            configure_run(manifest, {"judge": {"model": "m"}}, {"hashes": {"module_source_sha256": {"a": "2"}}, "tolerance": .25})
+            with self.assertRaisesRegex(ValueError, "select a new RUN"):
+                configure_run(manifest, {"judge": {"model": "m"}}, {"hashes": {"module_source_sha256": {"a": "2"}}, "tolerance": .10})
+
+    def test_resume_restarts_an_attempt_that_wrote_nothing_but_protects_written_rows(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp) / "run" / "validation" / "judged.jsonl"
+            empty = Checkpoint(output, {"inputs": "items-v1"}); empty.close()
+            self.assertTrue(empty.partial.exists())
+            restarted = Checkpoint(output, {"inputs": "items-v2"}, resume=True)   # nothing was lost
+            self.assertEqual(restarted.settings["settings"], {"inputs": "items-v2"})
+            restarted.append({"id": 1}); restarted.close()
+            with self.assertRaisesRegex(ValueError, "settings differ"):
+                Checkpoint(output, {"inputs": "items-v3"}, resume=True)
+            resumed = Checkpoint(output, {"inputs": "items-v2"}, resume=True)
+            self.assertEqual(resumed.rows, [{"id": 1}]); resumed.close()
+
     def test_generation_resume_reuses_the_gated_anchor(self):
         src = source()
         class Model:
@@ -197,4 +234,54 @@ class CheckpointTests(unittest.TestCase):
         self.assertEqual(len(rows), 3)
         self.assertEqual(rows[0], previous)
         self.assertEqual(rows[-1]["status"], "ok")
-        self.assertEqual(set(rows[-1]["anchor_outcomes"]), {"low"})
+        self.assertNotIn("anchor_outcomes", rows[-1])
+
+
+class ChallengeShardTests(unittest.TestCase):
+    def test_judged_shards_merge_once_they_cover_every_item_under_one_setting(self):
+        from experiments.proficiency_validation.validation.calibration import merge_challenge
+        from experiments.proficiency_validation.rewrite.runtime import read_metadata, record_artifact
+        from components.helpers import write_jsonl
+        with tempfile.TemporaryDirectory() as tmp:
+            cal = Path(tmp) / "run" / "validation" / "calibration"
+            items = [{"item_id": f"i{k}"} for k in range(5)]
+            (cal / "shards").mkdir(parents=True)
+            write_jsonl(cal / "items.jsonl", items)
+            shards = []
+            for index in range(2):
+                path = cal / "shards" / f"judged_{index:02}.jsonl"
+                settings = {"judge": {"model": "fake"}, "hashes": {"rubric": "r1", "module_source_sha256": {"a": str(index)}},
+                            "shard": [index, 2]}
+                ck = Checkpoint(path, settings)
+                for item in items[index::2]:
+                    ck.append({**item, "flags": {"pipeline": True}})
+                ck.finish(); ck.close()
+                record_artifact(path, {"gate": {"judge_handle": "judge"}, "n_items": len(items[index::2])})
+                shards.append(path)
+            rows = merge_challenge(cal / "items.jsonl", shards, cal / "judged.jsonl")
+            self.assertEqual([r["item_id"] for r in rows], ["i0", "i2", "i4", "i1", "i3"])
+            self.assertFalse(any(p.exists() for p in shards)); self.assertFalse((cal / "shards").exists())
+            self.assertEqual(read_metadata(cal / "judged.jsonl")["n_items"], 5)
+            self.assertEqual(len(read_metadata(cal / "judged.jsonl")["merged_shards"]), 2)
+            self.assertFalse(read_metadata(shards[0], "checkpoint"))      # the shard records are gone
+            with self.assertRaisesRegex(ValueError, "already exists"):
+                merge_challenge(cal / "items.jsonl", shards, cal / "judged.jsonl")
+
+    def test_shards_with_different_judges_or_missing_items_do_not_merge(self):
+        from experiments.proficiency_validation.validation.calibration import merge_challenge
+        from components.helpers import write_jsonl
+        with tempfile.TemporaryDirectory() as tmp:
+            cal = Path(tmp) / "run" / "validation" / "calibration"; cal.mkdir(parents=True)
+            items = [{"item_id": f"i{k}"} for k in range(4)]
+            write_jsonl(cal / "items.jsonl", items)
+            def shard(name, judge, rows):
+                path = cal / name
+                ck = Checkpoint(path, {"judge": {"model": judge}, "shard": [0, 2]})
+                for r in rows: ck.append(r)
+                ck.finish(); ck.close(); return path
+            a = shard("a.jsonl", "fake", items[0::2]); b = shard("b.jsonl", "other", items[1::2])
+            with self.assertRaisesRegex(ValueError, "different settings"):
+                merge_challenge(cal / "items.jsonl", [a, b], cal / "judged.jsonl")
+            with self.assertRaisesRegex(ValueError, "complete item coverage"):
+                merge_challenge(cal / "items.jsonl", [a], cal / "judged.jsonl")
+            self.assertTrue(a.exists())        # a refused merge removes nothing

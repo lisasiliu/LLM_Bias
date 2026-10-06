@@ -21,15 +21,18 @@ and the ``treatment_unavailable`` policy live in
 ``experiments.proficiency_validation.rewrite.gate.GatedRewriter``.
 
 The neutral condition generates several candidate paraphrases in ONE call (so
-temperature 0 still yields distinct candidates) and picks the one whose
-normalized token edit distance from the original is closest to a target,
-normally the distance of the Low rewrite of the same utterance (PLAN 3.3).
+temperature 0 still yields distinct candidates). It is generated independently
+of Low: the gate keeps the candidates whose range the judge rates "same" as the
+original, a small exposure floor removes near-copies, and the survivor whose
+surface profile (sentence and word count) stays closest to the original is kept.
+Neutral is validated by its equivalence to Original, never by matching Low.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
+import random
 import re
 from dataclasses import dataclass, field
 from textwrap import dedent
@@ -37,7 +40,7 @@ from typing import List, Optional, Set
 
 from components.judges.judge_model import THINK_OPEN
 from components.metrics.edit_distance import normalized_token_edit_distance
-from components.metrics.text_normalization import same_wording, surface_key, tokenize
+from components.metrics.text_normalization import same_wording, surface_key
 from components.rewriters.politeness_rewriter import (
     _ctx_value,
     context_predicate_name,
@@ -48,7 +51,7 @@ from lurkingwolf.utils.speech_nl import clean_natural_text, strip_reasoning
 
 CONDITIONS: tuple = ("low", "neutral", "high")
 
-PROMPT_VERSION = "range_v6"
+PROMPT_VERSION = "range_v9"
 
 # What each condition asks for.  These are the construct definitions; the paper
 # quotes them.  Nothing here mentions errors, accents or learners: the cue is a
@@ -63,7 +66,7 @@ CONDITION_SPECS: dict = {
         - Content: preserve every proposition, qualification and reason. Sentence boundaries may change when helpful, but avoid telegraphic fragments, repetitive sentence openings and padding. Do not drop a point to keep the text short."""),
     "neutral": dedent("""\
         Produce a paraphrase control: NEW surface wording at the SAME linguistic range as the original.
-        - Reword the whole utterance using synonyms and phrase substitutions of comparable sophistication to the original. Distribute changes across its clauses, including equivalent connective phrases. Preserve its construction pattern and the relations between clauses. Changing just one or two words may be insufficient for the supplied edit-distance target. A copy of the original is not a candidate.
+        - Reword the whole utterance using synonyms and phrase substitutions of comparable sophistication to the original. Distribute changes across its clauses, including equivalent connective phrases. Preserve its construction pattern and the relations between clauses. Reword every clause: changing only one or two words is not a paraphrase, and a copy of the original is not a candidate.
         - Do not change the level: keep vocabulary sophistication, sentence length, number of sentences, syntactic complexity, cohesion, idiomaticity and register approximately equal to the original. Do not simplify and do not elaborate.
         - Keep repeated content words repeated. If a repeated phrase is reworded, use the same replacement throughout the passage. Do not diversify synonyms or turn ordinary words such as real into more formal words such as authentic.
         - Preserve clause boundaries, subordinate links and embedding. New wording does not require a new construction. Matching the amount of editing never takes precedence over these constraints.
@@ -136,7 +139,10 @@ SINGLE_OUTPUT_BLOCK = "Return the rewritten utterance only. No JSON, labels, com
 def _candidate_output_block(n: int) -> str:
     return (f"Return a JSON array of exactly {n} strings and nothing else. Each string is one "
             "complete paraphrase of the whole utterance. The paraphrases must differ from "
-            "each other and from the original in wording. No commentary.")
+            "each other and from the original in wording. Spread them over rewording "
+            "intensity: the first changes only a few phrases, the last rewords nearly every "
+            "clause, the others lie in between. All keep the meaning, register, vocabulary "
+            "level and sentence structure of the original. No commentary.")
 
 
 def _shared_system_prompt(condition: str, definition: str, output_block: str) -> str:
@@ -161,10 +167,7 @@ def _feedback_block(feedback: Optional[dict], condition: str) -> str:
     previous = (feedback.get("previous") or "").strip()
     if not reasons:
         return ""
-    matching_only = all(str(r).startswith("neutral_edit_distance_mismatch") for r in reasons)
-    lines = ["", ("The previous candidate passed the fidelity checks but missed the edit-distance target: "
-                  if matching_only else "The previous rewrite failed these checks: ")
-             + "; ".join(str(r) for r in reasons) + "."]
+    lines = ["", "The previous rewrite failed these checks: " + "; ".join(str(r) for r in reasons) + "."]
     if previous:
         lines.append(f"Previous rewrite: {previous}")
     lines.append(f"Produce a corrected rewrite that resolves these failures while "
@@ -172,55 +175,31 @@ def _feedback_block(feedback: Optional[dict], condition: str) -> str:
     return "\n".join(lines)
 
 
-def _matching_block(original: str, feedback: Optional[dict]) -> str:
-    """Give the generator the measured editing requirement and retry direction."""
-    if not feedback or feedback.get("target_edit_distance") is None:
+def _history_block(feedback: Optional[dict]) -> str:
+    """Retry context for the Neutral candidate prompt: wording already tried. Neutral carries
+    no edit-distance target; its generation never reads anything about Low."""
+    history = (feedback or {}).get("previous_candidates") or []
+    if not history:
         return ""
-    target = feedback["target_edit_distance"]
-    tolerance = feedback.get("edit_tolerance")
-    n_words = len(tokenize(original))
-    lines = ["", f"Edit-distance target: {target:.6f}.",
-             "Distance is the minimum number of word-token substitutions, insertions and deletions "
-             "divided by the larger token count of the two texts. Case and surrounding punctuation "
-             "do not count; apostrophes and hyphens within words are retained. Player and statement "
-             "IDs count as tokens but must stay unchanged.",
-             f"The original has {n_words} word tokens. At the same length, the target is roughly "
-             f"{target * n_words:.1f} token edits. This is a planning guide, not an exact word quota."]
-    if tolerance is not None:
-        lines.append(f"Allowed distance interval: {max(0., target - tolerance):.6f} to "
-                     f"{min(1., target + tolerance):.6f}; absolute tolerance {tolerance:.6f}.")
-    previous = feedback.get("best_candidate") or feedback.get("previous")
-    if previous:
-        distance = normalized_token_edit_distance(original, previous)
-        if feedback.get("best_candidate"):
-            lines.append(f"Closest candidate that passed fidelity checks so far: {previous}")
-        lines.append(f"Measured candidate distance: {distance:.6f}; target minus distance: {target - distance:+.6f}.")
-        if distance < target:
-            lines.append("Increase the amount of rewording across the utterance. Replace additional phrases "
-                         "of the same register and complexity while preserving their meaning and clause structure.")
-        elif distance > target:
-            lines.append("Reduce the amount of rewording by restoring some original phrases while retaining "
-                         "a distinct paraphrase and the same register and complexity.")
-    history = feedback.get("previous_candidates") or []
-    if history:
-        lines.append("Candidates already considered; produce different wording rather than returning these again:")
-        lines.extend(f"- {text}" for text in history)
-    lines.append("Aim near the target, not the edge of the interval. Use equivalent wording without "
-                 "adding filler, deleting information, simplifying the original or making it more formal. "
-                 "The fidelity and range requirements apply even when the distance is hard to match.")
+    lines = ["", "Candidates already considered; produce different wording rather than returning these again:"]
+    lines.extend(f"- {text}" for text in history)
     return "\n".join(lines)
+
+
+NEUTRAL_SELECTION_RULE = "closest_surface_profile_v1"
 
 
 @dataclass
 class NeutralSelection:
-    """Everything the neutral matching step decided, for the record."""
+    """Everything the Neutral selection step decided, for the record."""
 
     chosen: str
     candidates: List[str] = field(default_factory=list)
-    distances: List[float] = field(default_factory=list)
-    target_distance: Optional[float] = None
-    rule: str = "closest_to_target"           # or "median_distance"
-    dropped: List[dict] = field(default_factory=list)   # {text, reason}
+    distances: List[float] = field(default_factory=list)     # token edit distance to the original: diagnostic only
+    profiles: List[dict] = field(default_factory=list)       # the surface profile the rule ranks on
+    rule: str = NEUTRAL_SELECTION_RULE
+    seed: Optional[int] = None
+    dropped: List[dict] = field(default_factory=list)        # {text, reason}
 
     @property
     def chosen_distance(self) -> Optional[float]:
@@ -231,7 +210,7 @@ class NeutralSelection:
     def to_dict(self) -> dict:
         return {"chosen": self.chosen, "chosen_distance": self.chosen_distance,
                 "candidates": list(self.candidates), "distances": list(self.distances),
-                "target_distance": self.target_distance, "rule": self.rule,
+                "profiles": list(self.profiles), "rule": self.rule, "seed": self.seed,
                 "dropped": list(self.dropped)}
 
 
@@ -273,9 +252,21 @@ def parse_candidates(raw: str) -> List[str]:
     return [c for c in cleaned if c]
 
 
-def select_candidate(candidates: List[str], original: str,
-                     target_distance: Optional[float]) -> NeutralSelection:
-    """Drop unusable candidates, then match on normalized token edit distance."""
+def candidate_profile(text: str, original: str) -> dict:
+    """Cheap surface profile for choosing among gate-passing Neutral candidates: how far the
+    sentence count and the word count moved from the original. The primary range measures
+    (lexical diversity, subordination, dependency distance, ...) are deliberately not used
+    here, so the Neutral-versus-Original equivalence test stays an independent check."""
+    from components.metrics.text_normalization import split_sentences, word_count
+    n_words = max(1, word_count(original))
+    return {"sentence_delta": abs(len(split_sentences(text)) - len(split_sentences(original))),
+            "word_delta_ratio": round(abs(word_count(text) - word_count(original)) / n_words, 6)}
+
+
+def select_candidate(candidates: List[str], original: str, *, seed: int = 0) -> NeutralSelection:
+    """Drop unusable candidates, then pick the one whose surface profile stays closest to the
+    original (fewest sentence-count changes, then smallest word-count change); exact ties are
+    broken by a fixed seed. Edit distance is recorded for every candidate but never ranks them."""
     kept: List[str] = []
     dropped: List[dict] = []
     seen: Set[tuple] = set()
@@ -297,15 +288,12 @@ def select_candidate(candidates: List[str], original: str,
                            f"({len(dropped)} dropped: "
                            f"{sorted({d['reason'] for d in dropped})})")
     distances = [normalized_token_edit_distance(c, original) for c in kept]
-    if target_distance is None:
-        order = sorted(range(len(kept)), key=lambda i: distances[i])
-        chosen = kept[order[len(order) // 2]]
-        rule = "median_distance"
-    else:
-        chosen = min(kept, key=lambda c: abs(distances[kept.index(c)] - target_distance))
-        rule = "closest_to_target"
-    return NeutralSelection(chosen=chosen, candidates=kept, distances=distances,
-                            target_distance=target_distance, rule=rule, dropped=dropped)
+    profiles = [candidate_profile(c, original) for c in kept]
+    order = sorted(range(len(kept)), key=lambda i: kept[i])  # candidate order never matters ...
+    random.Random(seed).shuffle(order)                       # ... only the seed breaks exact ties, then a stable sort
+    order.sort(key=lambda i: (profiles[i]["sentence_delta"], profiles[i]["word_delta_ratio"]))
+    return NeutralSelection(chosen=kept[order[0]], candidates=kept, distances=distances, profiles=profiles,
+                            rule=NEUTRAL_SELECTION_RULE, seed=seed, dropped=dropped)
 
 
 @register
@@ -322,11 +310,8 @@ class LanguageProficiencyRewriter(Rewriter):
         temperature: float = 0.0,
         max_tokens: int = 400,
         n_neutral_candidates: int = 5,
-        neutral_match_to: Optional[str] = "low",
-        target_edit_distance: Optional[float] = None,
         applies_to: Optional[list] = None,
         prompt_version: Optional[str] = None,
-        neutral_anchor_conditions: Optional[list] = None,
     ):
         # No **kwargs: an unknown parameter (e.g. a stale CEFR ``level="B"``) must
         # raise instead of silently running every utterance as ``low``.
@@ -341,15 +326,6 @@ class LanguageProficiencyRewriter(Rewriter):
         self.temperature = float(temperature)
         self.max_tokens = int(max_tokens)
         self.n_neutral_candidates = int(n_neutral_candidates)
-        if neutral_match_to not in (None, "low", "high"):
-            raise ValueError("neutral_match_to must be None, 'low' or 'high'")
-        self.neutral_match_to = neutral_match_to
-        self.neutral_anchor_conditions = (list(neutral_anchor_conditions) if neutral_anchor_conditions is not None
-                                          else ([neutral_match_to] if neutral_match_to else []))
-        if any(c not in ("low", "high") for c in self.neutral_anchor_conditions):
-            raise ValueError("neutral anchors must be low and/or high")
-        self.target_edit_distance = (None if target_edit_distance is None
-                                     else float(target_edit_distance))
         self._applies_to = set(applies_to) if applies_to else None
         self.last_selection: Optional[NeutralSelection] = None
         self.last_raw: str = ""
@@ -393,7 +369,7 @@ class LanguageProficiencyRewriter(Rewriter):
         system = _shared_system_prompt("neutral", definition, _candidate_output_block(n))
         user = _user_header(ctx) + _feedback_block(feedback, "neutral") + \
             f"\n\nWrite {n} different NEUTRAL paraphrases as a JSON array:"
-        user += _matching_block(ctx.original_nl, feedback)
+        user += _history_block(feedback)
         return system, user
 
     def prompt_sha256(self, ctx: RewriteContext, condition: Optional[str] = None, *,
@@ -455,15 +431,6 @@ class LanguageProficiencyRewriter(Rewriter):
             raise RuntimeError("Proficiency rewriter returned an empty response")
         return text
 
-    def rewrite_single(self, ctx: RewriteContext, condition: str,
-                       feedback: Optional[dict] = None) -> str:
-        """One rewrite in an explicit condition (used to target neutral matching)."""
-        text = clean_natural_text(
-            self._complete(*self.build_prompts(ctx, feedback, condition=condition)))
-        if not text:
-            raise RuntimeError("Proficiency rewriter returned an empty response")
-        return text
-
     def generate_candidates(self, ctx: RewriteContext, n: Optional[int] = None,
                             feedback: Optional[dict] = None) -> List[str]:
         n = int(n or self.n_neutral_candidates)
@@ -475,23 +442,13 @@ class LanguageProficiencyRewriter(Rewriter):
             raise RuntimeError("Proficiency rewriter returned no parseable neutral candidates")
         return candidates
 
-    def neutral_target_distance(self, ctx: RewriteContext) -> Optional[float]:
-        """The distance the neutral paraphrase should match (PLAN 3.3)."""
-        if self.target_edit_distance is not None:
-            return self.target_edit_distance
-        if self.neutral_match_to is None:
-            return None
-        anchor = self.rewrite_single(ctx, self.neutral_match_to)
-        return normalized_token_edit_distance(anchor, ctx.original_nl)
-
     def rewrite_neutral(self, ctx: RewriteContext, feedback: Optional[dict] = None,
-                        target_distance: Optional[float] = None,
-                        candidates: Optional[List[str]] = None) -> NeutralSelection:
-        target = (target_distance if target_distance is not None
-                  else self.neutral_target_distance(ctx))
+                        candidates: Optional[List[str]] = None, seed: int = 0) -> NeutralSelection:
+        """Independent paraphrase control: candidates, then the neutrality rule. Nothing about
+        Low or its edit distance is consulted."""
         if candidates is None:
-            candidates = self.generate_candidates(ctx, feedback={**(feedback or {}), "target_edit_distance": target})
-        selection = select_candidate(candidates, ctx.original_nl, target)
+            candidates = self.generate_candidates(ctx, feedback=feedback)
+        selection = select_candidate(candidates, ctx.original_nl, seed=seed)
         self.last_selection = selection
         return selection
 
@@ -505,9 +462,7 @@ class LanguageProficiencyRewriter(Rewriter):
         }
         if self.condition == "neutral":
             params.update({"n_neutral_candidates": self.n_neutral_candidates,
-                           "neutral_match_to": self.neutral_match_to,
-                           "target_edit_distance": self.target_edit_distance})
-            params["neutral_anchor_conditions"] = self.neutral_anchor_conditions
+                           "neutral_selection_rule": NEUTRAL_SELECTION_RULE})
         if self._applies_to:
             params["applies_to"] = sorted(self._applies_to)
         return {"class": self.__class__.__name__, "params": params}
