@@ -1,0 +1,1741 @@
+{
+  "n": 1429,
+  "overall": {
+    "n": 1429,
+    "counts": {
+      "bald_on_record": 1251,
+      "positive_politeness": 109,
+      "negative_politeness": 22,
+      "off_record": 44,
+      "no_majority": 3
+    },
+    "bald_on_record": {
+      "k": 1251,
+      "share": 0.8754373687893632,
+      "ci": [
+        0.8573024661975465,
+        0.891559096727483
+      ]
+    },
+    "positive_politeness": {
+      "k": 109,
+      "share": 0.07627711686494051,
+      "ci": [
+        0.06362191849551482,
+        0.09120440703830554
+      ]
+    },
+    "negative_politeness": {
+      "k": 22,
+      "share": 0.015395381385584325,
+      "ci": [
+        0.010188560811543465,
+        0.02320075451821805
+      ]
+    },
+    "off_record": {
+      "k": 44,
+      "share": 0.03079076277116865,
+      "ci": [
+        0.023015823875107734,
+        0.04108170093154221
+      ]
+    }
+  },
+  "role": {
+    "werewolf": {
+      "n": 473,
+      "counts": {
+        "bald_on_record": 411,
+        "positive_politeness": 46,
+        "off_record": 7,
+        "negative_politeness": 9
+      },
+      "bald_on_record": {
+        "k": 411,
+        "share": 0.86892177589852,
+        "ci": [
+          0.8355123857672584,
+          0.8963868445012415
+        ]
+      },
+      "positive_politeness": {
+        "k": 46,
+        "share": 0.09725158562367865,
+        "ci": [
+          0.07370402176130145,
+          0.12728850909171138
+        ]
+      },
+      "negative_politeness": {
+        "k": 9,
+        "share": 0.019027484143763214,
+        "ci": [
+          0.010041963976905216,
+          0.035762764469606155
+        ]
+      },
+      "off_record": {
+        "k": 7,
+        "share": 0.014799154334038054,
+        "ci": [
+          0.007186707445333224,
+          0.030229491141367262
+        ]
+      }
+    },
+    "seer": {
+      "n": 162,
+      "counts": {
+        "bald_on_record": 139,
+        "positive_politeness": 15,
+        "off_record": 6,
+        "negative_politeness": 2
+      },
+      "bald_on_record": {
+        "k": 139,
+        "share": 0.8580246913580247,
+        "ci": [
+          0.7959668891627968,
+          0.9034957305900276
+        ]
+      },
+      "positive_politeness": {
+        "k": 15,
+        "share": 0.09259259259259259,
+        "ci": [
+          0.05691551968142478,
+          0.14714425784122334
+        ]
+      },
+      "negative_politeness": {
+        "k": 2,
+        "share": 0.012345679012345678,
+        "ci": [
+          0.003392114427184602,
+          0.043891558668106324
+        ]
+      },
+      "off_record": {
+        "k": 6,
+        "share": 0.037037037037037035,
+        "ci": [
+          0.017082758173970532,
+          0.07843971628358415
+        ]
+      }
+    },
+    "villager": {
+      "n": 552,
+      "counts": {
+        "bald_on_record": 486,
+        "negative_politeness": 9,
+        "off_record": 20,
+        "positive_politeness": 35,
+        "no_majority": 2
+      },
+      "bald_on_record": {
+        "k": 486,
+        "share": 0.8804347826086957,
+        "ci": [
+          0.8507044836797397,
+          0.9049064673537921
+        ]
+      },
+      "positive_politeness": {
+        "k": 35,
+        "share": 0.06340579710144928,
+        "ci": [
+          0.04594063132272204,
+          0.08690584868165331
+        ]
+      },
+      "negative_politeness": {
+        "k": 9,
+        "share": 0.016304347826086956,
+        "ci": [
+          0.008600929528160136,
+          0.030693718443492217
+        ]
+      },
+      "off_record": {
+        "k": 20,
+        "share": 0.036231884057971016,
+        "ci": [
+          0.023574883916152645,
+          0.05529938530011329
+        ]
+      }
+    },
+    "guard": {
+      "n": 242,
+      "counts": {
+        "bald_on_record": 215,
+        "positive_politeness": 13,
+        "negative_politeness": 2,
+        "no_majority": 1,
+        "off_record": 11
+      },
+      "bald_on_record": {
+        "k": 215,
+        "share": 0.8884297520661157,
+        "ci": [
+          0.8425384339214773,
+          0.9221816134586244
+        ]
+      },
+      "positive_politeness": {
+        "k": 13,
+        "share": 0.05371900826446281,
+        "ci": [
+          0.031658792025278895,
+          0.08972668545290217
+        ]
+      },
+      "negative_politeness": {
+        "k": 2,
+        "share": 0.008264462809917356,
+        "ci": [
+          0.0022692998150906363,
+          0.02962766148031258
+        ]
+      },
+      "off_record": {
+        "k": 11,
+        "share": 0.045454545454545456,
+        "ci": [
+          0.025567561958883746,
+          0.07954727621333771
+        ]
+      }
+    }
+  },
+  "camp": {
+    "wolf": {
+      "n": 473,
+      "counts": {
+        "bald_on_record": 411,
+        "positive_politeness": 46,
+        "off_record": 7,
+        "negative_politeness": 9
+      },
+      "bald_on_record": {
+        "k": 411,
+        "share": 0.86892177589852,
+        "ci": [
+          0.8355123857672584,
+          0.8963868445012415
+        ]
+      },
+      "positive_politeness": {
+        "k": 46,
+        "share": 0.09725158562367865,
+        "ci": [
+          0.07370402176130145,
+          0.12728850909171138
+        ]
+      },
+      "negative_politeness": {
+        "k": 9,
+        "share": 0.019027484143763214,
+        "ci": [
+          0.010041963976905216,
+          0.035762764469606155
+        ]
+      },
+      "off_record": {
+        "k": 7,
+        "share": 0.014799154334038054,
+        "ci": [
+          0.007186707445333224,
+          0.030229491141367262
+        ]
+      }
+    },
+    "village": {
+      "n": 956,
+      "counts": {
+        "bald_on_record": 840,
+        "positive_politeness": 63,
+        "negative_politeness": 13,
+        "off_record": 37,
+        "no_majority": 3
+      },
+      "bald_on_record": {
+        "k": 840,
+        "share": 0.8786610878661087,
+        "ci": [
+          0.856433053086185,
+          0.8978580716160574
+        ]
+      },
+      "positive_politeness": {
+        "k": 63,
+        "share": 0.06589958158995816,
+        "ci": [
+          0.05184493363732391,
+          0.08342905323717704
+        ]
+      },
+      "negative_politeness": {
+        "k": 13,
+        "share": 0.013598326359832637,
+        "ci": [
+          0.007963861054300254,
+          0.02312626881712853
+        ]
+      },
+      "off_record": {
+        "k": 37,
+        "share": 0.038702928870292884,
+        "ci": [
+          0.028207581764646824,
+          0.05289079946825659
+        ]
+      }
+    }
+  },
+  "phase_group": {
+    "election": {
+      "n": 143,
+      "counts": {
+        "bald_on_record": 117,
+        "positive_politeness": 17,
+        "negative_politeness": 9
+      },
+      "bald_on_record": {
+        "k": 117,
+        "share": 0.8181818181818182,
+        "ci": [
+          0.7469205227007556,
+          0.8727948713020339
+        ]
+      },
+      "positive_politeness": {
+        "k": 17,
+        "share": 0.11888111888111888,
+        "ci": [
+          0.07556207461182213,
+          0.1821414644397818
+        ]
+      },
+      "negative_politeness": {
+        "k": 9,
+        "share": 0.06293706293706294,
+        "ci": [
+          0.03346110825773375,
+          0.11528148239777533
+        ]
+      },
+      "off_record": {
+        "k": 0,
+        "share": 0.0,
+        "ci": [
+          0.0,
+          0.02616152370990237
+        ]
+      }
+    },
+    "last_words": {
+      "n": 98,
+      "counts": {
+        "bald_on_record": 85,
+        "positive_politeness": 12,
+        "off_record": 1
+      },
+      "bald_on_record": {
+        "k": 85,
+        "share": 0.8673469387755102,
+        "ci": [
+          0.7861693677036048,
+          0.9208108839813649
+        ]
+      },
+      "positive_politeness": {
+        "k": 12,
+        "share": 0.12244897959183673,
+        "ci": [
+          0.07145129752202053,
+          0.20193011046842743
+        ]
+      },
+      "negative_politeness": {
+        "k": 0,
+        "share": 0.0,
+        "ci": [
+          0.0,
+          0.037721324095458045
+        ]
+      },
+      "off_record": {
+        "k": 1,
+        "share": 0.01020408163265306,
+        "ci": [
+          0.0018035013277367812,
+          0.055556163092303754
+        ]
+      }
+    },
+    "day_1": {
+      "n": 722,
+      "counts": {
+        "bald_on_record": 648,
+        "positive_politeness": 43,
+        "off_record": 23,
+        "negative_politeness": 6,
+        "no_majority": 2
+      },
+      "bald_on_record": {
+        "k": 648,
+        "share": 0.8975069252077562,
+        "ci": [
+          0.8732381348805889,
+          0.9175680134581119
+        ]
+      },
+      "positive_politeness": {
+        "k": 43,
+        "share": 0.05955678670360111,
+        "ci": [
+          0.04451341380683056,
+          0.07926235214541026
+        ]
+      },
+      "negative_politeness": {
+        "k": 6,
+        "share": 0.008310249307479225,
+        "ci": [
+          0.003814015328682651,
+          0.018011132196617635
+        ]
+      },
+      "off_record": {
+        "k": 23,
+        "share": 0.03185595567867036,
+        "ci": [
+          0.02131946281755088,
+          0.04734786074174912
+        ]
+      }
+    },
+    "day_2": {
+      "n": 374,
+      "counts": {
+        "bald_on_record": 318,
+        "negative_politeness": 7,
+        "positive_politeness": 31,
+        "off_record": 17,
+        "no_majority": 1
+      },
+      "bald_on_record": {
+        "k": 318,
+        "share": 0.8502673796791443,
+        "ci": [
+          0.8105522978299186,
+          0.8828599680508101
+        ]
+      },
+      "positive_politeness": {
+        "k": 31,
+        "share": 0.08288770053475936,
+        "ci": [
+          0.05900616008287242,
+          0.11525098894465659
+        ]
+      },
+      "negative_politeness": {
+        "k": 7,
+        "share": 0.01871657754010695,
+        "ci": [
+          0.009095125771334192,
+          0.03812466156812233
+        ]
+      },
+      "off_record": {
+        "k": 17,
+        "share": 0.045454545454545456,
+        "ci": [
+          0.02857024857404206,
+          0.07158177280211134
+        ]
+      }
+    },
+    "day_3+": {
+      "n": 92,
+      "counts": {
+        "bald_on_record": 83,
+        "off_record": 3,
+        "positive_politeness": 6
+      },
+      "bald_on_record": {
+        "k": 83,
+        "share": 0.9021739130434783,
+        "ci": [
+          0.8244304748274598,
+          0.9476768355680261
+        ]
+      },
+      "positive_politeness": {
+        "k": 6,
+        "share": 0.06521739130434782,
+        "ci": [
+          0.03022979137398394,
+          0.13505960279305834
+        ]
+      },
+      "negative_politeness": {
+        "k": 0,
+        "share": 0.0,
+        "ci": [
+          -3.469446951953614e-18,
+          0.04008280329209862
+        ]
+      },
+      "off_record": {
+        "k": 3,
+        "share": 0.03260869565217391,
+        "ci": [
+          0.011150975342623229,
+          0.09153512338694722
+        ]
+      }
+    }
+  },
+  "predicate": {
+    "recommend_action": {
+      "n": 543,
+      "counts": {
+        "bald_on_record": 446,
+        "positive_politeness": 82,
+        "negative_politeness": 14,
+        "no_majority": 1
+      },
+      "bald_on_record": {
+        "k": 446,
+        "share": 0.8213627992633518,
+        "ci": [
+          0.7869204760026955,
+          0.8512899308134647
+        ]
+      },
+      "positive_politeness": {
+        "k": 82,
+        "share": 0.15101289134438306,
+        "ci": [
+          0.12335341127090838,
+          0.18357568849033873
+        ]
+      },
+      "negative_politeness": {
+        "k": 14,
+        "share": 0.02578268876611418,
+        "ci": [
+          0.015419078467843187,
+          0.042809117777650924
+        ]
+      },
+      "off_record": {
+        "k": 0,
+        "share": 0.0,
+        "ci": [
+          0.0,
+          0.007025069051074387
+        ]
+      }
+    },
+    "disagree": {
+      "n": 310,
+      "counts": {
+        "bald_on_record": 294,
+        "off_record": 5,
+        "positive_politeness": 11
+      },
+      "bald_on_record": {
+        "k": 294,
+        "share": 0.9483870967741935,
+        "ci": [
+          0.9178129783897129,
+          0.967984188078977
+        ]
+      },
+      "positive_politeness": {
+        "k": 11,
+        "share": 0.035483870967741936,
+        "ci": [
+          0.019926918435376115,
+          0.06241270766900266
+        ]
+      },
+      "negative_politeness": {
+        "k": 0,
+        "share": 0.0,
+        "ci": [
+          0.0,
+          0.012240569765129924
+        ]
+      },
+      "off_record": {
+        "k": 5,
+        "share": 0.016129032258064516,
+        "ci": [
+          0.006908426626105869,
+          0.03719535056595535
+        ]
+      }
+    },
+    "estimate": {
+      "n": 432,
+      "counts": {
+        "bald_on_record": 370,
+        "negative_politeness": 7,
+        "positive_politeness": 14,
+        "off_record": 39,
+        "no_majority": 2
+      },
+      "bald_on_record": {
+        "k": 370,
+        "share": 0.8564814814814815,
+        "ci": [
+          0.8202739268756348,
+          0.8864048298102803
+        ]
+      },
+      "positive_politeness": {
+        "k": 14,
+        "share": 0.032407407407407406,
+        "ci": [
+          0.01940067031758015,
+          0.05365706441907646
+        ]
+      },
+      "negative_politeness": {
+        "k": 7,
+        "share": 0.016203703703703703,
+        "ci": [
+          0.007870656717175108,
+          0.033065316351939905
+        ]
+      },
+      "off_record": {
+        "k": 39,
+        "share": 0.09027777777777778,
+        "ci": [
+          0.06674264674027514,
+          0.12103566538045862
+        ]
+      }
+    },
+    "question": {
+      "n": 143,
+      "counts": {
+        "bald_on_record": 141,
+        "negative_politeness": 1,
+        "positive_politeness": 1
+      },
+      "bald_on_record": {
+        "k": 141,
+        "share": 0.986013986013986,
+        "ci": [
+          0.9504420452891259,
+          0.996156193901948
+        ]
+      },
+      "positive_politeness": {
+        "k": 1,
+        "share": 0.006993006993006993,
+        "ci": [
+          0.0012354740923871538,
+          0.03854616816702707
+        ]
+      },
+      "negative_politeness": {
+        "k": 1,
+        "share": 0.006993006993006993,
+        "ci": [
+          0.0012354740923871538,
+          0.03854616816702707
+        ]
+      },
+      "off_record": {
+        "k": 0,
+        "share": 0.0,
+        "ci": [
+          0.0,
+          0.02616152370990237
+        ]
+      }
+    },
+    "agree": {
+      "n": 1,
+      "counts": {
+        "positive_politeness": 1
+      },
+      "bald_on_record": {
+        "k": 0,
+        "share": 0.0,
+        "ci": [
+          0.0,
+          0.7934567085261071
+        ]
+      },
+      "positive_politeness": {
+        "k": 1,
+        "share": 1.0,
+        "ci": [
+          0.20654329147389294,
+          1.0
+        ]
+      },
+      "negative_politeness": {
+        "k": 0,
+        "share": 0.0,
+        "ci": [
+          0.0,
+          0.7934567085261071
+        ]
+      },
+      "off_record": {
+        "k": 0,
+        "share": 0.0,
+        "ci": [
+          0.0,
+          0.7934567085261071
+        ]
+      }
+    }
+  },
+  "role_test": {
+    "statistic": 0.1238,
+    "permutation_p": 0.7269
+  },
+  "role_test_strict": {
+    "statistic": 0.202,
+    "permutation_p": 0.3269
+  },
+  "unanimous": 1218,
+  "nonbald_unanimous": 97,
+  "role_phase": {
+    "werewolf|election": {
+      "n": 85,
+      "counts": {
+        "bald_on_record": 65,
+        "negative_politeness": 7,
+        "positive_politeness": 13
+      },
+      "bald_on_record": {
+        "k": 65,
+        "share": 0.7647058823529411,
+        "ci": [
+          0.6643136684446008,
+          0.8422057999125651
+        ]
+      },
+      "positive_politeness": {
+        "k": 13,
+        "share": 0.15294117647058825,
+        "ci": [
+          0.09161293871665298,
+          0.24428375832617383
+        ]
+      },
+      "negative_politeness": {
+        "k": 7,
+        "share": 0.08235294117647059,
+        "ci": [
+          0.04046320889853023,
+          0.16036162991571895
+        ]
+      },
+      "off_record": {
+        "k": 0,
+        "share": 0.0,
+        "ci": [
+          0.0,
+          0.04324100421424198
+        ]
+      }
+    },
+    "seer|election": {
+      "n": 58,
+      "counts": {
+        "bald_on_record": 52,
+        "positive_politeness": 4,
+        "negative_politeness": 2
+      },
+      "bald_on_record": {
+        "k": 52,
+        "share": 0.896551724137931,
+        "ci": [
+          0.7921166146899103,
+          0.9517192498414084
+        ]
+      },
+      "positive_politeness": {
+        "k": 4,
+        "share": 0.06896551724137931,
+        "ci": [
+          0.027143807598168326,
+          0.16433894834605045
+        ]
+      },
+      "negative_politeness": {
+        "k": 2,
+        "share": 0.034482758620689655,
+        "ci": [
+          0.009507728866485675,
+          0.11729364755327057
+        ]
+      },
+      "off_record": {
+        "k": 0,
+        "share": 0.0,
+        "ci": [
+          0.0,
+          0.062119996895293766
+        ]
+      }
+    },
+    "villager|last_words": {
+      "n": 33,
+      "counts": {
+        "bald_on_record": 26,
+        "positive_politeness": 7
+      },
+      "bald_on_record": {
+        "k": 26,
+        "share": 0.7878787878787878,
+        "ci": [
+          0.6224802241287064,
+          0.8932411343356381
+        ]
+      },
+      "positive_politeness": {
+        "k": 7,
+        "share": 0.21212121212121213,
+        "ci": [
+          0.1067588656643618,
+          0.3775197758712936
+        ]
+      },
+      "negative_politeness": {
+        "k": 0,
+        "share": 0.0,
+        "ci": [
+          0.0,
+          0.10427343003561192
+        ]
+      },
+      "off_record": {
+        "k": 0,
+        "share": 0.0,
+        "ci": [
+          0.0,
+          0.10427343003561192
+        ]
+      }
+    },
+    "guard|day_1": {
+      "n": 123,
+      "counts": {
+        "bald_on_record": 109,
+        "negative_politeness": 2,
+        "no_majority": 1,
+        "positive_politeness": 3,
+        "off_record": 8
+      },
+      "bald_on_record": {
+        "k": 109,
+        "share": 0.8861788617886179,
+        "ci": [
+          0.8179878504398732,
+          0.9309777885933779
+        ]
+      },
+      "positive_politeness": {
+        "k": 3,
+        "share": 0.024390243902439025,
+        "ci": [
+          0.00832891348479355,
+          0.06926077317951848
+        ]
+      },
+      "negative_politeness": {
+        "k": 2,
+        "share": 0.016260162601626018,
+        "ci": [
+          0.004470414833255703,
+          0.057351574167198396
+        ]
+      },
+      "off_record": {
+        "k": 8,
+        "share": 0.06504065040650407,
+        "ci": [
+          0.033322237047724246,
+          0.12310593793587735
+        ]
+      }
+    },
+    "villager|day_1": {
+      "n": 294,
+      "counts": {
+        "bald_on_record": 269,
+        "off_record": 6,
+        "positive_politeness": 14,
+        "no_majority": 1,
+        "negative_politeness": 4
+      },
+      "bald_on_record": {
+        "k": 269,
+        "share": 0.9149659863945578,
+        "ci": [
+          0.8774864035362695,
+          0.9417409978744133
+        ]
+      },
+      "positive_politeness": {
+        "k": 14,
+        "share": 0.047619047619047616,
+        "ci": [
+          0.028574307326296206,
+          0.07833352556205789
+        ]
+      },
+      "negative_politeness": {
+        "k": 4,
+        "share": 0.013605442176870748,
+        "ci": [
+          0.005303185254200062,
+          0.03445486063327839
+        ]
+      },
+      "off_record": {
+        "k": 6,
+        "share": 0.02040816326530612,
+        "ci": [
+          0.009385870469043697,
+          0.043802132818609875
+        ]
+      }
+    },
+    "werewolf|day_1": {
+      "n": 236,
+      "counts": {
+        "bald_on_record": 214,
+        "positive_politeness": 19,
+        "off_record": 3
+      },
+      "bald_on_record": {
+        "k": 214,
+        "share": 0.9067796610169492,
+        "ci": [
+          0.8628958238200685,
+          0.9376325248900802
+        ]
+      },
+      "positive_politeness": {
+        "k": 19,
+        "share": 0.08050847457627118,
+        "ci": [
+          0.05214406857848663,
+          0.1223110718141725
+        ]
+      },
+      "negative_politeness": {
+        "k": 0,
+        "share": 0.0,
+        "ci": [
+          0.0,
+          0.016017238043775556
+        ]
+      },
+      "off_record": {
+        "k": 3,
+        "share": 0.012711864406779662,
+        "ci": [
+          0.004332348193521775,
+          0.03670140074744593
+        ]
+      }
+    },
+    "seer|day_1": {
+      "n": 69,
+      "counts": {
+        "bald_on_record": 56,
+        "positive_politeness": 7,
+        "off_record": 6
+      },
+      "bald_on_record": {
+        "k": 56,
+        "share": 0.8115942028985508,
+        "ci": [
+          0.7038684285696075,
+          0.886453585224708
+        ]
+      },
+      "positive_politeness": {
+        "k": 7,
+        "share": 0.10144927536231885,
+        "ci": [
+          0.050016002571615495,
+          0.19492095652867886
+        ]
+      },
+      "negative_politeness": {
+        "k": 0,
+        "share": 0.0,
+        "ci": [
+          0.0,
+          0.05273909414400562
+        ]
+      },
+      "off_record": {
+        "k": 6,
+        "share": 0.08695652173913043,
+        "ci": [
+          0.04046307012090733,
+          0.1770170511284886
+        ]
+      }
+    },
+    "seer|last_words": {
+      "n": 22,
+      "counts": {
+        "bald_on_record": 19,
+        "positive_politeness": 3
+      },
+      "bald_on_record": {
+        "k": 19,
+        "share": 0.8636363636363636,
+        "ci": [
+          0.6666458812053,
+          0.9525108273576373
+        ]
+      },
+      "positive_politeness": {
+        "k": 3,
+        "share": 0.13636363636363635,
+        "ci": [
+          0.04748917264236269,
+          0.3333541187947
+        ]
+      },
+      "negative_politeness": {
+        "k": 0,
+        "share": 0.0,
+        "ci": [
+          1.3877787807814457e-17,
+          0.14865952572596125
+        ]
+      },
+      "off_record": {
+        "k": 0,
+        "share": 0.0,
+        "ci": [
+          1.3877787807814457e-17,
+          0.14865952572596125
+        ]
+      }
+    },
+    "villager|day_2": {
+      "n": 191,
+      "counts": {
+        "bald_on_record": 159,
+        "negative_politeness": 5,
+        "off_record": 13,
+        "positive_politeness": 13,
+        "no_majority": 1
+      },
+      "bald_on_record": {
+        "k": 159,
+        "share": 0.8324607329842932,
+        "ci": [
+          0.7730585365765023,
+          0.8787529862194511
+        ]
+      },
+      "positive_politeness": {
+        "k": 13,
+        "share": 0.06806282722513089,
+        "ci": [
+          0.040203968321682305,
+          0.11295428946310287
+        ]
+      },
+      "negative_politeness": {
+        "k": 5,
+        "share": 0.02617801047120419,
+        "ci": [
+          0.011232210619450546,
+          0.05980806004143501
+        ]
+      },
+      "off_record": {
+        "k": 13,
+        "share": 0.06806282722513089,
+        "ci": [
+          0.040203968321682305,
+          0.11295428946310287
+        ]
+      }
+    },
+    "guard|day_2": {
+      "n": 81,
+      "counts": {
+        "bald_on_record": 71,
+        "positive_politeness": 8,
+        "off_record": 2
+      },
+      "bald_on_record": {
+        "k": 71,
+        "share": 0.8765432098765432,
+        "ci": [
+          0.7874473347058997,
+          0.9315395773749664
+        ]
+      },
+      "positive_politeness": {
+        "k": 8,
+        "share": 0.09876543209876543,
+        "ci": [
+          0.05089950757441662,
+          0.1829668975853163
+        ]
+      },
+      "negative_politeness": {
+        "k": 0,
+        "share": 0.0,
+        "ci": [
+          -3.469446951953614e-18,
+          0.04527967412212876
+        ]
+      },
+      "off_record": {
+        "k": 2,
+        "share": 0.024691358024691357,
+        "ci": [
+          0.0067974449101870366,
+          0.08562891197134277
+        ]
+      }
+    },
+    "werewolf|day_2": {
+      "n": 89,
+      "counts": {
+        "bald_on_record": 76,
+        "off_record": 2,
+        "positive_politeness": 9,
+        "negative_politeness": 2
+      },
+      "bald_on_record": {
+        "k": 76,
+        "share": 0.8539325842696629,
+        "ci": [
+          0.7659688971390856,
+          0.9126062243581742
+        ]
+      },
+      "positive_politeness": {
+        "k": 9,
+        "share": 0.10112359550561797,
+        "ci": [
+          0.05411793406379983,
+          0.1811386750424629
+        ]
+      },
+      "negative_politeness": {
+        "k": 2,
+        "share": 0.02247191011235955,
+        "ci": [
+          0.006184269063094168,
+          0.07827786859933303
+        ]
+      },
+      "off_record": {
+        "k": 2,
+        "share": 0.02247191011235955,
+        "ci": [
+          0.006184269063094168,
+          0.07827786859933303
+        ]
+      }
+    },
+    "werewolf|last_words": {
+      "n": 36,
+      "counts": {
+        "bald_on_record": 34,
+        "off_record": 1,
+        "positive_politeness": 1
+      },
+      "bald_on_record": {
+        "k": 34,
+        "share": 0.9444444444444444,
+        "ci": [
+          0.8185502589238878,
+          0.9846303362329332
+        ]
+      },
+      "positive_politeness": {
+        "k": 1,
+        "share": 0.027777777777777776,
+        "ci": [
+          0.004920280295569679,
+          0.141700337350308
+        ]
+      },
+      "negative_politeness": {
+        "k": 0,
+        "share": 0.0,
+        "ci": [
+          0.0,
+          0.09642183044857634
+        ]
+      },
+      "off_record": {
+        "k": 1,
+        "share": 0.027777777777777776,
+        "ci": [
+          0.004920280295569679,
+          0.141700337350308
+        ]
+      }
+    },
+    "guard|last_words": {
+      "n": 7,
+      "counts": {
+        "bald_on_record": 6,
+        "positive_politeness": 1
+      },
+      "bald_on_record": {
+        "k": 6,
+        "share": 0.8571428571428571,
+        "ci": [
+          0.48686549668097007,
+          0.9743210440510253
+        ]
+      },
+      "positive_politeness": {
+        "k": 1,
+        "share": 0.14285714285714285,
+        "ci": [
+          0.02567895594897479,
+          0.51313450331903
+        ]
+      },
+      "negative_politeness": {
+        "k": 0,
+        "share": 0.0,
+        "ci": [
+          0.0,
+          0.35433884297520657
+        ]
+      },
+      "off_record": {
+        "k": 0,
+        "share": 0.0,
+        "ci": [
+          0.0,
+          0.35433884297520657
+        ]
+      }
+    },
+    "villager|day_3+": {
+      "n": 34,
+      "counts": {
+        "bald_on_record": 32,
+        "off_record": 1,
+        "positive_politeness": 1
+      },
+      "bald_on_record": {
+        "k": 32,
+        "share": 0.9411764705882353,
+        "ci": [
+          0.8090606311053629,
+          0.9837176869361576
+        ]
+      },
+      "positive_politeness": {
+        "k": 1,
+        "share": 0.029411764705882353,
+        "ci": [
+          0.00521077192559663,
+          0.1491590221634482
+        ]
+      },
+      "negative_politeness": {
+        "k": 0,
+        "share": 0.0,
+        "ci": [
+          0.0,
+          0.10151790621961015
+        ]
+      },
+      "off_record": {
+        "k": 1,
+        "share": 0.029411764705882353,
+        "ci": [
+          0.00521077192559663,
+          0.1491590221634482
+        ]
+      }
+    },
+    "werewolf|day_3+": {
+      "n": 27,
+      "counts": {
+        "bald_on_record": 22,
+        "positive_politeness": 4,
+        "off_record": 1
+      },
+      "bald_on_record": {
+        "k": 22,
+        "share": 0.8148148148148148,
+        "ci": [
+          0.6330094349480825,
+          0.9181941342571468
+        ]
+      },
+      "positive_politeness": {
+        "k": 4,
+        "share": 0.14814814814814814,
+        "ci": [
+          0.059158318596448906,
+          0.32479063346829484
+        ]
+      },
+      "negative_politeness": {
+        "k": 0,
+        "share": 0.0,
+        "ci": [
+          6.938893903907228e-18,
+          0.12455903714463581
+        ]
+      },
+      "off_record": {
+        "k": 1,
+        "share": 0.037037037037037035,
+        "ci": [
+          0.006567976533097597,
+          0.1828385393415652
+        ]
+      }
+    },
+    "guard|day_3+": {
+      "n": 31,
+      "counts": {
+        "bald_on_record": 29,
+        "off_record": 1,
+        "positive_politeness": 1
+      },
+      "bald_on_record": {
+        "k": 29,
+        "share": 0.9354838709677419,
+        "ci": [
+          0.7928101168125354,
+          0.9821255922249368
+        ]
+      },
+      "positive_politeness": {
+        "k": 1,
+        "share": 0.03225806451612903,
+        "ci": [
+          0.00571707408694444,
+          0.16194457176169622
+        ]
+      },
+      "negative_politeness": {
+        "k": 0,
+        "share": 0.0,
+        "ci": [
+          -1.3877787807814457e-17,
+          0.11025900073475385
+        ]
+      },
+      "off_record": {
+        "k": 1,
+        "share": 0.03225806451612903,
+        "ci": [
+          0.00571707408694444,
+          0.16194457176169622
+        ]
+      }
+    },
+    "seer|day_2": {
+      "n": 13,
+      "counts": {
+        "bald_on_record": 12,
+        "positive_politeness": 1
+      },
+      "bald_on_record": {
+        "k": 12,
+        "share": 0.9230769230769231,
+        "ci": [
+          0.6668546607175265,
+          0.9862899336203037
+        ]
+      },
+      "positive_politeness": {
+        "k": 1,
+        "share": 0.07692307692307693,
+        "ci": [
+          0.013710066379696323,
+          0.3331453392824736
+        ]
+      },
+      "negative_politeness": {
+        "k": 0,
+        "share": 0.0,
+        "ci": [
+          0.0,
+          0.22810184305529166
+        ]
+      },
+      "off_record": {
+        "k": 0,
+        "share": 0.0,
+        "ci": [
+          0.0,
+          0.22810184305529166
+        ]
+      }
+    }
+  },
+  "reliability_n": {
+    "village_speakers": 537,
+    "wolf_speakers": 344,
+    "wolf_to_teammate": 26
+  },
+  "reliability": {
+    "low (1-3)": {
+      "n": 44,
+      "counts": {
+        "bald_on_record": 42,
+        "off_record": 1,
+        "positive_politeness": 1
+      },
+      "bald_on_record": {
+        "k": 42,
+        "share": 0.9545454545454546,
+        "ci": [
+          0.8486472847469684,
+          0.9874451536330189
+        ]
+      },
+      "positive_politeness": {
+        "k": 1,
+        "share": 0.022727272727272728,
+        "ci": [
+          0.004023148385637013,
+          0.11807979131537633
+        ]
+      },
+      "negative_politeness": {
+        "k": 0,
+        "share": 0.0,
+        "ci": [
+          6.938893903907228e-18,
+          0.08029831778201396
+        ]
+      },
+      "off_record": {
+        "k": 1,
+        "share": 0.022727272727272728,
+        "ci": [
+          0.004023148385637013,
+          0.11807979131537633
+        ]
+      }
+    },
+    "mid (4-7)": {
+      "n": 481,
+      "counts": {
+        "positive_politeness": 40,
+        "bald_on_record": 428,
+        "off_record": 4,
+        "negative_politeness": 8,
+        "no_majority": 1
+      },
+      "bald_on_record": {
+        "k": 428,
+        "share": 0.8898128898128899,
+        "ci": [
+          0.8586814537126547,
+          0.9147670292558036
+        ]
+      },
+      "positive_politeness": {
+        "k": 40,
+        "share": 0.08316008316008316,
+        "ci": [
+          0.061663181229608274,
+          0.11126257431612048
+        ]
+      },
+      "negative_politeness": {
+        "k": 8,
+        "share": 0.016632016632016633,
+        "ci": [
+          0.008451160397647527,
+          0.03247272072146437
+        ]
+      },
+      "off_record": {
+        "k": 4,
+        "share": 0.008316008316008316,
+        "ci": [
+          0.003238496928583195,
+          0.02118514988720159
+        ]
+      }
+    },
+    "high (8-10)": {
+      "n": 12,
+      "counts": {
+        "bald_on_record": 8,
+        "positive_politeness": 4
+      },
+      "bald_on_record": {
+        "k": 8,
+        "share": 0.6666666666666666,
+        "ci": [
+          0.3906175873976139,
+          0.8618821601026385
+        ]
+      },
+      "positive_politeness": {
+        "k": 4,
+        "share": 0.3333333333333333,
+        "ci": [
+          0.13811783989736134,
+          0.609382412602386
+        ]
+      },
+      "negative_politeness": {
+        "k": 0,
+        "share": 0.0,
+        "ci": [
+          0.0,
+          0.2425007574992425
+        ]
+      },
+      "off_record": {
+        "k": 0,
+        "share": 0.0,
+        "ci": [
+          0.0,
+          0.2425007574992425
+        ]
+      }
+    }
+  },
+  "reliability_wolf_nonteammate": {
+    "low (1-3)": {
+      "n": 0,
+      "counts": {},
+      "bald_on_record": {
+        "k": 0,
+        "share": null,
+        "ci": [
+          NaN,
+          NaN
+        ]
+      },
+      "positive_politeness": {
+        "k": 0,
+        "share": null,
+        "ci": [
+          NaN,
+          NaN
+        ]
+      },
+      "negative_politeness": {
+        "k": 0,
+        "share": null,
+        "ci": [
+          NaN,
+          NaN
+        ]
+      },
+      "off_record": {
+        "k": 0,
+        "share": null,
+        "ci": [
+          NaN,
+          NaN
+        ]
+      }
+    },
+    "mid (4-7)": {
+      "n": 299,
+      "counts": {
+        "bald_on_record": 257,
+        "positive_politeness": 35,
+        "negative_politeness": 7
+      },
+      "bald_on_record": {
+        "k": 257,
+        "share": 0.8595317725752508,
+        "ci": [
+          0.8155709270609834,
+          0.8943711680805031
+        ]
+      },
+      "positive_politeness": {
+        "k": 35,
+        "share": 0.11705685618729098,
+        "ci": [
+          0.08538144687017349,
+          0.1584476703977316
+        ]
+      },
+      "negative_politeness": {
+        "k": 7,
+        "share": 0.023411371237458192,
+        "ci": [
+          0.011385618809630377,
+          0.04752834809584101
+        ]
+      },
+      "off_record": {
+        "k": 0,
+        "share": 0.0,
+        "ci": [
+          0.0,
+          0.012685179314862951
+        ]
+      }
+    },
+    "high (8-10)": {
+      "n": 19,
+      "counts": {
+        "bald_on_record": 19
+      },
+      "bald_on_record": {
+        "k": 19,
+        "share": 1.0,
+        "ci": [
+          0.8318156346315496,
+          1.0000000000000002
+        ]
+      },
+      "positive_politeness": {
+        "k": 0,
+        "share": 0.0,
+        "ci": [
+          0.0,
+          0.16818436536845052
+        ]
+      },
+      "negative_politeness": {
+        "k": 0,
+        "share": 0.0,
+        "ci": [
+          0.0,
+          0.16818436536845052
+        ]
+      },
+      "off_record": {
+        "k": 0,
+        "share": 0.0,
+        "ci": [
+          0.0,
+          0.16818436536845052
+        ]
+      }
+    }
+  },
+  "wolf_teammate": {
+    "n": 26,
+    "counts": {
+      "bald_on_record": 24,
+      "positive_politeness": 2
+    },
+    "bald_on_record": {
+      "k": 24,
+      "share": 0.9230769230769231,
+      "ci": [
+        0.7585805251948495,
+        0.9786453608166245
+      ]
+    },
+    "positive_politeness": {
+      "k": 2,
+      "share": 0.07692307692307693,
+      "ci": [
+        0.02135463918337556,
+        0.24141947480515052
+      ]
+    },
+    "negative_politeness": {
+      "k": 0,
+      "share": 0.0,
+      "ci": [
+        0.0,
+        0.12873304380462175
+      ]
+    },
+    "off_record": {
+      "k": 0,
+      "share": 0.0,
+      "ci": [
+        0.0,
+        0.12873304380462175
+      ]
+    }
+  },
+  "test_village_speakers": {
+    "n": 537,
+    "nonbald": 59,
+    "speaker_act_groups_with_variation": 25,
+    "within_speaker_covariance": 10.667,
+    "permutation_p": 0.0572
+  },
+  "test_village_speakers_strict": {
+    "n": 537,
+    "nonbald": 30,
+    "speaker_act_groups_with_variation": 12,
+    "within_speaker_covariance": 6.333,
+    "permutation_p": 0.046
+  },
+  "test_wolf_speakers_to_nonteammates": {
+    "n": 318,
+    "nonbald": 42,
+    "speaker_act_groups_with_variation": 25,
+    "within_speaker_covariance": -2.633,
+    "permutation_p": 0.389
+  },
+  "test_wolf_speakers_to_nonteammates_strict": {
+    "n": 318,
+    "nonbald": 24,
+    "speaker_act_groups_with_variation": 14,
+    "within_speaker_covariance": -1.8,
+    "permutation_p": 0.504
+  },
+  "test_wolf_teammate_vs_not": {
+    "n": 344,
+    "nonbald": 44,
+    "speaker_act_groups_with_variation": 4,
+    "within_speaker_covariance": 0.433,
+    "permutation_p": 0.7294
+  },
+  "test_wolf_teammate_vs_not_strict": {
+    "n": 344,
+    "nonbald": 25,
+    "speaker_act_groups_with_variation": 2,
+    "note": "too little within-speaker variation to test"
+  },
+  "test_all_speakers": {
+    "n": 881,
+    "nonbald": 103,
+    "speaker_act_groups_with_variation": 53,
+    "within_speaker_covariance": 10.367,
+    "permutation_p": 0.1585
+  },
+  "test_all_speakers_strict": {
+    "n": 881,
+    "nonbald": 55,
+    "speaker_act_groups_with_variation": 28,
+    "within_speaker_covariance": 4.367,
+    "permutation_p": 0.3839
+  },
+  "nonbald_total": 178
+}

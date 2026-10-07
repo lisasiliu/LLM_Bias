@@ -1,0 +1,257 @@
+{
+  "experiment": "politeness_validation",
+  "date": "2026-09-21",
+  "description": "Validation of controlled Brown & Levinson politeness rewrites of LURK Werewolf utterances: whether the requested strategy is realized, and whether game-relevant meaning is preserved.",
+  "manual_validation": {
+    "source_runs": [
+      {
+        "run": "games_fresh/run01",
+        "treated": false,
+        "manifest_rewriter": null
+      },
+      {
+        "run": "games_fresh/run02",
+        "treated": false,
+        "manifest_rewriter": null
+      }
+    ],
+    "source_run_requirements": [
+      "manifest.json rewriter is null (no Stage-3 treatment applied)",
+      "game_nl.json carries no treatment block",
+      "each source has an exact structured predicate, exact untreated Stage-2 natural language, a speech id, and its preceding public history"
+    ],
+    "sampling": {
+      "predicates": [
+        "disagree",
+        "estimate",
+        "question",
+        "recommend_action"
+      ],
+      "sources_per_predicate": 3,
+      "strategies_per_source": 4,
+      "n_items": 48,
+      "selection": "deterministic balanced sample, seed 101, over all primary-predicate utterances in the source runs",
+      "excluded_from_development": "candidate sources were filtered against every utterance used to develop the prompts and judges; 0 were excluded, as real transcripts share no text with the constructed development bank",
+      "predicate_not_observed": {
+        "agree": "0 occurrences in 280 naturally generated speech acts across three untreated runs; not synthesized"
+      }
+    },
+    "annotation": {
+      "blind": true,
+      "hidden_during_annotation": [
+        "the requested politeness strategy",
+        "the automatic politeness classifier label",
+        "the inverse parser verdict",
+        "the semantic validator verdict",
+        "the adjudication state"
+      ],
+      "shown_during_annotation": [
+        "the source predicate",
+        "the untreated original utterance",
+        "the rewritten utterance",
+        "the referenced earlier statement where the predicate has one"
+      ],
+      "fields": [
+        "strategy",
+        "confidence",
+        "meaning",
+        "commitment",
+        "directive",
+        "evidence",
+        "reference",
+        "note"
+      ],
+      "primary_semantic_field": "meaning",
+      "limitation": "researcher_1 is an author of the study; researcher_2 annotated the same 48 items independently and blind (annotations imported 2026-09-22). Only 12 source utterances from 2 games underlie the 48 items.",
+      "annotators": {
+        "researcher_1": {
+          "role": "primary",
+          "is_author": true,
+          "items": 48,
+          "collected": true,
+          "fields_prefix": "researcher_1_",
+          "worksheet": "data/researcher_1_worksheet.md (as returned, with answers)",
+          "key": "data/researcher_1_key.json",
+          "blind_to": [
+            "the requested politeness strategy",
+            "every automatic verdict"
+          ]
+        },
+        "researcher_2": {
+          "role": "independent reliability rater",
+          "is_author": false,
+          "items": 48,
+          "collected": true,
+          "fields_prefix": "researcher_2_",
+          "worksheet": "data/researcher_2_worksheet.md",
+          "blind_to": [
+            "the requested politeness strategy",
+            "every automatic verdict",
+            "researcher_1's labels"
+          ],
+          "key": "data/researcher_2_key.json",
+          "note": "Answers collected and imported; identity/author status not recorded here."
+        }
+      }
+    },
+    "sources": [
+      {
+        "source_id": "run01:s50",
+        "game_id": "run01",
+        "speech_id": "s50",
+        "provenance": "game_run:games_fresh/run01",
+        "predicate_text": "disagree(D1, P2, s34)",
+        "original_nl": "P8, your s34 read on me is the one I most want to correct — I cleared you, and you are now calling that clear \"free cover,\" which is exactly the argument a wolf makes to discredit the seer who confirmed a villager."
+      },
+      {
+        "source_id": "run02:s54",
+        "game_id": "run02",
+        "speech_id": "s54",
+        "provenance": "game_run:games_fresh/run02",
+        "predicate_text": "disagree(D1, P1, s21)",
+        "original_nl": "P4's theory that P6 and P9 are a wolf pair actually argues against P6 being a wolf who \"laundered\" P9 — a wolf clearing a silent seat gains nothing, which is exactly why P6's clear of P9 is the weakest of the four claims and why my divination result on P6 stands as the only hard evidence on the board."
+      },
+      {
+        "source_id": "run02:s92",
+        "game_id": "run02",
+        "speech_id": "s92",
+        "provenance": "game_run:games_fresh/run02",
+        "predicate_text": "disagree(D2, P1, s61)",
+        "original_nl": "P9's claim that my divine on P6 was a \"convenient wolf read on a now-dead player\" ignores that P6 flipped as a seer claimant, meaning my Night 0 read correctly identified a player who was actively lying about being the seer — that is the opposite of convenient."
+      },
+      {
+        "source_id": "run02:s21",
+        "game_id": "run02",
+        "speech_id": "s21",
+        "provenance": "game_run:games_fresh/run02",
+        "predicate_text": "estimate(D1, P4, P6, werewolf)",
+        "original_nl": "P6 claiming seer and clearing P9 as villager_camp is convenient cover — a wolf who \"confirms\" a teammate as village buys that teammate credibility for free, and P6's pairing with P9 is exactly the kind of mutual cover I'd expect from wolves."
+      },
+      {
+        "source_id": "run02:s39",
+        "game_id": "run02",
+        "speech_id": "s39",
+        "provenance": "game_run:games_fresh/run02",
+        "predicate_text": "estimate(D1, P8, P6, werewolf)",
+        "original_nl": "P6's clear of P9 is the weakest of the four divinations — P9 had not spoken when P6 claims to have divined them, so P6 bought credibility for a silent seat at zero cost, and P6 then copied P5's and P7's phrasing almost verbatim, which suggests coordination rather than independent villager reasoning."
+      },
+      {
+        "source_id": "run02:s55",
+        "game_id": "run02",
+        "speech_id": "s55",
+        "provenance": "game_run:games_fresh/run02",
+        "predicate_text": "estimate(D1, P1, P5, werewolf)",
+        "original_nl": "P5 is my second wolf read: P5 claimed seer and cleared P8, then immediately pivoted to pushing P4's execution with wording that P6 and P7 then copied almost verbatim — three \"seer\" claimants converging on the same target with the same phrasing is coordination, not independent villager reasoning."
+      },
+      {
+        "source_id": "run01:s27",
+        "game_id": "run01",
+        "speech_id": "s27",
+        "provenance": "game_run:games_fresh/run01",
+        "predicate_text": "question(D1, P6, P5, s23)",
+        "original_nl": "P5, you say you would rather press each claimant for a second result tomorrow than execute on a coin flip today — so why did you spend s22 asking the sheriff to execute me today?"
+      },
+      {
+        "source_id": "run01:s45",
+        "game_id": "run01",
+        "speech_id": "s45",
+        "provenance": "game_run:games_fresh/run01",
+        "predicate_text": "question(D1, P3, P9, s42)",
+        "original_nl": "P9, you read P6 as village-side because he \"held his claim under pressure,\" but P6 has still never answered P7's s31 or P8's s36 asking why he divined P7 — holding a claim is not the same as justifying it, so explain why refusing to answer that question reads as village to you."
+      },
+      {
+        "source_id": "run02:s31",
+        "game_id": "run02",
+        "speech_id": "s31",
+        "provenance": "game_run:games_fresh/run02",
+        "predicate_text": "question(D1, P6, P4, s24)",
+        "original_nl": "P4, if P1's instant wolf-call on a rival claimant is your strongest evidence, why does your own speech do the identical thing — declaring all four of us wolves before P7, P8, P9, P2 and P1 have said a word?"
+      },
+      {
+        "source_id": "run01:s52",
+        "game_id": "run01",
+        "speech_id": "s52",
+        "provenance": "game_run:games_fresh/run01",
+        "predicate_text": "recommend_action(D1, P2, P2, pass_badge, P8)",
+        "original_nl": "If I die tonight, the badge goes to P8: P8 is the player I divined as village-side, and even though P8 is currently reading me as a wolf, a confirmed villager holding the badge is worth more to the village than a badge torn on a night when the wolves will be hunting me specifically."
+      },
+      {
+        "source_id": "run01:s55",
+        "game_id": "run01",
+        "speech_id": "s55",
+        "provenance": "game_run:games_fresh/run01",
+        "predicate_text": "recommend_action(D1, P5, P3, vote_execute, P2)",
+        "original_nl": "I recommend P3 vote to execute P2, because P2 holds the 1.5-vote badge and a false seer with the badge can steer every future vote — the village cannot afford to leave that unchecked."
+      },
+      {
+        "source_id": "run02:s69",
+        "game_id": "run02",
+        "speech_id": "s69",
+        "provenance": "game_run:games_fresh/run02",
+        "predicate_text": "recommend_action(D2, P8, P4, vote_execute, P7)",
+        "original_nl": "P4, vote to execute P7 today: P7's only contribution is a divine on you that cannot be checked, P7 has never pressed any of the rival seer claimants, and clearing the least active player is the cheapest way for a wolf to buy an ally without risking a contradiction."
+      }
+    ]
+  },
+  "external_validation": {
+    "dataset": "zhao_hawkins",
+    "citation": "Zhao & Hawkins (2025), Comparing human and LLM politeness strategies in free production, EMNLP",
+    "repository": "https://github.com/haoranzhao419/politeness-speech-production",
+    "licence": "MIT",
+    "label_used": "the superordinate Brown & Levinson category of the human-verified golden_label annotation",
+    "filtering": "1232 annotated rows with a recoverable utterance; 668 carry a single superordinate category and are eligible; the remaining 564 span several categories and are excluded from the primary metric rather than relabelled",
+    "split": "stratified; a small calibration split was reserved and never examined, and the reported statistics are computed on the held-out split of 135 items"
+  },
+  "models": {
+    "generator": {
+      "model": "deepseek-chat",
+      "provider": "deepseek",
+      "temperature": 0.0,
+      "max_tokens": 300,
+      "note": "records also carry generator_model_served=deepseek-flash, the name the API reports for the same request; no separate deepseek-flash call was made"
+    },
+    "game_players": {
+      "model": "deepseek-chat",
+      "players_per_game": 9,
+      "rewriter": null
+    },
+    "strategy_classifier": {
+      "model": "gpt-5.6-luna",
+      "provider": "openai",
+      "prompt": "act_then_strategy",
+      "passes_per_item": 3,
+      "vote": "majority of 3, else no_majority",
+      "temperature": "provider default (the model rejects 0)",
+      "snapshot": "none published; the API returns the same name",
+      "raw_passes": "data/classifier_passes.jsonl",
+      "role": "LLM politeness judge"
+    },
+    "semantic_judges": {
+      "model": "deepseek-chat",
+      "components": [
+        "inverse_predicate_parser",
+        "dimensional_semantic_validator"
+      ],
+      "limitation": "same model as the generator"
+    },
+    "limitation": "the strategy classifier is a different model family from the generator; the semantic judges are not"
+  },
+  "frozen_artifacts": {
+    "generation_prompt_sha256": {
+      "bald_on_record": "958357f54abd18457b39d9e399581af40ec90bc3207aac62dc87bbd3228a8281",
+      "negative_politeness": "c360e62110e6a60a0fc49357486f576d66f61329e727dd13e36c10104d036d84",
+      "off_record": "c8f81601491824a34006e83fb5e8fa84bcb43d41b72bd5630c26763fcf069cdf",
+      "positive_politeness": "162879d57e12244e35ad37b2c1f82f190b1f80d3e226bbb2340d9b7f305d4d85"
+    },
+    "politeness_classifier_prompt_sha256": "e3fb5e9e686a0035f8fec1dcc7d7be7074cc7763b63741461ee4f29a6588ed19",
+    "semantic_rubric": {
+      "version_used_for_these_items": "v1_2026-09-21",
+      "sha256_used_for_these_items": "35019fe7b50ffdae119105fb889a87b80aec21c09816314607609a52726188ab",
+      "current_version": "v2_speaker_perspective",
+      "current_sha256": "dbbf3401658ada0d3cad81c58b107c7b9f7cdb2db1e332fd6cb9dfbf722df570",
+      "revision": "the current rubric adds an explicit speaker/addressee preservation dimension; the six re-judged items carry a semantic_recheck field in manual_validation.jsonl"
+    },
+    "adjudication_policy_sha256": "4699589b47faf1b6ee6509376a94321c46907165c17579f572858990a5be2125",
+    "politeness_classifier_prompt_name": "act_then_strategy"
+  }
+}
