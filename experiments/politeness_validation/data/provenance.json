@@ -1,7 +1,6 @@
 {
   "experiment": "politeness_validation",
   "date": "2026-09-21",
-  "git_commit": "ef1d88927b681896fa7f5427dd39f76d1b8dde95",
   "description": "Validation of controlled Brown & Levinson politeness rewrites of LURK Werewolf utterances: whether the requested strategy is realized, and whether game-relevant meaning is preserved.",
   "manual_validation": {
     "source_runs": [
@@ -63,7 +62,7 @@
         "note"
       ],
       "primary_semantic_field": "meaning",
-      "limitation": "researcher_1 is an author of the study; a second, independent annotation of the same 48 items is prepared but not yet collected, so all reported manual numbers currently rest on one rater",
+      "limitation": "researcher_1 is an author of the study; researcher_2 annotated the same 48 items independently and blind (annotations imported 2026-09-22). Only 12 source utterances from 2 games underlie the 48 items.",
       "annotators": {
         "researcher_1": {
           "role": "primary",
@@ -82,7 +81,7 @@
           "role": "independent reliability rater",
           "is_author": false,
           "items": 48,
-          "collected": false,
+          "collected": true,
           "fields_prefix": "researcher_2_",
           "worksheet": "data/researcher_2_worksheet.md",
           "blind_to": [
@@ -90,7 +89,8 @@
             "every automatic verdict",
             "researcher_1's labels"
           ],
-          "key": "data/researcher_2_key.json"
+          "key": "data/researcher_2_key.json",
+          "note": "Answers collected and imported; identity/author status not recorded here."
         }
       }
     },
@@ -205,17 +205,36 @@
   "models": {
     "generator": {
       "model": "deepseek-chat",
-      "served_as": "deepseek-flash",
       "provider": "deepseek",
       "temperature": 0.0,
-      "max_tokens": 300
+      "max_tokens": 300,
+      "note": "records also carry generator_model_served=deepseek-flash, the name the API reports for the same request; no separate deepseek-flash call was made"
     },
-    "judges": {
+    "game_players": {
       "model": "deepseek-chat",
-      "served_as": "deepseek-flash",
-      "temperature": 0.0
+      "players_per_game": 9,
+      "rewriter": null
     },
-    "limitation": "the same model family generated the rewrites and produced the automatic judgements; this is not independent evidence, which is why manual annotation is the primary validation"
+    "strategy_classifier": {
+      "model": "gpt-5.6-luna",
+      "provider": "openai",
+      "prompt": "act_then_strategy",
+      "passes_per_item": 3,
+      "vote": "majority of 3, else no_majority",
+      "temperature": "provider default (the model rejects 0)",
+      "snapshot": "none published; the API returns the same name",
+      "raw_passes": "data/classifier_passes.jsonl",
+      "role": "LLM politeness judge"
+    },
+    "semantic_judges": {
+      "model": "deepseek-chat",
+      "components": [
+        "inverse_predicate_parser",
+        "dimensional_semantic_validator"
+      ],
+      "limitation": "same model as the generator"
+    },
+    "limitation": "the strategy classifier is a different model family from the generator; the semantic judges are not"
   },
   "frozen_artifacts": {
     "generation_prompt_sha256": {
@@ -225,7 +244,6 @@
       "positive_politeness": "162879d57e12244e35ad37b2c1f82f190b1f80d3e226bbb2340d9b7f305d4d85"
     },
     "politeness_classifier_prompt_sha256": "e3fb5e9e686a0035f8fec1dcc7d7be7074cc7763b63741461ee4f29a6588ed19",
-    "politeness_classifier_role": "DIAGNOSTIC ONLY; recorded for every rewrite and never used to reject a stimulus",
     "semantic_rubric": {
       "version_used_for_these_items": "v1_2026-09-21",
       "sha256_used_for_these_items": "35019fe7b50ffdae119105fb889a87b80aec21c09816314607609a52726188ab",
@@ -233,6 +251,7 @@
       "current_sha256": "dbbf3401658ada0d3cad81c58b107c7b9f7cdb2db1e332fd6cb9dfbf722df570",
       "revision": "the current rubric adds an explicit speaker/addressee preservation dimension; the six re-judged items carry a semantic_recheck field in manual_validation.jsonl"
     },
-    "adjudication_policy_sha256": "4699589b47faf1b6ee6509376a94321c46907165c17579f572858990a5be2125"
+    "adjudication_policy_sha256": "4699589b47faf1b6ee6509376a94321c46907165c17579f572858990a5be2125",
+    "politeness_classifier_prompt_name": "act_then_strategy"
   }
 }

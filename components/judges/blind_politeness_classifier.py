@@ -27,7 +27,7 @@ LABELS: tuple = (
 
 STRATEGY_LABELS: tuple = LABELS[:4]
 
-PROMPT_VERSION = "act_first_v2"
+PROMPT_VERSION = "act_then_strategy"
 
 _CLASSIFIER_SYSTEM = """\
 You label how a speech act is REALIZED in ONE utterance from a Werewolf (Mafia)
@@ -113,8 +113,10 @@ Answer with JSON only, no prose, exactly:
 """
 
 PROMPTS: dict = {
-    "act_first_v2": _CLASSIFIER_SYSTEM,
-    "marker_v1": _MARKER_V1_SYSTEM,
+    # Step 1 names the speech act, step 2 decides how that act is realized.
+    "act_then_strategy": _CLASSIFIER_SYSTEM,
+    # Baseline that labels from politeness markers.
+    "marker_based": _MARKER_V1_SYSTEM,
 }
 
 

@@ -59,6 +59,15 @@ REGISTRY: Dict[str, ModelSpec] = {
         family="deepseek",
         notes="pilot default; this account serves it as deepseek-flash",
     ),
+    "gpt-5.6-luna": ModelSpec(
+        handle="gpt-5.6-luna", provider="openai", model="gpt-5.6-luna",
+        base_url="https://api.openai.com",
+        api_key_env=("OPENAI_API_KEY", "OPENAI"),
+        family="openai",
+        notes="the LLM politeness judge. No dated version is published; accepts "
+              "only the default temperature, so one pass is stochastic and the "
+              "judge uses a 3-pass majority",
+    ),
     "deepseek-reasoner": ModelSpec(
         handle="deepseek-reasoner", provider="deepseek", model="deepseek-reasoner",
         base_url="https://api.deepseek.com",
@@ -72,7 +81,7 @@ PROVIDER_DEFAULTS: Dict[str, Dict[str, Any]] = {
     "deepseek": {"base_url": "https://api.deepseek.com",
                  "api_key_env": ("DEEPSEEK_API_KEY", "DEEPSEEK"), "family": "deepseek"},
     "openai": {"base_url": "https://api.openai.com",
-               "api_key_env": ("OPENAI_API_KEY",), "family": "openai"},
+               "api_key_env": ("OPENAI_API_KEY", "OPENAI"), "family": "openai"},
     "gemini": {"base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
                "api_key_env": ("GEMINI_API_KEY", "GOOGLE_API_KEY"), "family": "gemini"},
     "local": {"base_url": "", "api_key_env": ("LLM_API_KEY",), "family": "local"},
@@ -190,13 +199,20 @@ class JudgeModel:
                  max_tokens: Optional[int] = None,
                  temperature: Optional[float] = None) -> Completion:
         """One chat completion. Raises rather than returning unusable text."""
+        budget = self.max_tokens if max_tokens is None else int(max_tokens)
         payload = {
             "model": self.spec.model,
             "messages": [{"role": "system", "content": system},
                          {"role": "user", "content": user}],
-            "temperature": self.temperature if temperature is None else float(temperature),
-            "max_tokens": self.max_tokens if max_tokens is None else int(max_tokens),
         }
+        if self.spec.provider == "openai":
+            # GPT-5-family models reject temperature=0 and the `max_tokens`
+            # name, and reasoning tokens count against the completion budget.
+            payload["max_completion_tokens"] = max(budget, 2000)
+        else:
+            payload["temperature"] = (self.temperature if temperature is None
+                                      else float(temperature))
+            payload["max_tokens"] = budget
         headers = self._headers()
         url = f"{self.spec.base_url.rstrip('/')}/v1/chat/completions"
 
@@ -227,7 +243,7 @@ class JudgeModel:
         if THINK_OPEN.search(text):
             raise JudgeModelError(
                 f"response was cut off inside a reasoning block "
-                f"(max_tokens={payload['max_tokens']}); raise the budget")
+                f"(max_tokens={budget}); raise the budget")
         if not text:
             raise JudgeModelError("model returned an empty response")
         return Completion(text=text, model_requested=self.spec.model,
@@ -261,7 +277,8 @@ class JudgeModel:
             "model_requested": self.spec.model,
             "model_served": self.model_served,
             "base_url": self.spec.base_url,
-            "temperature": self.temperature,
+            "temperature": (None if self.spec.provider == "openai"
+                            else self.temperature),
             "max_tokens": self.max_tokens,
             "calls": self.calls,
             "transport_retries": self.transport_retries,
