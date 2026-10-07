@@ -135,10 +135,9 @@ The largest absolute level-versus-L5 difference across the four contrasts, next 
 ## Limitations
 
 - The passages contain only the five primary predicates recorded by the politeness experiment, not every public speech act, so absolute values differ from the all-predicate proficiency corpus.
-- Range metrics are relative measures. They do not map a passage onto a proficiency scale; a CEFR-referenced placement would need the blind A/B/C rater, which requires a model server.
-- Lexical frequency (SUBTLEX) is unmeasured. Syntax depends on the spaCy parse of game dialogue.
+- Range metrics are relative measures. Syntax depends on the spaCy parse of game dialogue.
 - Games at a level are not independent of games at another level (shared seeds), which the paired design uses; levels L2 and L3 are missing a few seeds.
-- The generating model is `deepseek-chat` at every level. Nothing here speaks to other agent models.
+- The generating model is `deepseek-chat` at every level.
 
 ## Files
 

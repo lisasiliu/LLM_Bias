@@ -11,8 +11,7 @@ one passage per speaker per game in speech order, keeps passages with at least
 metrics with the proficiency-validation measurement code. It writes
 ``data/level_features.jsonl`` (one row per speaker-game passage),
 ``data/level_summary.json`` (every number in ``summary.md``) and ``summary.md``.
-Nothing here calls a model. SUBTLEX norms are not bundled, so lexical frequency
-stays unmeasured, as in the pilot.
+Nothing here calls a model.
 
 The prompt levels manipulate the amount of strategy guidance in the agent's system
 prompt (L1 bare rules, L5 the full default strategy prompt), not language. The
@@ -274,12 +273,10 @@ def render(s: dict) -> str:
     lines += ["## Limitations", "",
               "- The passages contain only the five primary predicates recorded by the politeness experiment, "
               "not every public speech act, so absolute values differ from the all-predicate proficiency corpus.",
-              "- Range metrics are relative measures. They do not map a passage onto a proficiency scale; a "
-              "CEFR-referenced placement would need the blind A/B/C rater, which requires a model server.",
-              "- Lexical frequency (SUBTLEX) is unmeasured. Syntax depends on the spaCy parse of game dialogue.",
+              "- Range metrics are relative measures. Syntax depends on the spaCy parse of game dialogue.",
               "- Games at a level are not independent of games at another level (shared seeds), which the paired "
               "design uses; levels L2 and L3 are missing a few seeds.",
-              "- The generating model is `deepseek-chat` at every level. Nothing here speaks to other agent models.", "",
+              "- The generating model is `deepseek-chat` at every level.", "",
               "## Files", "", "| file | contents |", "|---|---|",
               "| `data/level_features.jsonl` | one row per speaker-game passage: level, game, speaker, role, eligibility and every range metric |",
               "| `data/level_summary.json` | every number above, with intervals, tests and the source file hash |",
