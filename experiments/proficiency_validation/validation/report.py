@@ -12,13 +12,24 @@ from components.metrics.text_normalization import split_sentences, word_count
 from components.stats import mean, median
 from experiments.proficiency_validation.validation.analysis import listener_analysis, passage_retention, rewrite_exposure, exposure_lines
 from experiments.proficiency_validation.validation.sources import build_bundles, assemble_condition_texts, matched_complete
-from experiments.proficiency_validation.rewrite.runtime import fmt, sha256_file
+from experiments.proficiency_validation.rewrite.runtime import condition_label, fmt, ordered_conditions, pair_label, sha256_file
 from experiments.proficiency_validation.rewrite.runtime import assert_unique
 from experiments.proficiency_validation.rewrite.gate import generation_qc, failure_cause
 from components.helpers import write_jsonl, treatment_evidence
 from experiments.proficiency_validation.validation.sources import load_sources, audit
 from experiments.proficiency_validation.rewrite.runtime import DATA_DIR, EXPERIMENT_DIR, dump_json, now_iso
 from experiments.proficiency_validation.validation.measurements import compute_features, load_nlp_or_none
+
+
+def listener_files(measured, stem):
+    """Every listener output for one construct: the run's own file plus files added for other
+    listener models (``<stem>_<model>.jsonl``), in a fixed order."""
+    measured = Path(measured)
+    return sorted(p for p in measured.glob(f"{stem}*.jsonl") if not p.name.endswith(".partial"))
+
+
+def read_listener_rows(measured, stem):
+    return [r for path in listener_files(measured, stem) for r in read_jsonl(path)]
 
 
 def measured_sampling(data_dir, pilot_dir, rewrites, errors):
@@ -122,11 +133,13 @@ def summarize_pilot(data_dir, pilot_dir):
     from experiments.proficiency_validation.rewrite.__main__ import audit_generation
     generation_errors = audit_generation(pilot_dir / "rewrite/rewrites.jsonl")
     provenance_errors.extend(generation_errors)
-    optional = [n for n in ("perceived_proficiency_listener.jsonl", "cefr_auxiliary.jsonl") if (pilot_dir / "validation" / n).exists()]
-    for name in ["rewrites.jsonl", "linguistic_features.jsonl", "range_listener.jsonl", "manifest.json"] + optional:
-        path = pilot_dir / ("rewrite" if name == "rewrites.jsonl" else "validation") / name
-        if name == "manifest.json":
-            path = pilot_dir / name
+    measured_dir = pilot_dir / "validation"
+    listener_paths = listener_files(measured_dir, "range_listener") + listener_files(measured_dir, "perceived_proficiency_listener")
+    optional = [n for n in ("cefr_auxiliary.jsonl",) if (measured_dir / n).exists()]
+    checked = [pilot_dir / "rewrite/rewrites.jsonl", measured_dir / "linguistic_features.jsonl", pilot_dir / "manifest.json"] \
+        + listener_paths + [measured_dir / n for n in optional]
+    for path in checked:
+        name = path.name
         inputs[name] = sha256_file(path)
         prov = read_metadata(path) if name != "manifest.json" else {}
         if prov:
@@ -134,14 +147,13 @@ def summarize_pilot(data_dir, pilot_dir):
                 provenance_errors.append(f"{name} output hash differs from manifest")
         elif name != "manifest.json":
             provenance_errors.append(f"{name} has no artifact provenance in the manifest")
-    features = read_jsonl(pilot_dir / "validation/linguistic_features.jsonl")
-    listeners = read_jsonl(pilot_dir / "validation/range_listener.jsonl")
-    proficiency = read_jsonl(pilot_dir / "validation/perceived_proficiency_listener.jsonl") if "perceived_proficiency_listener.jsonl" in optional else []
-    for name in ("range_listener.jsonl", "perceived_proficiency_listener.jsonl"):
-        recorded = read_metadata(pilot_dir / "validation" / name)
-        if recorded:
-            if recorded.get("input_sha256", {}).get("assembled") != sha256_file(pilot_dir / "validation/linguistic_features_assembled.jsonl"):
-                provenance_errors.append(f"{name}: assembled passage hash mismatch")
+    features = read_jsonl(measured_dir / "linguistic_features.jsonl")
+    listeners = read_listener_rows(measured_dir, "range_listener")
+    proficiency = read_listener_rows(measured_dir, "perceived_proficiency_listener")
+    for path in listener_paths:
+        recorded = read_metadata(path)
+        if recorded and recorded.get("input_sha256", {}).get("assembled") != sha256_file(measured_dir / "linguistic_features_assembled.jsonl"):
+            provenance_errors.append(f"{path.name}: assembled passage hash mismatch")
     cefr = None
     if "cefr_auxiliary.jsonl" in optional:
         from experiments.proficiency_validation.validation.cefr import ordinal_analysis, verify_ratings, rating_errors
@@ -161,7 +173,7 @@ def summarize_pilot(data_dir, pilot_dir):
                     invalid[f"{row['rater']}::{row['sample_id']}"] = rating_errors(
                         row.get("raw_response"), "\n\n".join(passage["utterances"]))
             cefr["invalid_response_diagnostics"] = invalid
-    from experiments.proficiency_validation.rewrite.fidelity import SEMANTIC_RUBRIC_VERSION
+    from experiments.proficiency_validation.rewrite.fidelity import SEMANTIC_RUBRIC_VERSION, audit_accepted_alignments
     from components.rewriters.language_rewriter import PROMPT_VERSION
     rubric_versions = dict(Counter((r.get("gate_provenance") or {}).get("semantic_rubric_version", "unknown") for r in rows))
     rewrite_versions = dict(Counter(r.get("prompt_version", "unknown") for r in rows))
@@ -193,6 +205,7 @@ def summarize_pilot(data_dir, pilot_dir):
             "prompt_versions": dict(Counter(r.get("prompt_version") for r in rows)),
             "provenance_errors": provenance_errors,
             "generation_record_errors": generation_errors,
+            "accepted_alignment_audit": audit_accepted_alignments(rows),
             "failure_causes": {c: dict(Counter(failure_cause(r) for r in rows if r["condition"] == c)) for c in conditions},
             "rewrite_exposure": rewrite_exposure(rows),
             "cefr": cefr,
@@ -210,7 +223,7 @@ def render_pilot(p):
              "| Condition | Accepted | Total | Acceptance | Own failed attempts | Infrastructure unavailable | Accepted with parser abstaining |",
              "| --- | ---: | ---: | ---: | ---: | ---: | ---: |"]
     for c, q in p["generation_qc"].items():
-        lines.append(f"| {c} | {q['final_success']} | {q['n']} | {fmt(q['final_success_rate'])} | "
+        lines.append(f"| {condition_label(c)} | {q['final_success']} | {q['n']} | {fmt(q['final_success_rate'])} | "
                      f"{q['own_failed_attempts']} | {q['infrastructure_unavailable']} | "
                      f"{q.get('accepted_with_parser_abstention', 0)} |")
     lines += ["", "Parser abstaining: the inverse parser recovered no predicate from the rewrite although the "
@@ -220,19 +233,26 @@ def render_pilot(p):
     if any(opinions.values()):
         lines += ["", "| Condition | Second opinion agrees | Conflicts (no verdict) | Unavailable (no verdict) |",
                   "| --- | ---: | ---: | ---: |"]
-        lines += [f"| {c} | {o.get('agree', 0)} | {o.get('conflict', 0)} | {o.get('unavailable', 0)} |" for c, o in opinions.items()]
+        lines += [f"| {condition_label(c)} | {o.get('agree', 0)} | {o.get('conflict', 0)} | {o.get('unavailable', 0)} |" for c, o in opinions.items()]
         lines += ["", "A second fidelity judge from another model family re-judged every parser-abstained candidate "
                   "the primary judge passed; only agreement counts as a pass."]
     lines += ["", f"Recorded rewrite prompt versions: {p['prompt_versions']}. "
               f"Recorded English fidelity versions: {p['recorded_rubric_versions']}."]
     if p["requires_revalidation"]:
         lines += ["These outputs have not been evaluated under the current generation and fidelity policy."]
+    audit = p.get("accepted_alignment_audit", {})
+    if audit.get("issues"):
+        lines += ["", "### Alignment evidence recheck", "",
+                  f"The current word-boundary check flags {len(audit['issues'])} of {audit['checked']} accepted records. "
+                  "These records need a repeated fidelity evaluation. Passage tables use the recorded acceptance decisions.", "",
+                  "| Source | Condition | Evidence errors |", "| --- | --- | --- |"]
+        lines += [f"| {r['source_id']} | {condition_label(r['condition'])} | {', '.join(r['errors'])} |" for r in audit["issues"]]
     lines += ["", "| Condition | Recorded outcome cause | Sources |", "| --- | --- | ---: |"]
     for c, counts in p.get("failure_causes", {}).items():
-        lines += [f"| {c} | {cause} | {n} |" for cause, n in counts.items() if cause != "accepted"]
-    lines += ["", "Evaluation-output failures are reported separately from transport failures; archived status labels remain unchanged.",
+        lines += [f"| {condition_label(c)} | {cause} | {n} |" for cause, n in counts.items() if cause != "accepted"]
+    lines += ["", "Outcome causes distinguish candidate rejection, incomplete evaluation and transport failure.",
               "", "### Rewrite exposure", "",
-              "Every condition is generated independently from the original; Neutral is not matched to Low. "
+              "Every condition is generated independently from the original. "
               "The table describes how much rewriting each accepted condition carries."]
     lines += exposure_lines(p.get("rewrite_exposure", {}))
     lines += ["Failure reasons below count attempt records, so one source can contribute more than once. "
@@ -241,8 +261,8 @@ def render_pilot(p):
               f"There are {p['speaker_game_units']} speaker-game transcripts. Their median original length is "
               f"{fmt(p['median_original_words'], 0)} words. Eligibility uses only original text. "
               "A matched transcript requires an accepted rewrite for every selected source in both conditions.", "",
-              "| Selection | Eligible | Complete Low | Complete Neutral | Matched Low–Neutral | Matched games |"
-              + (" Complete High | Matched High–Neutral |" if has_high else ""),
+              "| Selection | Eligible | Complete A | Complete B | Matched A–B | Matched games |"
+              + (" Complete C | Matched C–B |" if has_high else ""),
               "| --- | ---: | ---: | ---: | ---: | ---: |" + (" ---: | ---: |" if has_high else "")]
     for name, q in p["coverage"].items():
         lines.append(f"| {name} | {q['eligible']} | {q['complete_by_condition'].get('low', 0)} | "
@@ -253,23 +273,22 @@ def render_pilot(p):
     for treatment, retained in p["passage_retention"].items():
         for group in ("retained", "excluded"):
             row = retained[group]
-            lines.append(f"| {treatment} {group} | {row['n']} | {fmt(row['mean_original_words'])} | {fmt(row['mean_original_utterances'])} |")
+            lines.append(f"| {condition_label(treatment)} {group} | {row['n']} | {fmt(row['mean_original_words'])} | {fmt(row['mean_original_utterances'])} |")
     lines += ["", "Whole-game eligibility requires 150 original words. The prefix and chronological-third "
               "passages use a 150 to 250 word window.", "",
               "### Sentence structure", "",
-              f"The {p['matched_utterances']} accepted Low–Neutral utterance pairs have the following means. "
+              f"The {p['matched_utterances']} accepted A–B utterance pairs have the following means. "
               "Sentence counts use the deterministic punctuation-based splitter for this diagnostic.", "",
               "| Condition | Mean sentences per utterance | Mean words per utterance |",
               "| --- | ---: | ---: |"]
     for c, q in p["sentence_diagnostics"].items():
-        lines.append(f"| {c} | {fmt(q['mean_sentences'])} | {fmt(q['mean_words'])} |")
+        lines.append(f"| {condition_label(c)} | {fmt(q['mean_sentences'])} | {fmt(q['mean_words'])} |")
     lines += ["", "Large sentence-count differences can mechanically reduce per-sentence complexity. "
-              "Subordinate clauses per 100 words provide a complementary syntax measure. "
-              "Neither sentence splitting nor lexical diversity alone establishes the intended construct.", "",
+              "Subordinate clauses per 100 words provide a complementary syntax measure.", "",
               "### Availability by source type", ""]
     for group, title in (("predicate_name", "Speech act"), ("phase", "Phase"), ("game_id", "Game")):
         conditions = list(p["generation_qc"])
-        lines += [f"| {title} | " + " | ".join(c.title() + " accepted/total" for c in conditions) + " |",
+        lines += [f"| {title} | " + " | ".join(condition_label(c) + " accepted/total" for c in conditions) + " |",
                   "| --- | " + " | ".join("---:" for _ in conditions) + " |"]
         for name, qc in p["by_group"][group].items():
             values = [f"{qc[c]['final_success']}/{qc[c]['n']}" if c in qc else "n/a" for c in conditions]
@@ -277,28 +296,26 @@ def render_pilot(p):
         lines.append("")
     lines += ["| Source cohort | Utterances | Mean original words |", "| --- | ---: | ---: |"]
     for name, q in p["retained_composition"].items():
-        lines.append(f"| {name} | {q['n']} | {fmt(q['mean_original_words'])} |")
-    lines += ["", "Successful-pair results are conditional on construction success. The JSON report retains "
-              "the predicate and game composition of retained and excluded sources.", "",
+        label = name.replace("_low_neutral", " sources, A–B")
+        lines.append(f"| {label} | {q['n']} | {fmt(q['mean_original_words'])} |")
+    lines += ["", "The JSON report retains the predicate and game composition of retained and excluded sources.", "",
               "### Gate diagnostics", "", "| Condition | Failure reason | Attempt records |", "| --- | --- | ---: |"]
     for c, reasons in p["attempt_reasons"].items():
         for reason, count in list(reasons.items())[:5]:
             label = "parser HTTP 400" if "400" in reason else reason.replace("|", "\\|")
-            lines.append(f"| {c} | {label[:130]} | {count} |")
+            lines.append(f"| {condition_label(c)} | {label[:130]} | {count} |")
     lines += ["", f"The inverse parser supports {p['parser_eligible_sources']}/{p['n_sources']} source predicates. "
-              "Other predicates rely on the structural and English semantic checks. "
-              "False acceptances and false rejections require calibration on constructed errors and preserved paraphrases.", "",
+              "Other predicates use the structural and English semantic checks.", "",
               "| Condition | Attempt records containing HTTP 400 |", "| --- | ---: |"]
-    lines += [f"| {c} | {n} |" for c, n in p["attempts_containing_http400"].items()]
+    lines += [f"| {condition_label(c)} | {n} |" for c, n in p["attempts_containing_http400"].items()]
     if any(p["attempts_containing_http400"].values()):
-        lines += ["", "HTTP 400 counts refer to attempt records, not individual requests. "
-                  "The recorded response details and server logs determine the cause."]
+        lines += ["", "HTTP 400 counts refer to attempt records, not individual requests."]
     if p.get("secondary_judge"):
-        lines += ["", "### Second fidelity judge (recorded, not gating)", "",
+        lines += ["", "### Second-judge agreement on accepted rewrites", "",
                   "| Condition | Judge | Accepted rewrites re-judged | Agrees | Disagrees | No verdict |",
                   "| --- | --- | ---: | ---: | ---: | ---: |"]
         for c, q in p["secondary_judge"].items():
-            lines.append(f"| {c} | {q['handle']} ({q['family']}) | {q['n']} | {q['agree']} | {q['disagree']} | {q['no_verdict']} |")
+            lines.append(f"| {condition_label(c)} | {q['handle']} ({q['family']}) | {q['n']} | {q['agree']} | {q['disagree']} | {q['no_verdict']} |")
     if p.get("judge_calibration"):
         cal = p["judge_calibration"]
         lines += ["", "### Judge calibration on constructed rewrites", "",
@@ -319,7 +336,7 @@ def render_pilot(p):
               "passages within a game are averaged, and games carry equal weight.", "",
               "| Pair | Listener | Games | Passages | Signed preference (+ = treatment more limited) | 95% interval | Tie rate | P(treatment more limited \\| not tie) |",
               "| --- | --- | ---: | ---: | ---: | --- | ---: | ---: |"]
-    perception_blocks = {f"{label} / {pair}": block for label, key in (("range", "listener"), ("proficiency", "perceived_proficiency"))
+    perception_blocks = {f"{label} / {pair_label(pair)}": block for label, key in (("range", "listener"), ("proficiency", "perceived_proficiency"))
                          for pair, block in p.get(key, {}).items()}
     for pair, block in perception_blocks.items():
         for name, q in block["listeners"].items():
@@ -336,8 +353,8 @@ def render_pilot(p):
                 q, b = row["order_consistency"], row["position_bias"]
                 lines.append(f"| {pair} | {name} | {q['same_condition']}/{q['n_comparisons']} | {q['always_a']} | {q['always_b']} | "
                              f"{fmt(b['score'])} | [{fmt(b['ci90'][0])}, {fmt(b['ci90'][1])}] |")
-    lines += ["", "The frozen equivalence margin applies to the 90% interval in both orders. A position score away from "
-              "zero means the listener follows presentation order rather than the texts.", ""]
+    lines += ["", "The frozen equivalence margin applies to the 90% interval in both orders. "
+              "The position score measures preference for slot A over slot B.", ""]
     if p.get("cefr"):
         from experiments.proficiency_validation.validation.cefr import render_cefr
         lines += render_cefr(p["cefr"])
@@ -350,7 +367,8 @@ def render_pilot(p):
                       "| Error type | Responses |", "| --- | ---: |"]
             lines += [f"| {code} | {count} |" for code, count in sorted(counts.items())]
             lines += ["", "A quote with omitted or altered words counts as ungrounded; such a response keeps a missing rating.", ""]
-    lines += ["", "Listener intervals treat games as independent units and keep both presentation orders.", "",
+    lines += ["", "Listener intervals resample games and retain both presentation orders for each passage and model. "
+              "Constant game scores use a Hoeffding bounded-mean interval on the signed scale.", "",
               "### Measurement and provenance", "", "| Role | Model | Family | Revision |", "| --- | --- | --- | --- |"]
     for role, m in p["models"].items():
         lines.append(f"| {role} | {m['model']} | {m['family']} | {m.get('revision')} |")
@@ -368,8 +386,6 @@ def render_pilot(p):
     lines += ["", "Input file hashes, analysis-code hashes and prompt-version counts are included in the JSON report. "
               "Generation commit IDs describe the archived run; reanalysis uses the current analysis code.", ""]
     lines += [f"- {error}" for error in p["provenance_errors"]]
-    lines += ["", "Confirmatory evidence requires an independent generator and semantic judge, declared listener "
-              "families, complete measurements and fresh game cohorts under a frozen protocol.", ""]
     return "\n".join(lines)
 
 
@@ -510,19 +526,21 @@ def summarize(data_dir, pilot_dir=None):
             no_frozen=True, frozen=None, split="pilot", n_boot=2000, seed=101,
             rewrites=pilot_dir / "rewrite/rewrites.jsonl", features=measured / "linguistic_features.jsonl",
             guardrails=optional("grammar_guardrails.jsonl"), cefr=optional("cefr_auxiliary.jsonl"),
-            listener=[p for p in (optional("range_listener.jsonl"), optional("perceived_proficiency_listener.jsonl")) if p]))
+            listener=listener_files(measured, "range_listener") + listener_files(measured, "perceived_proficiency_listener")))
         robustness = measured / "whole_game"
         if (robustness / "linguistic_features.jsonl").exists():
-            # Robustness cohort: every utterance of a speaker's game. One missing rewrite removes the whole
-            # transcript, so this cohort is smaller and moves between runs; the primary cohort is the
-            # chronological-thirds passage in validation/ itself.
+            # Whole-game transcripts form the secondary cohort.
             opt = lambda name: robustness / name if (robustness / name).exists() else None
             result["analysis_whole_game"] = build_analysis(SimpleNamespace(
                 no_frozen=True, frozen=None, split="pilot", n_boot=2000, seed=101,
                 rewrites=pilot_dir / "rewrite/rewrites.jsonl", features=robustness / "linguistic_features.jsonl",
                 guardrails=opt("grammar_guardrails.jsonl"), cefr=opt("cefr_auxiliary.jsonl"),
-                listener=[p for p in (opt("range_listener.jsonl"), opt("perceived_proficiency_listener.jsonl")) if p]))
+                listener=listener_files(robustness, "range_listener") + listener_files(robustness, "perceived_proficiency_listener")))
             result["whole_game"] = secondary_cohort(robustness, pilot_dir / "rewrite/rewrites.jsonl")
+        manual = data_dir.parent / "manual_validation.jsonl"
+        if manual.exists():
+            from experiments.proficiency_validation.validation.annotation import summary as human_summary
+            result["human_listeners"] = human_summary(read_jsonl(manual), read_listener_rows(measured, "range_listener"))
     return result
 
 
@@ -530,8 +548,8 @@ def secondary_cohort(measured, rewrites_path):
     """Perception and CEFR summaries for a secondary passage cohort, in the same form as the primary ones."""
     from experiments.proficiency_validation.validation.cefr import ordinal_analysis, verify_ratings
     out = {"complete_by_condition": dict(Counter(r["condition"] for r in read_jsonl(measured / "linguistic_features_assembled.jsonl") if r.get("complete")))}
-    for key, name, construct in (("listener", "range_listener.jsonl", "range"), ("perceived_proficiency", "perceived_proficiency_listener.jsonl", None)):
-        rows = read_jsonl(measured / name) if (measured / name).exists() else []
+    for key, stem, construct in (("listener", "range_listener", "range"), ("perceived_proficiency", "perceived_proficiency_listener", None)):
+        rows = read_listener_rows(measured, stem)
         if construct:
             rows = [r for r in rows if r.get("construct", "range") == construct]
         out[key] = listener_analysis(rows, n_boot=2000, seed=101)
@@ -577,7 +595,6 @@ def render(report):
     lines += ["", "The source manifests and speech records identify all runs as untreated. "
               "Directory names identify games because the manifests reuse the same internal game ID. "
               "Source hashes are recorded in data/corpus/manifest.json.", "",
-              "The validation model roles and measurements are specified separately from source generation.", "",
               "## Source coverage", "", "| Speech act | Utterances |", "| --- | ---: |"]
     lines += [f"| {name} | {n} |" for name, n in c["predicates"].items()]
     lines += ["", "Role claims and divine-result claims are included. Only public information before "
@@ -603,21 +620,20 @@ def render(report):
                    f"with spaCy {spacy['spacy_version']}.") if spacy else "Syntax was not measured."
     lines += ["", syntax_note, "MATTR uses a 50-token window. Player and statement IDs are excluded "
               "from lexical diversity; domain words are excluded from content-word measures. "
-              "Unavailable SUBTLEX measurements are reported as missing. "
               "These statistics describe the Original condition.", "",
               "## Validation evidence", "",
               "| Evidence | Source |", "| --- | --- |",
               "| Untreated originals with traceable source records | `data/corpus/` |"]
     pilot = report.get("pilot", {})
-    evidence = [("Proficiency rewrites", ", ".join(pilot["generation_qc"]) + " pilot outputs" if pilot else None),
+    evidence = [("Proficiency rewrites", ", ".join(condition_label(c) for c in ordered_conditions(pilot["generation_qc"])) + " pilot outputs" if pilot else None),
                 ("English structural, inverse-parser and model fidelity checks on rewrites", "every attempt recorded" if pilot else None),
                 ("LanguageTool and CoLA guardrails on the rewrites", "measured on every complete passage" if pilot.get("guardrails_file_present") else None),
                 ("Blind linguistic-range comparisons", "both presentation orders recorded" if pilot.get("listener") else None),
                 ("Blind perceived-proficiency comparisons", "both presentation orders recorded" if pilot.get("perceived_proficiency") else None),
-                ("Auxiliary CEFR-referenced A/B/C ratings", "rated per passage" if pilot.get("cefr") else None)]
+                ("Auxiliary CEFR band ratings", "rated per passage" if pilot.get("cefr") else None),
+                ("Human blind linguistic-range comparisons", f"two researchers, {report['human_listeners']['n_pairs']} pairs" if report.get("human_listeners") else None)]
     lines += [f"| {name} | {status} |" for name, status in evidence if status]
     lines += ["", "## Interpretation", "",
-              "The validation scope is measured linguistic range and model perception of the displayed texts.", "",
               "The three source games are the development cohort. Confirmation and replication use fresh, disjoint "
               "game cohorts under the frozen protocol, with the equivalence margins, non-inferiority margins and "
               "sample size fixed beforehand.", ""]
@@ -632,6 +648,9 @@ def render(report):
                 lines += _contrast_table(block, list(block["metrics"]))
         from experiments.proficiency_validation.validation.analysis import sensitivity_lines
         lines += sensitivity_lines(report["analysis"].get("splitting_sensitivity"))
+    if report.get("human_listeners"):
+        from experiments.proficiency_validation.validation.annotation import render_summary
+        lines += render_summary(report["human_listeners"])
     if report.get("analysis_whole_game"):
         from experiments.proficiency_validation.validation.analysis import _contrast_table
         s = report.get("whole_game", {})
@@ -641,23 +660,23 @@ def render(report):
                   "rewrite removes the whole transcript and the cohort is smaller and less stable than the primary one. It "
                   "checks whether the cue persists over a whole game.", "",
                   "| Condition | Complete passages |", "| --- | ---: |"]
-        lines += [f"| {c} | {n} |" for c, n in sorted(s.get("complete_by_condition", {}).items())]
+        lines += [f"| {condition_label(c)} | {n} |" for c, n in sorted(s.get("complete_by_condition", {}).items())]
         lines.append("")
         for family in ("range", "guardrails"):
             for block in report["analysis_whole_game"].get(family, {}).values():
                 lines += _contrast_table(block, list(block["metrics"]))
-        perception = {f"{label} / {pair}": block for label, key in (("range", "listener"), ("proficiency", "perceived_proficiency"))
+        perception = {f"{label} / {pair_label(pair)}": block for label, key in (("range", "listener"), ("proficiency", "perceived_proficiency"))
                       for pair, block in (s.get(key) or {}).items()}
         if perception:
             lines += ["### Model perception (robustness cohort)", "",
-                      "| Pair | Listener | Games | Passages | Game-weighted probability of treatment being more limited | 95% interval | Same condition in both orders |",
+                      "| Pair | Listener | Games | Passages | Signed preference (+ = treatment more limited) | 95% interval | Same condition in both orders |",
                       "| --- | --- | ---: | ---: | ---: | --- | ---: |"]
             for pair, block in perception.items():
                 for name, q in block["listeners"].items():
                     if name == "all_models":
                         continue
-                    lo, hi = q["cluster_bootstrap_ci"]; oc = q["order_consistency"]
-                    lines.append(f"| {pair} | {name} | {q['n_games']} | {q['n_bundles']} | {fmt(q['share_treatment_more_limited'])} | "
+                    lo, hi = q["signed_ci95"]; oc = q["order_consistency"]
+                    lines.append(f"| {pair} | {name} | {q['n_games']} | {q['n_bundles']} | {fmt(q['signed_preference'])} | "
                                  f"[{fmt(lo)}, {fmt(hi)}] | {oc['same_condition']}/{oc['n_comparisons']} |")
             lines.append("")
         if s.get("cefr"):

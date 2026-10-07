@@ -15,7 +15,7 @@ from components.judges.judge_model import Completion, JudgeModel
 from experiments.proficiency_validation.rewrite.fidelity import proficiency_check
 from components.metrics.edit_distance import normalized_token_edit_distance
 from components.metrics.text_normalization import same_wording, surface_key
-from components.rewriters.language_rewriter import LanguageProficiencyRewriter, NeutralSelection, select_candidate
+from components.rewriters.language_rewriter import NEUTRAL_SELECTION_RULE, NEUTRAL_SELECTION_RULES, LanguageProficiencyRewriter, NeutralSelection, select_candidate
 from components.rewriters.politeness_rewriter import predicate_definition, predicate_entry
 from lurkingwolf.rewriter import Rewriter, RewriteContext, register
 from lurkingwolf.utils.speech_nl import parse_predicate
@@ -155,6 +155,11 @@ class SemanticGate:
         # Active-paraphrase floor for Neutral: a gate-passing candidate that changed fewer than this
         # share of the tokens is a near-copy and is not selectable. Rejects copies, never matches Low.
         self.neutral_exposure_floor = 0.05
+        # How the gate-passing Neutral candidates are ranked; the frequency rule needs a scorer
+        # (text -> mean SUBTLEX Lg10CD) in ``neutral_frequency``.
+        self.neutral_selection_rule = NEUTRAL_SELECTION_RULE
+        self.neutral_frequency = None
+        self.subtlex_path = None
         # Prior-history budget for the parser and the act inventory (words). Referenced speech first,
         # then the current phase, then the most recent remaining entries; speech order is restored.
         self.parser_context_words = 6000
@@ -170,6 +175,20 @@ class SemanticGate:
         self._original_parses = {}
         self._original_inventories = {}
 
+    def set_neutral_selection(self, rule: str, subtlex_path=None, spacy_model: str = "en_core_web_sm") -> None:
+        """Choose the Neutral selection rule; the frequency rule loads SUBTLEX and the tokenizer once."""
+        if rule not in NEUTRAL_SELECTION_RULES:
+            raise ValueError(f"unknown neutral selection rule: {rule!r}")
+        self.neutral_selection_rule = rule
+        self.subtlex_path = str(subtlex_path) if subtlex_path else None
+        if rule == "closest_surface_and_frequency_v1":
+            if not subtlex_path:
+                raise ValueError(f"{rule} needs a SUBTLEX file")
+            from experiments.proficiency_validation.rewrite.__main__ import word_frequency_scorer
+            self.neutral_frequency = word_frequency_scorer(subtlex_path, spacy_model)
+        else:
+            self.neutral_frequency = None
+
     @classmethod
     def from_handle(cls, handle: str = "deepseek-chat", *, ledger: Optional[UsageLedger] = None,
                     max_tokens: int = 3072, **kwargs) -> "SemanticGate":
@@ -179,6 +198,54 @@ class SemanticGate:
         return cls(InversePredicateParser(parser_model, max_tokens=max_tokens),
                    EnglishFidelityValidator(validator_model, max_tokens=max_tokens),
                    judge_handle=handle, **kwargs)
+
+    def to_config(self) -> dict:
+        """Record gate policy, enabled checks and judge budgets."""
+        secondary = None
+        if self.second_opinion is not None:
+            model = self.second_opinion.model
+            handle = getattr(getattr(model, "spec", None), "handle", None)
+            if not handle:
+                raise ValueError("second-opinion model needs a registered handle for serialization")
+            secondary = {"handle": handle, "identity": getattr(model, "identity_record", None),
+                         "max_tokens": self.second_opinion.max_tokens}
+        return {"judge_handle": self.judge_handle, "semantic_rubric_version": SEMANTIC_RUBRIC_VERSION,
+                "parser_abstention": self.parser_abstention, "neutral_exposure_floor": self.neutral_exposure_floor,
+                "neutral_selection_rule": self.neutral_selection_rule, "subtlex_path": self.subtlex_path,
+                "parser_context_words": self.parser_context_words, "require_parser": self.require_parser,
+                "require_validator": self.require_validator, "parser_enabled": self.parser is not None,
+                "validator_enabled": self.validator is not None,
+                "parser_max_tokens": getattr(self.parser, "max_tokens", None),
+                "validator_max_tokens": getattr(self.validator, "max_tokens", None), "second_opinion": secondary}
+
+    @classmethod
+    def from_config(cls, config: dict) -> "SemanticGate":
+        """Restore a serialized gate and check the recorded rubric and secondary model."""
+        handle = config.get("judge_handle")
+        if not handle:
+            raise ValueError("gate config has no judge_handle")
+        recorded = config.get("semantic_rubric_version")
+        if recorded and recorded != SEMANTIC_RUBRIC_VERSION:
+            raise ValueError(f"gate config was frozen with semantic rubric {recorded!r}; "
+                             f"this code has {SEMANTIC_RUBRIC_VERSION!r}")
+        gate = cls.from_handle(handle, parser_abstention=config.get("parser_abstention", "defer"),
+                               require_parser=config.get("require_parser", True),
+                               require_validator=config.get("require_validator", True))
+        for name in ("parser", "validator"):
+            if not config.get(f"{name}_enabled", True):
+                setattr(gate, name, None)
+            elif config.get(f"{name}_max_tokens") is not None:
+                getattr(gate, name).max_tokens = int(config[f"{name}_max_tokens"])
+        gate.neutral_exposure_floor = float(config.get("neutral_exposure_floor", .05))
+        gate.set_neutral_selection(config.get("neutral_selection_rule", NEUTRAL_SELECTION_RULE), config.get("subtlex_path"))
+        gate.parser_context_words = int(config.get("parser_context_words", 6000))
+        secondary = config.get("second_opinion")
+        if secondary:
+            model = ValidationModel.resolve(secondary["handle"], purpose="semantic_second_opinion")
+            if secondary.get("identity") is not None and secondary["identity"] != model.identity_record:
+                raise ValueError("second-opinion model identity changed")
+            gate.second_opinion = EnglishFidelityValidator(model, max_tokens=int(secondary["max_tokens"]))
+        return gate
 
     # ── individual judges ──
 
@@ -595,8 +662,10 @@ def _neutral_attempt(rewriter, gate, ctx, source, feedback, *, verdict_cache=Non
     verdict_cache.update({c: v for c, v in verdicts.items() if v.ok is not None})
     passers = [c for c in survivors if verdicts[c].passed]
     seed = int(hashlib.sha256(f"{source.source_id}".encode()).hexdigest()[:8], 16)
+    rule = getattr(gate, "neutral_selection_rule", None) or NEUTRAL_SELECTION_RULE
+    frequency = getattr(gate, "neutral_frequency", None)
     if passers:
-        selection = select_candidate(passers, ctx.original_nl, seed=seed)
+        selection = select_candidate(passers, ctx.original_nl, seed=seed, rule=rule, frequency=frequency)
         chosen = selection.chosen
         verdict = verdicts[chosen]
     else:
@@ -606,7 +675,7 @@ def _neutral_attempt(rewriter, gate, ctx, source, feedback, *, verdict_cache=Non
         failed = [c for c in candidates if verdicts[c].ok is False]
         pool = failed or candidates
         try:
-            selection = select_candidate(pool, ctx.original_nl, seed=seed)
+            selection = select_candidate(pool, ctx.original_nl, seed=seed, rule=rule, frequency=frequency)
             chosen = selection.chosen
         except RuntimeError:
             # Every candidate was dropped (e.g. all copies of the original): keep a
@@ -701,6 +770,7 @@ class GatedRewriter(Rewriter):
             gate = SemanticGate.from_handle(frozen["models"]["judge"], max_tokens=frozen["judge_max_tokens"],
                                             parser_abstention=frozen.get("parser_abstention_policy", "no_verdict"))
             gate.neutral_exposure_floor = frozen["neutral_exposure_floor"]
+            gate.set_neutral_selection(frozen.get("neutral_selection_rule", NEUTRAL_SELECTION_RULE), frozen.get("subtlex_path"))
             gate.parser_context_words = frozen["parser_context_words"]
             max_corrective_retries = frozen["max_corrective_retries"]
             params = dict(base.to_config()["params"] if isinstance(base, LanguageProficiencyRewriter)
@@ -739,14 +809,7 @@ class GatedRewriter(Rewriter):
         if isinstance(gate, SemanticGate):
             pass
         elif isinstance(gate, dict):
-            handle = gate.get("judge_handle")
-            if not handle:
-                raise ValueError("gate config has no judge_handle; refusing to substitute a default judge")
-            recorded = gate.get("semantic_rubric_version")
-            if recorded and recorded != SEMANTIC_RUBRIC_VERSION:
-                raise ValueError(f"gate config was frozen with semantic rubric {recorded!r}; the code "
-                                 f"now has {SEMANTIC_RUBRIC_VERSION!r}")
-            gate = SemanticGate.from_handle(handle)
+            gate = SemanticGate.from_config(gate)
         else:
             gate = SemanticGate.from_handle(str(gate))
         self.base = base
@@ -811,11 +874,10 @@ class GatedRewriter(Rewriter):
                 handle.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
     def to_config(self) -> dict:
-        """Reconstructible by ``Rewriter.from_config``: ``gate`` is the judge handle."""
+        """Serialize the rewriter, gate policy and run settings."""
         return {"class": self.__class__.__name__,
                 "params": {"base": self.base.to_config(),
-                           "gate": {"judge_handle": self.gate.judge_handle,
-                                    "semantic_rubric_version": SEMANTIC_RUBRIC_VERSION},
+                           "gate": self.gate.to_config(),
                            "max_corrective_retries": self.max_corrective_retries,
                            "on_unavailable": self.on_unavailable,
                            "log_path": self.log_path, "frozen_path": self.frozen_path,
@@ -824,7 +886,7 @@ class GatedRewriter(Rewriter):
 
 
 def failure_cause(row):
-    """Describe recorded failures without changing archived acceptance decisions."""
+    """Describe the recorded failures."""
     if row.get("status") == STATUS_OK:
         return "accepted"
     attempts = row.get("attempts") or []

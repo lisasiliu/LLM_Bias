@@ -9,7 +9,7 @@ from components.helpers import read_jsonl, write_jsonl
 from experiments.proficiency_validation.rewrite.runtime import (
     DATA_DIR, dump_json, now_iso, source_record_from_dict, update_metadata)
 from experiments.proficiency_validation.validation import (
-    analysis, cefr, measurements, perception, protocol, report)
+    analysis, annotation, cefr, measurements, perception, protocol, report)
 from experiments.proficiency_validation.validation.calibration import (
     cmd_build_challenge, cmd_merge_challenge, cmd_report_challenge, cmd_run_challenge)
 from experiments.proficiency_validation.validation.sources import (
@@ -58,6 +58,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
     report.add_parser(sub)
     cefr.add_parser(sub)
+    annotation.add_parser(sub)
 
     a = sub.add_parser("audit", help="audit untreated game runs for bundle capacity")
     a.add_argument("game_dirs", nargs="+")

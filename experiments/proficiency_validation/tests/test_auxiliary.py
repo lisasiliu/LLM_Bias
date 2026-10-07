@@ -217,7 +217,7 @@ class CEFRTests(unittest.TestCase):
         self.assertEqual(report["scale"], ["A", "B", "C"])
         self.assertEqual(report["level_distributions"]["fixture"]["low"], {"A": 2, "C": 1})
         rendered = "\n".join(cefr.render_cefr(report))
-        self.assertIn("| A | B | C |", rendered)
+        self.assertIn("| CEFR A | CEFR B | CEFR C |", rendered)
         self.assertIn("Transition counts", rendered)
         self.assertNotIn("| A1 |", rendered)
         self.assertFalse(report["used_for_selection"])
@@ -269,7 +269,14 @@ class CEFRTests(unittest.TestCase):
             with patch("experiments.proficiency_validation.rewrite.runtime.ValidationModel.resolve", return_value=model):
                 self.assertEqual(main(command), 0)
                 self.assertEqual(len(model.calls), 3)
-                self.assertEqual(main(command + ["--resume"]), 0)
+                from experiments.proficiency_validation.validation.protocol import frozen_hashes
+                from experiments.proficiency_validation.rewrite.runtime import read_metadata
+                recorded_digest = read_metadata(output)["settings_sha256"]
+                changed = frozen_hashes()
+                changed["module_source_sha256"]["experiments.proficiency_validation.validation.analysis"] = "report-change"
+                with patch("experiments.proficiency_validation.validation.protocol.frozen_hashes", return_value=changed):
+                    self.assertEqual(main(command + ["--resume"]), 0)
+                self.assertEqual(read_metadata(output)["settings_sha256"], recorded_digest)
                 self.assertEqual(len(model.calls), 3)
             prov, errors = cefr.verify_ratings(output, rewrites_path=rewrites)
             self.assertEqual(errors, [])
@@ -280,8 +287,8 @@ class CEFRTests(unittest.TestCase):
             self.assertEqual(main(["analyze", "--no-frozen", "--rewrites", str(rewrites),
                 "--cefr", str(output), "--out", str(report), "--n-boot", "30"]), 0)
             text = report.read_text()
-            self.assertIn("exploratory prompt-based model judgments", text)
-            self.assertIn("| A | B | C |", text)
+            self.assertIn("## Auxiliary CEFR band ratings", text)
+            self.assertIn("| CEFR A | CEFR B | CEFR C |", text)
             # A legacy scale or an invented calibration claim cannot masquerade as this run.
             for overrides in ({"prompt_version": "cefr_text_v1"}, {"calibration_status": "measured"}):
                 record_artifact(output, {**prov, **overrides})

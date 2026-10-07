@@ -1,11 +1,4 @@
-"""Game-level power planning from the development pilot.
-
-Games are the independent units, so every requirement is a number of games. Effects and
-their between-game spread come from the pilot report (game-level paired differences); the
-formulas are normal approximations for a paired design plus the hard floor of the exact
-sign-flip test (two-sided p below 0.05 needs at least six games). Nothing here chooses
-thresholds: minimum meaningful effects and equivalence margins are inputs.
-"""
+"""Per-measure sample-size approximations using pilot game effects and user-supplied margins."""
 from __future__ import annotations
 import json
 import math
@@ -18,8 +11,14 @@ from experiments.proficiency_validation.rewrite.runtime import PRIMARY_RANGE_MET
 _Z = NormalDist().inv_cdf
 
 
+def _probability(value, name):
+    if not 0 < value < 1:
+        raise ValueError(f"{name} must be between 0 and 1")
+
+
 def sign_flip_minimum_games(alpha: float = .05) -> int:
     """Smallest n with 2 ** (1 - n) <= alpha: the exact two-sided sign-flip test cannot reject below it."""
+    _probability(alpha, "alpha")
     n = 2
     while 2.0 ** (1 - n) > alpha:
         n += 1
@@ -29,6 +28,8 @@ def sign_flip_minimum_games(alpha: float = .05) -> int:
 def games_for_difference(mean_effect: Optional[float], sd_games: Optional[float], *, alpha: float = .05,
                          power: float = .8) -> Optional[int]:
     """Games needed for a two-sided paired test of a game-level mean effect (normal approximation)."""
+    _probability(alpha, "alpha")
+    _probability(power, "power")
     if mean_effect in (None, 0) or sd_games in (None, 0):
         return None
     n = ((_Z(1 - alpha / 2) + _Z(power)) * sd_games / abs(mean_effect)) ** 2
@@ -38,13 +39,15 @@ def games_for_difference(mean_effect: Optional[float], sd_games: Optional[float]
 def games_for_equivalence(sd_games: Optional[float], margin: Optional[float], *, alpha: float = .05,
                           power: float = .8, true_effect: float = 0.0) -> Optional[int]:
     """Games needed for two one-sided tests to show |effect| < margin when the true effect is ``true_effect``."""
+    _probability(alpha, "alpha")
+    _probability(power, "power")
     if sd_games in (None, 0) or margin in (None, 0) or abs(true_effect) >= margin:
         return None
     n = ((_Z(1 - alpha) + _Z(1 - (1 - power) / 2)) * sd_games / (margin - abs(true_effect))) ** 2
-    return int(math.ceil(n))
+    return max(2, int(math.ceil(n)))
 
 
-def plan(report: dict, *, alpha: float = .05, power: float = .8, equivalence_margins: Optional[Dict[str, float]] = None,
+def plan(report: dict, *, alpha: float = .05, equivalence_margins: Optional[Dict[str, float]] = None,
          listener_margin: Optional[float] = None) -> dict:
     """Required games per primary metric and for the listener signed preference, from a pilot report."""
     analysis = report.get("analysis", report)
@@ -54,14 +57,14 @@ def plan(report: dict, *, alpha: float = .05, power: float = .8, equivalence_mar
         m = (analysis.get("range", {}).get("low_vs_neutral", {}).get("metrics", {}) or {}).get(metric)
         if not m:
             continue
-        rows.append({"quantity": f"Low − Neutral: {metric}", "kind": "difference", "pilot_games": m.get("n_games"),
+        rows.append({"quantity": f"A − B: {metric}", "kind": "difference", "pilot_games": m.get("n_games"),
                      "pilot_mean": m.get("estimate"), "sd_games": m.get("sd_diff"), "game_dz": m.get("cohens_dz"),
                      "games_80": games_for_difference(m.get("estimate"), m.get("sd_diff"), alpha=alpha, power=.8),
                      "games_90": games_for_difference(m.get("estimate"), m.get("sd_diff"), alpha=alpha, power=.9)})
         c = (analysis.get("range", {}).get("neutral_vs_original", {}).get("metrics", {}) or {}).get(metric)
         margin = (equivalence_margins or {}).get(metric)
         if c:
-            rows.append({"quantity": f"Neutral − Original: {metric} equivalence", "kind": "equivalence",
+            rows.append({"quantity": f"B − Original: {metric} equivalence", "kind": "equivalence",
                          "pilot_games": c.get("n_games"), "pilot_mean": c.get("estimate"), "sd_games": c.get("sd_diff"),
                          "margin": margin,
                          "games_80": games_for_equivalence(c.get("sd_diff"), margin, alpha=alpha, power=.8, true_effect=c.get("estimate") or 0.),
@@ -70,26 +73,28 @@ def plan(report: dict, *, alpha: float = .05, power: float = .8, equivalence_mar
         block = (analysis.get(key) or {})
         low = (block.get("low:neutral") or {}).get("listeners", {}).get("all_models")
         if low:
-            rows.append({"quantity": f"Low − Neutral: {label} signed preference", "kind": "difference",
+            rows.append({"quantity": f"A − B: {label} signed preference", "kind": "difference",
                          "pilot_games": low.get("n_games"), "pilot_mean": low.get("signed_preference"), "sd_games": low.get("sd_games"),
                          "games_80": games_for_difference(low.get("signed_preference"), low.get("sd_games"), alpha=alpha, power=.8),
                          "games_90": games_for_difference(low.get("signed_preference"), low.get("sd_games"), alpha=alpha, power=.9)})
         control = (block.get("neutral:original") or {}).get("listeners", {}).get("all_models")
         if control:
-            rows.append({"quantity": f"Neutral − Original: {label} equivalence", "kind": "equivalence",
+            rows.append({"quantity": f"B − Original: {label} equivalence", "kind": "equivalence",
                          "pilot_games": control.get("n_games"), "pilot_mean": control.get("signed_preference"),
                          "sd_games": control.get("sd_games"), "margin": listener_margin,
                          "games_80": games_for_equivalence(control.get("sd_games"), listener_margin, alpha=alpha, power=.8, true_effect=control.get("signed_preference") or 0.),
                          "games_90": games_for_equivalence(control.get("sd_games"), listener_margin, alpha=alpha, power=.9, true_effect=control.get("signed_preference") or 0.)})
-    return {"alpha": alpha, "sign_flip_minimum_games": sign_flip_minimum_games(alpha), "rows": rows,
-            "note": "Normal approximations on game-level paired effects from the development pilot; a pilot of three games "
-                    "gives rough spreads only. Margins and minimum effects are inputs, never read from confirmatory data."}
+    return {"scope": "per_measure", "method": "paired_normal_approximation", "alpha": alpha,
+            "sign_flip_minimum_games": sign_flip_minimum_games(alpha), "rows": rows,
+            "note": "Each row estimates the games needed for one measure using the pilot mean and between-game SD. "
+                    "Difference rows test a zero mean; equivalence rows use supplied margins. Full-study sample-size "
+                    "planning must combine the frozen decision criteria, multiplicity correction and passage attrition."}
 
 
 def render(result: dict) -> str:
-    lines = ["# Game-level power planning", "", result["note"], "",
+    lines = ["# Per-measure game-count planning", "", result["note"], "",
              f"Exact sign-flip test: at least {result['sign_flip_minimum_games']} games for a two-sided p below {result['alpha']}.", "",
-             "| quantity | pilot games | pilot mean | SD across games | margin | games (80% power) | games (90% power) |",
+             "| quantity | pilot games | pilot mean | SD across games | margin | games (80% per-measure power) | games (90% per-measure power) |",
              "| --- | ---: | ---: | ---: | ---: | ---: | ---: |"]
     for r in result["rows"]:
         lines.append(f"| {r['quantity']} | {r.get('pilot_games')} | {fmt(r.get('pilot_mean'))} | {fmt(r.get('sd_games'))} | "
@@ -99,7 +104,7 @@ def render(result: dict) -> str:
 
 
 def add_parser(sub) -> None:
-    p = sub.add_parser("power", help="games required for the primary contrasts, from a pilot report")
+    p = sub.add_parser("power", help="per-measure game-count approximations from a pilot report")
     p.add_argument("--report", type=Path, required=True, help="validation/report.json of a pilot run")
     p.add_argument("--alpha", type=float, default=.05)
     p.add_argument("--equivalence-margin", action="append", default=[], metavar="METRIC=VALUE",

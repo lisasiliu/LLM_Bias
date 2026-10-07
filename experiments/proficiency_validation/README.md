@@ -1,274 +1,207 @@
-# Proficiency validation
+# English proficiency cue: validation
 
-We rewrite what Werewolf agents say so that one speaker sounds like a less proficient
-English speaker, without changing what they say. Before any game experiment uses these
-rewrites, this folder checks two things: that each rewrite still means the same as the
-original, and that the rewrites really differ in linguistic range (vocabulary and syntax)
-the way we intend. Everything here is automated. [VALIDATION.md](VALIDATION.md) is the
-current report.
+We vary the linguistic range of the English spoken by Werewolf agents at three levels while
+holding meaning, speech-act force and grammaticality fixed, and we validate the manipulation
+before it enters the game experiments. Validation combines automatic language measures, blind
+model listeners from two model families and two human annotators on the same passage pairs.
+[VALIDATION.md](VALIDATION.md) holds the current results.
 
-## What is in this folder
+## Conditions
 
-| Path | What it is |
+| Condition | Definition |
 | --- | --- |
-| `rewrite/` | Generates the rewrites and runs the fidelity gate. Entry point: `python -m experiments.proficiency_validation.rewrite` |
-| `validation/` | Builds passages, measures them, runs the model listeners and CEFR ratings, writes the report. Entry point: `python -m experiments.proficiency_validation.validation` |
-| `data/corpus/` | The 280 untreated utterances from three games (`run01`–`run03`, 9 players, `deepseek-chat`) and their baseline measurements |
-| `data/runs/pilot_qwen35_27b/` | The current pilot: every rewrite attempt, the passages, measurements, listener answers, CEFR ratings and `manifest.json` (models, settings, hashes) |
-| `tests/` | Offline tests, no model calls: `python -m pytest experiments/proficiency_validation/tests` |
-| `hpc/` | Cluster job scripts (not tracked by git) |
+| Original | The untreated utterance. |
+| A | Restricted range: common, concrete vocabulary, repeated words, short clauses with little embedding. |
+| B | A paraphrase at the source's own level: vocabulary level, repetition and clause structure judged unchanged. |
+| C | Expanded range: less common and more precise vocabulary, more embedded syntax. |
 
-The rewriter itself lives in `components/rewriters/language_rewriter.py`; the version of a
-game that uses it goes through `rewrite.gate.GatedRewriter`.
+Every condition is generated independently from the Original. A versus B is the primary
+contrast. B versus Original tests that paraphrasing by itself leaves the measured properties
+unchanged. C versus B describes the upper direction. The labels follow the CEFR-derived
+A/B/C levels used in the automated proficiency literature; the conditions are relative levels
+of one speaker's text, and the auxiliary CEFR ratings below are reported separately.
 
-## The three conditions
+## Materials
 
-| Condition | What it is |
+Three untreated games (27 players, 280 public utterances) form the development corpus. The unit
+of analysis is a speaker passage: 150 to 250 words of whole utterances by one player in one game,
+drawn with a fixed seed from the early, middle and late thirds of that player's timeline and
+kept in speech order. The utterance set is fixed on the Original before any rewrite exists and is
+identical across conditions, which yields 24 passages. Whole-game transcripts (every public
+utterance of a player) form a robustness cohort. Games are the independent units throughout:
+players are averaged within a game, games receive equal weight, and intervals resample games.
+
+## Generation and fidelity gate
+
+Qwen3.5-27B rewrites each utterance under a condition-specific prompt that sees the public
+history before the utterance. Each candidate passes three checks. (1) A deterministic structural
+check: player IDs, predicate slots and polarity are unchanged, no hedge is added, "please" is
+neither added nor removed. (2) An inverse parser recovers the speech act from the rewrite alone;
+its slots must match the recorded predicate. (3) A fidelity judge aligns every span of the two
+texts, marks each alignment as equivalent or not, and answers fixed questions on content,
+certainty, force, speaker perspective, references, politeness and register; for B it also rates
+vocabulary level, repetition and syntax as simpler, same or more advanced, and all three must be
+"same". Incomplete judge answers get one repair request that names each problem. A candidate
+that fails receives up to two corrective retries with the failure reasons; an utterance whose
+candidates all fail is recorded as unavailable, and a passage enters a comparison only when every
+one of its utterances is available in both conditions.
+
+B generates five candidates per call. Candidates that change under 5% of the tokens are set
+aside, the gate judges the rest, and the passer whose sentence count and length are closest to
+the Original is kept. An optional selection rule (`--neutral-selection
+closest_surface_and_frequency_v1`) ranks the passers first by the closeness of their mean
+SUBTLEX word frequency to the Original's; the run records which rule was used. Judge calibration on 315 constructed rewrites (a broken target, role,
+polarity, reason, certainty or directive force, plus preserved paraphrases) measures the gate's
+sensitivity and specificity.
+
+## Measures
+
+**Linguistic range** (spaCy, SUBTLEX-US). The primary family is word frequency (SUBTLEX Lg10CD),
+vocabulary diversity (MATTR, 50-token window) and subordinate clauses per 100 words, with
+Benjamini–Hochberg correction within the family. MTLD, content-lemma repetition, dependency
+distance, tree depth, noun-phrase length and sentence length are secondary diagnostics. A
+sentence-splitting sensitivity analysis repeats the primary contrasts on the passages where A
+changed the sentence count least.
+
+**Grammar guardrails.** LanguageTool grammar errors per 100 words and CoLA acceptability. A must
+be non-inferior to B against a fixed margin, and B must be equivalent to Original.
+
+**Blind model listeners.** Two listeners from different model families (Qwen3.5-27B and
+OpenAI's GPT luna) read two passages of the same player in both presentation orders and answer which
+passage shows the more limited range of English, or "same". A second question asks which speaker
+seems to have the weaker command of English. Answers are scored +1 (treatment judged more
+limited), 0 (same) or −1, averaged over orders, listeners and passages within a game. A position
+score (+1 for slot A, −1 for slot B) measures presentation-order preference. The pairs are A–B,
+C–B, A–C and B–Original.
+
+**Human annotation.** Two researchers independently label every complete pair of the four
+comparisons (62 pairs in the current run) with the same three-way question, in a randomized
+order with randomized sides. The analysis reports percent agreement and Cohen's κ between the
+researchers, the direction and signed preference per comparison, consensus labels after
+adjudication, each model listener's agreement with the consensus, and each model's consistency
+across presentation orders.
+
+**Auxiliary CEFR ratings.** A model assigns a CEFR band (A, B or C) with quoted evidence to each
+passage; band distributions and paired transitions describe where the conditions fall.
+
+**Inference.** Cluster bootstrap over games, an exact sign-flip test over games, BH within the
+primary family, one-sided non-inferiority for the guardrails (A versus B) and TOST equivalence
+for B versus Original. With three games the smallest attainable two-sided p is 0.25, so the
+pilot reports estimates with intervals and the confirmatory study fixes its sample size from
+the pilot's between-game variance.
+
+## Pilot results
+
+Run of 7 October 2026 (Qwen3.5-27B as generator, judge, first listener and CEFR rater;
+GPT luna as second listener; prompts `range_v9`, rubric `english_fidelity_v7`). Full tables are
+in [VALIDATION.md](VALIDATION.md).
+
+- Gate acceptance: A 269 of 280 utterances, C 269, B 255 (20 B sources produced only near-copies
+  below the 5% paraphrase floor and 5 returned the original unchanged). Primary cohort: 15
+  complete A–B passages, 13 C–B, 15 A–C and 19 B–Original across all three games; the whole-game
+  robustness cohort has 7 A–B and 7 C–B transcripts.
+- Rewrite exposure (token edit distance to the original): A changes 0.25 of the tokens, C 0.47,
+  B 0.10.
+- A versus B (15 passages): all three primary measures in the predicted direction with intervals
+  excluding zero (SUBTLEX +0.30, MATTR −0.022, subordinate clauses −1.2 per 100 words); MTLD
+  −11.7, repetition +0.059, dependency distance −0.53, tree depth −1.18 and sentence length −27
+  words agree. On the 9 passages where A split sentences least, all three primary measures hold
+  (MATTR −0.013, interval [−0.029, −0.004]).
+- B versus Original (19 passages): MATTR +0.001, subordinate clauses −0.17 (interval
+  [−0.45, 0.11]), sentence length +0.1; B uses slightly rarer words (SUBTLEX −0.066, interval
+  [−0.103, −0.007]) and repeats less (−0.025). Grammar errors −0.05 per 100 words, CoLA +0.02.
+- C versus B (13 passages): rarer and more varied vocabulary (SUBTLEX −0.43, MATTR +0.013, MTLD
+  +14); subordinate clauses −0.17 (interval [−1.36, 0.90]); dependency distance, tree depth and
+  sentence length within noise.
+- Guardrails for A versus B: grammar errors +0.02 per 100 words (one-sided bound 0.05), CoLA
+  acceptability +0.17.
+- Listeners, range question: both model families judge A more limited than B and than C in
+  every passage, and C less limited than B in every passage, in both presentation orders (Qwen
+  answers "same" once in 30 A–B comparisons). On B versus Original the Qwen listener answers
+  "same" in 92% of pairs (signed preference −0.07); luna answers "same" in 55% and otherwise calls
+  the Original more limited (−0.43, interval [−0.64, −0.30]).
+- Listeners, proficiency question: Qwen calls most pairs the same (60% of A–B, 81% of C–B) and
+  otherwise picks the expected side (A–B +0.42, A–C +0.71); luna agrees with the expected side on
+  C–B (−0.56) and answers A–B inconsistently across orders (+0.03; 8 of 15 passages receive the
+  same answer in both orders).
+- Judge calibration on 315 constructed rewrites: sensitivity 0.996, specificity 0.978 under
+  both parser policies.
+- CEFR: 6 of 19 A passages receive band B and 13 band C; every rated B, C and Original passage
+  receives band C.
+- Power: six games per primary measure and for the range-listener score at 80% power for the
+  A–B contrast.
+
+## Files
+
+| Path | Content |
 | --- | --- |
-| Original | The untreated utterance |
-| Low | Same content, restricted range: common concrete words, repeated rather than varied vocabulary, less embedded syntax. Grammar stays correct; no errors, no accent |
-| Neutral | An independent paraphrase with the same range as the original: new wording, same vocabulary level, clause structure and register. It separates "being rewritten by the model at all" from "being rewritten as Low". It is not matched to Low; whether it is really neutral is tested against Original |
-| High | Same content, wider range: more precise and less common vocabulary, more embedded syntax |
+| `rewrite/` | Rewriting and the fidelity gate (`python -m experiments.proficiency_validation.rewrite`) |
+| `validation/` | Passages, measures, listeners, CEFR ratings, human annotation, power, export and the report (`python -m experiments.proficiency_validation.validation`) |
+| `data/corpus/` | The untreated utterances and their baseline measures |
+| `data/runs/pilot_qwen35_27b/` | The current run: every rewrite attempt, passages, measures, listener answers, CEFR ratings and `manifest.json` |
+| `data/researcher_1_worksheet.{md,csv}`, `data/researcher_2_worksheet.{md,csv}` | Blind annotation sheets; the `_key.json` files hold the hidden condition assignment |
+| `data/manual_validation.jsonl` | Imported human labels and consensus (written by `import-annotations`) |
+| `data/provenance.json`, `data/automatic_validation.jsonl` | Publication export: models, settings, hashes, and one row per passage and condition |
+| `tests/` | Offline tests (`python -m pytest experiments/proficiency_validation/tests`) |
+| `hpc/` | Cluster job scripts (untracked) |
 
-The main comparison is Low versus Neutral. Neutral versus Original checks that the control
-really is neutral. High versus Neutral is the mirror image for the wider-range cue and is
-reported as descriptive: High sits outside the primary comparison family in the pilot.
+The rewriter is `components/rewriters/language_rewriter.py`.
 
-## Passages
+## Commands
 
-The unit of measurement is a passage: 150 to 250 words of whole utterances by one player in one
-game, drawn with a fixed seed from the early, middle and late thirds of that player's timeline
-and kept in speech order. The utterance IDs are chosen from the untreated game before any rewrite
-exists and are the same in every condition. The three games give 27 player timelines, 24 of which
-have enough words. A passage only enters a Low versus Neutral comparison when every one of its
-utterances passed the gate in both conditions; we never stitch together the ones that happened to
-pass. In the setup table of the report, "Utterances" is the number of utterances in the whole game
-and "Bundles" the number of qualifying passages.
-
-As a robustness check the report also measures whole-game transcripts (every public utterance a
-player made in one game). One missing rewrite removes a whole transcript, so that cohort is smaller
-and moves between runs; it shows whether the cue persists across a whole game.
-
-## How every rewrite is checked
-
-Each rewritten utterance goes through three checks before anything else uses it:
-
-1. **Structural check.** Deterministic: the player IDs, predicate slots and polarity are
-   unchanged, no hedge like "maybe" was added, no "please" was added or removed.
-2. **Inverse parser.** A model that only sees the rewrite and the public history before it
-   parses the rewrite back into a predicate; the slots must match. The original is parsed the
-   same way, so a disagreement between the original and its recorded predicate is visible too.
-   When the parser recovers no predicate at all from the rewrite, it abstains and the fidelity
-   judge decides alone, exactly as for the 74 utterances whose predicates the parser does not
-   cover; the report counts these rewrites separately (`--parser-abstention no_verdict` restores
-   the stricter rule). When a second judge from another model family is configured
-   (`--secondary-judge`), it re-judges every such rewrite and only agreement counts as a pass.
-   On the constructed test
-   set the parser catches 18% of the broken rewrites and never flags a preserved one, and every
-   break it catches the judge catches too; the judge calibration reports both policies.
-3. **Fidelity judge.** A model with a fixed rubric must quote aligned spans from both texts
-   that cover every word, mark each alignment equivalent or not, and answer yes or no on
-   content, certainty, speech-act force, speaker perspective, references, politeness and
-   register. One failed alignment or dimension rejects the rewrite. If the judge's answer is
-   incomplete (a quote that is not in the text, an empty quote, a dimension answered "n/a"
-   although the utterance answers an earlier statement) it gets one repair request that names
-   each problem; if the answer is still incomplete there is no verdict. Quotes are matched word
-   by word, so a comma that moved inside a quotation mark does not count as a misquote. A
-   repair can never turn a detected violation into a pass.
-
-When the parser cannot recover the recorded predicate from the original itself (the corpus
-label and the text disagree), both texts go through a blind speech-act inventory instead; the
-rewrite passes this step only if both inventories list the same acts. An inventory whose
-evidence is lifted from the game history rather than the utterance gets one repair request.
-
-A rewrite that fails gets up to two corrective retries with the failure reasons as feedback.
-If it still fails, the utterance is recorded as unavailable. The original text is never used
-under a treatment label. Every attempt, candidate and verdict is kept in `rewrite/rewrites.jsonl`.
-
-Neutral is generated on its own, with no knowledge of Low: five candidates in one call, each
-through the same gate plus three directional judge questions (is the vocabulary, the repetition
-pattern and the syntax simpler, the same, or more advanced than the original? only "same"
-passes, so a drift upward is caught as well as a drift down). A candidate that changed fewer
-than 5% of the tokens is a near-copy and cannot be selected (the active-paraphrase floor).
-Among the remaining passers the one whose surface profile stays closest to the original is kept
-(same sentence count first, then the smallest change in word count; exact ties by a fixed seed).
-The primary range measures are not used for this choice, so the Neutral-versus-Original test
-stays independent. How much each condition rewrote (token edit distance) is recorded and
-reported as exposure, not used as a requirement. Earlier pilots matched Neutral to Low's edit
-distance; that lost about one Neutral in eight because a paraphrase that keeps the clause
-structure cannot move as many tokens as a rewrite that splits sentences.
-
-Two more checks on the judge itself. `--secondary-judge HANDLE` (for example `deepseek-chat`)
-re-judges every accepted rewrite with a second model and records whether it agrees; it never
-gates and is off unless set. The judge calibration step builds constructed rewrites that break
-exactly one thing or preserve the meaning, judges them with the same gate, and reports how
-many broken ones were caught and how many preserved ones were let through.
-
-## What we measure on the passages that passed
-
-- **Linguistic range** (spaCy and SUBTLEX-US). The primary family has three measures, one per
-  construct: word frequency (SUBTLEX Lg10CD, higher in Low), vocabulary diversity (MATTR, lower
-  in Low) and subordinate clauses per 100 words (lower in Low). Only this family is corrected for
-  multiple testing. MTLD, repetition, dependency distance, tree depth, noun-phrase length and
-  sentence length are secondary diagnostics; the number of distinct clause patterns has no
-  expected direction (splitting one long sentence into several raises it, and the untreated
-  L1–L5 games show no level trend). A sentence-splitting sensitivity table repeats the primary
-  contrasts on the passages where Low changed the sentence count the least.
-- **Grammar** (LanguageTool 6.6 grammar rules per 100 words; CoLA acceptability): Low may be
-  more acceptable than Neutral but not meaningfully worse (one-sided non-inferiority against a
-  frozen margin); Neutral must be equivalent to Original (two-sided, 90% interval). Both must
-  clear absolute quality floors.
-- **Blind model listeners**: given two passages of the same player (both orders), which one
-  shows more limited vocabulary and sentence range, or is there no meaningful difference? A
-  second question asks which speaker seems to have the weaker command of English. Answers are
-  scored +1 (treatment more limited), 0 (same) or −1, averaged over the two orders, then over
-  listeners, then over passages within a game. A position score (+1 for choosing slot A, −1 for
-  B) checks that the listener follows the texts, not the presentation order. These are two
-  separate measurements.
-- **CEFR A/B/C rating** (auxiliary only): a model rates each passage A, B or C with quoted
-  evidence (one repair request if a quote is inexact). It is auxiliary.
-
-Games are the independent units: players are averaged within a game, games are averaged with
-equal weight, confidence intervals resample games, and p-values come from an exact sign-flip
-test over games. With three games the smallest possible p is 0.25; the pilot reports
-direction and size.
-
-## Where the pilot stands
-
-Run of 6 October 2026 (prompts `range_v9`, rubric `english_fidelity_v7`, independent Neutral with
-the 5% paraphrase floor, chronological-thirds passages primary, three-way listener answers,
-SUBTLEX-US, LanguageTool 6.6 and CoLA; Qwen3.5-27B plays every role; 59 minutes on one H200):
-
-- Low passes the gate for 270 of 280 utterances, High for 268, Neutral for 257. Of Neutral's 23
-  failures, 18 never produced a candidate above the paraphrase floor and 5 returned the original
-  unchanged. 4 acceptances per condition rest on the judge alone because the parser recovered no
-  predicate.
-- Rewrite exposure (token edit distance): Low changes a mean 0.25 of the tokens, High 0.47,
-  Neutral 0.10.
-- 17 of 24 player passages have complete Low and Neutral versions (15 for High), from all 3
-  games; the whole-game robustness cohort has 6 and 7.
-- Low versus Neutral (17 passages): all three primary measures in the predicted direction with
-  the bootstrap interval excluding zero: word frequency (SUBTLEX Lg10CD) +0.31, MATTR −0.017,
-  subordinate clauses −1.2 per 100 words; MTLD −9.5, repetition +0.069, dependency distance
-  −0.61, tree depth −1.33, sentence length −30 words agree. On the 11 passages where Low split
-  sentences the least, word frequency and subordination hold; MATTR shrinks to −0.008 with an
-  interval that includes zero. Grammar errors per 100 words differ by 0.02 (one-sided bound
-  0.04); CoLA acceptability is 0.17 higher for Low.
-- Neutral versus Original (21 passages): MATTR −0.002, subordinate clauses −0.03, dependency
-  distance +0.03, sentence length +0.9; Neutral uses slightly rarer words (SUBTLEX −0.066,
-  interval [−0.096, −0.019]) and repeats slightly less (−0.024). Grammar errors −0.04, CoLA +0.02.
-- High versus Neutral (15 passages): rarer and more varied vocabulary (SUBTLEX −0.46, MATTR
-  +0.022, MTLD +19); subordinate clauses −0.7 per 100 words with an interval touching zero;
-  dependency distance, tree depth and sentence length within noise.
-- Blind listeners with a "same" option: on the range question Low is judged more limited than
-  Neutral in 17 of 17 passages (signed preference +0.92, interval [0.83, 1.00], 6% ties); High is
-  never judged more limited (15 of 15); Neutral and Original are called the same in 95% of
-  pairs (signed preference −0.04, interval [−0.13, 0.00]). On the proficiency question the
-  listener calls 74% of Low–Neutral pairs the same and otherwise picks Low (+0.25, interval
-  [0.17, 0.29]); Neutral and Original are the same in 95%. Position scores stay within ±0.08
-  except High–Neutral on the proficiency question (+0.27, 70% ties).
-- Judge calibration on 315 constructed rewrites: sensitivity 0.996, specificity 0.978 under the
-  deferred parser policy; 0.996 and 0.977 under the strict one.
-- CEFR: 7 of 19 Low passages rated B, everything else C; three invalid responses.
-- Power: with the pilot's between-game spread, six games give 80% power for each primary
-  measure and for the listener signed preference (six is also the exact sign-flip floor).
-
-## Planning, freezing and exporting
-
-- `python -m experiments.proficiency_validation.validation power --report "$RUN/validation/report.json"`
-  turns the pilot's game-level effects into the number of games a confirmatory set needs
-  (80% and 90% power; the exact sign-flip test needs at least six games). Equivalence margins
-  are inputs (`--equivalence-margin mattr=0.01 --listener-margin 0.2`), never read from data.
-- `validation freeze` refuses a dirty working tree and records the clean commit; every
-  confirmatory command (`--frozen`) must run at that exact commit. Confirmatory runs freeze the
-  strict parser policy (`parser_abstention_policy: no_verdict`), the paraphrase floor, the
-  parser context budget, the listener margins and the non-inferiority margins.
-- `validation export --pilot-dir "$RUN"` writes `data/provenance.json` (models, settings, hashes,
-  acceptance, coverage, calibration) and `data/automatic_validation.jsonl` (one row per passage
-  and condition with every automatic measurement), the publication-facing files that mirror
-  the collaborator's politeness validation. Raw outputs stay under `data/runs/`.
-
-## Reproduce the report
-
-```bash
-python -m experiments.proficiency_validation.validation report \
-    --pilot-dir experiments/proficiency_validation/data/runs/pilot_qwen35_27b \
-    --out experiments/proficiency_validation/VALIDATION.md \
-    --json experiments/proficiency_validation/data/runs/pilot_qwen35_27b/validation/report.json
-python -m experiments.proficiency_validation.rewrite verify-run \
-    --rewrites experiments/proficiency_validation/data/runs/pilot_qwen35_27b/rewrite/rewrites.jsonl
-python -m pytest experiments/proficiency_validation/tests
-```
-
-Reporting reads stored files only. `rewrite generate --dry-run` prints the prompts without
-calling a model. `validation prepare-data <game dirs>` rebuilds `data/corpus/` from raw game
-logs (kept locally in `experiments/validation/`, ignored by git).
-
-## Run a pilot
-
-Install with `pip install -e '.[proficiency]'` and `python -m spacy download en_core_web_sm`.
-Point `PROFICIENCY_MODEL_CONFIG` at the run's `manifest.json`; its `models` block names each
-handle's model, family, endpoint variable and weight revision. Use a new run directory
-whenever the prompts, rubric, model or settings change.
+The cluster script `hpc/pilot_qwen35_27b.slurm` runs the whole pipeline for one run directory:
+generation, features, guardrails, both listener probes, CEFR ratings, judge calibration, report,
+power and export. Pipeline changes are first exercised end to end with DeepSeek flash as
+generator, judge and rater through the same commands (a run directory outside version control,
+with `thinking` disabled in the model entry), and the Qwen run follows once the change is settled.
+The second listener runs locally against the Qwen run's passages:
 
 ```bash
 RUN=experiments/proficiency_validation/data/runs/pilot_qwen35_27b
-SRC=experiments/proficiency_validation/data/corpus/sources.jsonl
-export PROFICIENCY_MODEL_CONFIG="$RUN/manifest.json"
-
-python -m experiments.proficiency_validation.rewrite generate \
-    --sources "$SRC" --conditions low,neutral,high --generator generator --judge judge \
-    --judge-max-tokens 3072 --parser-abstention defer --out "$RUN/rewrite/rewrites.jsonl"
-python -m experiments.proficiency_validation.validation bundles \
-    --sources "$SRC" --selection phase_stratified --window 150 250 --out "$RUN/validation/bundles.jsonl"
-python -m experiments.proficiency_validation.validation features \
-    --bundles "$RUN/validation/bundles.jsonl" --rewrites "$RUN/rewrite/rewrites.jsonl" \
-    --conditions original,low,neutral,high --out "$RUN/validation/linguistic_features.jsonl"
-python -m experiments.proficiency_validation.validation probe \
-    --assembled "$RUN/validation/linguistic_features_assembled.jsonl" --listeners listener_qwen \
-    --pairs low:neutral,high:neutral,neutral:original --construct range --out "$RUN/validation/range_listener.jsonl"
-python -m experiments.proficiency_validation.validation probe \
-    --assembled "$RUN/validation/linguistic_features_assembled.jsonl" --listeners listener_qwen \
-    --pairs low:neutral,high:neutral,neutral:original --construct perceived_proficiency \
-    --out "$RUN/validation/perceived_proficiency_listener.jsonl"
-python -m experiments.proficiency_validation.validation cefr-rate \
-    --bundles "$RUN/validation/bundles.jsonl" --rewrites "$RUN/rewrite/rewrites.jsonl" \
-    --raters listener_qwen --out "$RUN/validation/cefr_auxiliary.jsonl"
-# Robustness cohort: the same four steps with --selection whole_game, written to
-# "$RUN/validation/whole_game/"; the report picks that folder up when it exists.
-python -m experiments.proficiency_validation.validation report --pilot-dir "$RUN" \
-    --out experiments/proficiency_validation/VALIDATION.md --json "$RUN/validation/report.json"
+export PROFICIENCY_MODEL_CONFIG=$RUN/manifest.json
+for construct in range perceived_proficiency; do
+  python -m experiments.proficiency_validation.validation probe \
+      --assembled $RUN/validation/linguistic_features_assembled.jsonl --listeners openai:gpt-5.6-luna \
+      --pairs low:neutral,high:neutral,low:high,neutral:original --construct $construct \
+      --max-tokens 8192 --concurrency 8 --out $RUN/validation/${construct}_listener_openai.jsonl
+done
+python -m experiments.proficiency_validation.validation report --pilot-dir $RUN \
+    --out experiments/proficiency_validation/VALIDATION.md --json $RUN/validation/report.json
+python -m experiments.proficiency_validation.validation power --report $RUN/validation/report.json --out $RUN/validation/power.json
+python -m experiments.proficiency_validation.validation export --pilot-dir $RUN
 ```
 
-Other commands: `features --subtlex PATH` adds lexical frequency; `guardrails` runs
-LanguageTool and CoLA on the assembled passages; `build-challenge --max-items 300`,
-`run-challenge` and `report-challenge` test the judge on constructed broken and preserved
-rewrites (the report picks the result up from `validation/calibration/report.json`);
-`cefr-calibrate` scores the CEFR rater on externally labelled learner texts. For parallel
-generation, give each worker `--shard-index i --shard-count n`, then `rewrite merge-rewrites`.
-`--resume` continues an interrupted run with the same settings.
+Human annotation:
 
-## Before a formal run
+```bash
+DATA=experiments/proficiency_validation/data
+python -m experiments.proficiency_validation.validation build-worksheets \
+    --assembled $RUN/validation/linguistic_features_assembled.jsonl --out-dir $DATA
+# each researcher fills in more_limited (A / B / same) in their own worksheet, then:
+python -m experiments.proficiency_validation.validation import-annotations \
+    --worksheet $DATA/researcher_1_worksheet.md --key $DATA/researcher_1_key.json --rater researcher_1
+python -m experiments.proficiency_validation.validation import-annotations \
+    --worksheet $DATA/researcher_2_worksheet.md --key $DATA/researcher_2_key.json --rater researcher_2
+python -m experiments.proficiency_validation.validation consensus-worksheet \
+    --assembled $RUN/validation/linguistic_features_assembled.jsonl        # disagreements only
+python -m experiments.proficiency_validation.validation import-consensus --worksheet $DATA/consensus_worksheet.md
+python -m experiments.proficiency_validation.validation annotation-summary \
+    --listener $RUN/validation/range_listener.jsonl $RUN/validation/range_listener_openai.jsonl
+```
 
-The pilot is for development. A formal run freezes the protocol first
-(`validation freeze`, checked by every later command with `--frozen`):
+The report includes the human section once `data/manual_validation.jsonl` exists. Internal
+condition identifiers are `low`, `neutral`, `high` and `original`; the report and the export
+display them as A, B, C and Original.
 
-- the exact prompts, rubric, measurement code and model identities (by hash);
-- the games: a pilot set, Set A and Set B with no games in common, and the passages chosen
-  from Original before any rewriting;
-- the thresholds: minimum effect sizes for the primary range measures, equivalence bounds
-  for grammar and for Neutral versus Original, the listener margin and minimum acceptance rates
-  for Low and Neutral, each with a written reason;
-- independent models: the judge from a different family than the generator, at least three
-  listener families different from both and from the agents playing the game.
+## Confirmatory protocol
 
-A formal result needs every primary range measure in the predicted direction with a
-confidence interval excluding zero after multiplicity correction, grammar equivalence,
-Neutral equivalent to Original, every listener above the margin in both presentation
-orders, and acceptance rates above the frozen minima.
-
-## Scope
-
-The measurements describe model-generated game dialogue as read by model listeners; the cue
-is a property of the displayed text. Whole-game passages depend on how long a player survived
-and how often they spoke.
+A formal run freezes the protocol first (`validation freeze` on a clean commit): prompts, rubric,
+measurement code and model identities by hash; disjoint game cohorts with passages chosen from
+the Original before rewriting; effect-size thresholds for the primary measures, guardrail
+non-inferiority margins, equivalence bounds for B versus Original, the listener margin and
+minimum acceptance rates. Every confirmatory command runs with `--frozen` at that commit, with
+the strict parser policy in which parser abstention leaves a candidate without a verdict.
+Confirmation requires every primary measure to meet its direction, BH-adjusted significance and
+effect-size criteria, the guardrails to pass, B to be equivalent to Original in range, grammar
+and listener judgments, each listener to meet the signed-effect criterion in both orders, and the
+position score to stay within its margin.

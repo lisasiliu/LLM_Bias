@@ -77,7 +77,7 @@ class StatisticalBoundaryTests(unittest.TestCase):
         report = {"listener": listener_analysis(rows, n_boot=30, seed=1)}
         criteria = frozen_criteria(report, design())
         self.assertFalse(verdict(criteria)["confirmed"])
-        criterion = next(c for c in criteria if c["criterion"] == "Listener listener1: low vs Neutral, both orders")
+        criterion = next(c for c in criteria if c["criterion"] == "Listener listener1: A vs B, both orders")
         self.assertIsNone(criterion["passed"])
 
     def test_unanimous_two_games_does_not_imply_certainty(self):
@@ -90,17 +90,17 @@ class StatisticalBoundaryTests(unittest.TestCase):
         row = {"n_games": 75, "n_bundles": 200, "signed_ci90": [-.5, .6],
                "by_order": {o: {"n_games": 75, "n_bundles": 200, "ci90": [-.5, .6]} for o in ("ab", "ba")}}
         report = {"listener": {"neutral:original": {"listeners": {"listener1": row}}}}
-        c = next(c for c in frozen_criteria(report, f) if c["criterion"].startswith("Listener listener1: Neutral"))
+        c = next(c for c in frozen_criteria(report, f) if c["criterion"].startswith("Listener listener1: B vs Original"))
         self.assertIs(c["passed"], False)
 
     def test_high_is_required_and_perception_direction_reversed(self):
         f = design("high")
         c = frozen_criteria({}, f)
-        self.assertTrue(any(x["criterion"].startswith("High vs Neutral") and x["passed"] is None for x in c))
+        self.assertTrue(any(x["criterion"].startswith("C vs B") and x["passed"] is None for x in c))
         row = {"n_games": 75, "n_bundles": 200, "signed_preference": -.8, "signed_ci95": [-.9, -.6],
                "by_order": {o: {"n_games": 75, "n_bundles": 200, "signed": -.8, "ci95": [-.9, -.6]} for o in ("ab", "ba")}}
         report = {"listener": {"high:neutral": {"listeners": {"listener1": row}}}}
-        c = next(c for c in frozen_criteria(report, f) if c["criterion"] == "Listener listener1: high vs Neutral, both orders")
+        c = next(c for c in frozen_criteria(report, f) if c["criterion"] == "Listener listener1: C vs B, both orders")
         self.assertIs(c["passed"], True)
 
     def test_duplicate_bundle_is_not_silently_overwritten(self):
@@ -176,6 +176,7 @@ class FrozenProtocolTests(unittest.TestCase):
                    "by_order": {o: {**sample, "signed": .8 if treatment == "low" else -.8, "ci95": interval} for o in ("ab", "ba")}}
             r["listener"][f"{treatment}:neutral"] = {"listeners": {h: row for h in f["models"]["listeners"] + ["all_models"]}}
         r["range"]["neutral_vs_original"] = {"metrics": {m: dict(metric) for m in f["primary_range_metrics"]}}
+        r["guardrails"]["neutral_vs_original"] = {"metrics": {m: dict(metric) for m in ("grammar_errors_per_100_words", "cola_mean")}}
         control = {**sample, **bias, "signed_ci90": [-.05, .05],
                    "by_order": {o: {**sample, "ci90": [-.05, .05]} for o in ("ab", "ba")}}
         r["listener"]["neutral:original"] = {"listeners": {h: control for h in f["models"]["listeners"] + ["all_models"]}}
@@ -185,6 +186,15 @@ class FrozenProtocolTests(unittest.TestCase):
         r["listener"]["low:neutral"]["listeners"]["unregistered"] = row
         self.assertFalse(verdict(frozen_criteria(r, f))["confirmed"])
         del r["listener"]["low:neutral"]["listeners"]["unregistered"]
+        control_metrics = r["guardrails"]["neutral_vs_original"]["metrics"]
+        for name in list(control_metrics):
+            saved = control_metrics[name]
+            for value in (False, None):
+                control_metrics[name] = {**saved, "equivalence": {"equivalent": value}}
+                self.assertFalse(verdict(frozen_criteria(r, f))["confirmed"])
+            del control_metrics[name]
+            self.assertFalse(verdict(frozen_criteria(r, f))["confirmed"])
+            control_metrics[name] = saved
         del r["guardrails"]
         self.assertFalse(verdict(frozen_criteria(r, f))["confirmed"])
 

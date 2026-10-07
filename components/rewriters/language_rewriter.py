@@ -187,6 +187,9 @@ def _history_block(feedback: Optional[dict]) -> str:
 
 
 NEUTRAL_SELECTION_RULE = "closest_surface_profile_v1"
+# closest_surface_and_frequency_v1 ranks gate-passing candidates first by how close their mean word
+# frequency (SUBTLEX Lg10CD) stays to the original, then by the surface profile.
+NEUTRAL_SELECTION_RULES = ("closest_surface_profile_v1", "closest_surface_and_frequency_v1")
 
 
 @dataclass
@@ -252,21 +255,37 @@ def parse_candidates(raw: str) -> List[str]:
     return [c for c in cleaned if c]
 
 
-def candidate_profile(text: str, original: str) -> dict:
-    """Cheap surface profile for choosing among gate-passing Neutral candidates: how far the
-    sentence count and the word count moved from the original. The primary range measures
-    (lexical diversity, subordination, dependency distance, ...) are deliberately not used
-    here, so the Neutral-versus-Original equivalence test stays an independent check."""
+def candidate_profile(text: str, original: str, frequency=None) -> dict:
+    """Surface profile for choosing among gate-passing Neutral candidates: how far the sentence
+    count and the word count moved from the original and, when a ``frequency`` scorer is given,
+    how far the mean word frequency moved (absolute difference in SUBTLEX Lg10CD)."""
     from components.metrics.text_normalization import split_sentences, word_count
     n_words = max(1, word_count(original))
-    return {"sentence_delta": abs(len(split_sentences(text)) - len(split_sentences(original))),
-            "word_delta_ratio": round(abs(word_count(text) - word_count(original)) / n_words, 6)}
+    profile = {"sentence_delta": abs(len(split_sentences(text)) - len(split_sentences(original))),
+               "word_delta_ratio": round(abs(word_count(text) - word_count(original)) / n_words, 6)}
+    if frequency is not None:
+        f_text, f_original = frequency(text), frequency(original)
+        profile["frequency_delta"] = None if f_text is None or f_original is None else round(abs(f_text - f_original), 6)
+    return profile
 
 
-def select_candidate(candidates: List[str], original: str, *, seed: int = 0) -> NeutralSelection:
-    """Drop unusable candidates, then pick the one whose surface profile stays closest to the
-    original (fewest sentence-count changes, then smallest word-count change); exact ties are
-    broken by a fixed seed. Edit distance is recorded for every candidate but never ranks them."""
+def selection_key(profile: dict, rule: str) -> tuple:
+    if rule == "closest_surface_and_frequency_v1":
+        delta = profile.get("frequency_delta")
+        return (delta is None, delta if delta is not None else 0.0, profile["sentence_delta"], profile["word_delta_ratio"])
+    return (profile["sentence_delta"], profile["word_delta_ratio"])
+
+
+def select_candidate(candidates: List[str], original: str, *, seed: int = 0,
+                     rule: str = NEUTRAL_SELECTION_RULE, frequency=None) -> NeutralSelection:
+    """Drop unusable candidates, then pick the one whose profile stays closest to the original:
+    fewest sentence-count changes, then smallest word-count change, or under
+    ``closest_surface_and_frequency_v1`` the smallest word-frequency change first. Exact ties
+    are broken by a fixed seed. Edit distance is recorded for every candidate but never ranks them."""
+    if rule not in NEUTRAL_SELECTION_RULES:
+        raise ValueError(f"unknown neutral selection rule: {rule!r}")
+    if rule == "closest_surface_and_frequency_v1" and frequency is None:
+        raise ValueError("closest_surface_and_frequency_v1 needs a word-frequency scorer")
     kept: List[str] = []
     dropped: List[dict] = []
     seen: Set[tuple] = set()
@@ -288,12 +307,12 @@ def select_candidate(candidates: List[str], original: str, *, seed: int = 0) -> 
                            f"({len(dropped)} dropped: "
                            f"{sorted({d['reason'] for d in dropped})})")
     distances = [normalized_token_edit_distance(c, original) for c in kept]
-    profiles = [candidate_profile(c, original) for c in kept]
+    profiles = [candidate_profile(c, original, frequency) for c in kept]
     order = sorted(range(len(kept)), key=lambda i: kept[i])  # candidate order never matters ...
     random.Random(seed).shuffle(order)                       # ... only the seed breaks exact ties, then a stable sort
-    order.sort(key=lambda i: (profiles[i]["sentence_delta"], profiles[i]["word_delta_ratio"]))
+    order.sort(key=lambda i: selection_key(profiles[i], rule))
     return NeutralSelection(chosen=kept[order[0]], candidates=kept, distances=distances, profiles=profiles,
-                            rule=NEUTRAL_SELECTION_RULE, seed=seed, dropped=dropped)
+                            rule=rule, seed=seed, dropped=dropped)
 
 
 @register
@@ -312,14 +331,14 @@ class LanguageProficiencyRewriter(Rewriter):
         n_neutral_candidates: int = 5,
         applies_to: Optional[list] = None,
         prompt_version: Optional[str] = None,
+        neutral_selection_rule: Optional[str] = None,
     ):
-        # No **kwargs: an unknown parameter (e.g. a stale CEFR ``level="B"``) must
-        # raise instead of silently running every utterance as ``low``.
-        # ``prompt_version`` is what ``to_config`` records; a checkpoint written
-        # under another prompt version must not resume as if nothing changed.
+        # Validate the policy recorded by to_config before restoring a rewriter.
         if prompt_version is not None and prompt_version != PROMPT_VERSION:
             raise ValueError(f"config was written with prompt version {prompt_version!r}; "
                              f"this code has {PROMPT_VERSION!r}")
+        if neutral_selection_rule is not None and neutral_selection_rule not in NEUTRAL_SELECTION_RULES:
+            raise ValueError(f"unknown neutral selection rule: {neutral_selection_rule!r}")
         self.llm_client = llm_client
         self.condition = normalize_condition(condition)
         self.model = model

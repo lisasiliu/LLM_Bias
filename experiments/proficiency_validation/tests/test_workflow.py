@@ -34,8 +34,6 @@ class SourceReportTests(unittest.TestCase):
         self.assertEqual(result["validation_status"], "pilot")
         self.assertEqual(result["provenance"]["validation_scope"],
                          "automated linguistic measures and model perception")
-        self.assertIn("The validation scope is measured linguistic range and model perception",
-                      report.render(result))
         self.assertEqual(report.render(result), (EXPERIMENT_DIR / "VALIDATION.md").read_text())
         for row in read_jsonl(DATA_DIR / "sources.jsonl"):
             self.assertNotIn("rewritten_text", row)
@@ -119,7 +117,7 @@ class MissingEvidenceTests(unittest.TestCase):
             result = json.loads((root / "result.json").read_text())
             self.assertFalse(result["verdict"]["confirmed"])
             self.assertGreater(result["verdict"]["not_evaluated"], 0)
-            self.assertTrue(any("Low vs Neutral" in c["criterion"] for c in result["criteria"]))
+            self.assertTrue(any("A vs B" in c["criterion"] for c in result["criteria"]))
 
 
 class CheckpointTests(unittest.TestCase):
@@ -180,21 +178,30 @@ class CheckpointTests(unittest.TestCase):
             self.assertEqual(len(read_jsonl(output)), 2)
             self.assertFalse(Path(str(output) + ".partial").exists())
 
-    def test_resume_tolerates_changed_source_hashes_but_not_changed_models(self):
+    def test_resume_allows_report_changes_and_rejects_model_output_code_changes(self):
         from experiments.proficiency_validation.rewrite.runtime import configure_run
+        prefix = "experiments.proficiency_validation."
+        def settings(**changes):
+            hashes = {prefix + name: "1" for name in ("validation.analysis", "validation.cefr", "validation.perception",
+                                                      "validation.calibration", "rewrite.fidelity", "rewrite.gate")}
+            hashes.update({prefix + name: value for name, value in changes.items()})
+            return {"model": "fake", "hashes": {"rubric": "r1", "module_source_sha256": hashes}}
         with tempfile.TemporaryDirectory() as tmp:
             output = Path(tmp) / "rows.jsonl"
-            first = Checkpoint(output, {"model": "fake", "hashes": {"rubric": "r1", "module_source_sha256": {"a": "1"}}})
+            first = Checkpoint(output, settings())
             first.append({"id": 1}); first.finish(); first.close()
-            resumed = Checkpoint(output, {"model": "fake", "hashes": {"rubric": "r1", "module_source_sha256": {"a": "2"}}}, resume=True)
+            resumed = Checkpoint(output, settings(**{"validation.analysis": "2"}), resume=True)
             self.assertEqual(resumed.rows, [{"id": 1}]); resumed.close()
+            for module in ("validation.cefr", "validation.perception", "validation.calibration", "rewrite.fidelity", "rewrite.gate", "unknown"):
+                with self.subTest(module=module), self.assertRaisesRegex(ValueError, "settings differ"):
+                    Checkpoint(output, settings(**{module: "2"}), resume=True)
             with self.assertRaisesRegex(ValueError, "settings differ"):
-                Checkpoint(output, {"model": "fake", "hashes": {"rubric": "r2", "module_source_sha256": {"a": "2"}}}, resume=True)
+                Checkpoint(output, {**settings(), "model": "changed"}, resume=True)
             manifest = Path(tmp) / "run" / "manifest.json"
-            configure_run(manifest, {"judge": {"model": "m"}}, {"hashes": {"module_source_sha256": {"a": "1"}}, "tolerance": .25})
-            configure_run(manifest, {"judge": {"model": "m"}}, {"hashes": {"module_source_sha256": {"a": "2"}}, "tolerance": .25})
+            configure_run(manifest, {"judge": {"model": "m"}}, settings())
+            configure_run(manifest, {"judge": {"model": "m"}}, settings(**{"validation.analysis": "2"}))
             with self.assertRaisesRegex(ValueError, "select a new RUN"):
-                configure_run(manifest, {"judge": {"model": "m"}}, {"hashes": {"module_source_sha256": {"a": "2"}}, "tolerance": .10})
+                configure_run(manifest, {"judge": {"model": "m"}}, settings(**{"validation.cefr": "2"}))
 
     def test_resume_restarts_an_attempt_that_wrote_nothing_but_protects_written_rows(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -250,7 +257,8 @@ class ChallengeShardTests(unittest.TestCase):
             shards = []
             for index in range(2):
                 path = cal / "shards" / f"judged_{index:02}.jsonl"
-                settings = {"judge": {"model": "fake"}, "hashes": {"rubric": "r1", "module_source_sha256": {"a": str(index)}},
+                settings = {"judge": {"model": "fake"}, "hashes": {"rubric": "r1", "module_source_sha256": {
+                                "experiments.proficiency_validation.validation.analysis": str(index)}},
                             "shard": [index, 2]}
                 ck = Checkpoint(path, settings)
                 for item in items[index::2]:
@@ -285,3 +293,33 @@ class ChallengeShardTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "complete item coverage"):
                 merge_challenge(cal / "items.jsonl", [a], cal / "judged.jsonl")
             self.assertTrue(a.exists())        # a refused merge removes nothing
+
+
+class ExportTests(unittest.TestCase):
+    def test_export_keeps_each_cefr_rater_and_only_complete_listener_orders(self):
+        from experiments.proficiency_validation.validation.export import _rows
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            feature = {"bundle_id": "b", "game_id": "g", "condition": "low", "complete": True}
+            write_jsonl(root / "linguistic_features.jsonl", [feature])
+            cefr = [{**feature, "rater": rater, "rater_family": rater, "level": band, "ok": True, "status": "rated"}
+                    for rater, band in (("r1", "A"), ("r2", "C"))]
+            write_jsonl(root / "cefr_auxiliary.jsonl", cefr)
+            base = {**feature, "pair": "low:neutral", "treatment": "low", "comparator": "neutral",
+                    "construct": "range", "ok": True}
+            listeners = [{**base, "listener": "complete", "order": order, "signed": 1} for order in ("ab", "ba")]
+            listeners += [{**base, "listener": "incomplete", "order": "ab", "signed": -1},
+                          {**base, "listener": "incomplete", "order": "ba", "signed": -1, "ok": False}]
+            write_jsonl(root / "range_listener.jsonl", listeners)
+            row, = _rows(root, "test")
+            self.assertEqual({r: v["band"] for r, v in row["cefr_auxiliary_ratings"].items()}, {"r1": "A", "r2": "C"})
+            self.assertEqual(row["listener_signed_range_low_vs_neutral"], 1.)
+            self.assertEqual(set(row["listener_ratings"]["low:neutral"]["range"]), {"complete"})
+            listeners[-1]["ok"] = True
+            write_jsonl(root / "range_listener.jsonl", listeners)
+            row, = _rows(root, "test")
+            self.assertEqual(row["listener_signed_range_low_vs_neutral"], 0.)
+            cefr.append(dict(cefr[0]))
+            write_jsonl(root / "cefr_auxiliary.jsonl", cefr)
+            with self.assertRaises(ValueError):
+                _rows(root, "test")

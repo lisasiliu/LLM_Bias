@@ -145,8 +145,8 @@ class NeutralIndependenceTests(unittest.TestCase):
         self.assertNotIn("fraction_within_tolerance", json.dumps(exposure))
         self.assertEqual(exposure["search"]["failed_without_fidelity_passer"], 1)
         text = "\n".join(exposure_lines(exposure))
-        self.assertIn("not a matching requirement", text)
-        self.assertIn("| low | 4 |", text)
+        self.assertIn("describes rewrite exposure", text)
+        self.assertIn("| A | 4 |", text)
 
     def test_search_diagnostics_count_repetition_and_rounds(self):
         row = {"source_id": "one", "condition": "neutral", "status": "ok", "original_text": self.src.original_nl,
@@ -190,3 +190,33 @@ class ExposureFloorTests(unittest.TestCase):
         self.assertEqual(sum(1 for a in outcome.attempts for g in a.neutral_selection["candidate_gates"] if g.get("semantic")), 0)
         accepted, _ = self.run_search([[self.near_copy]], floor=0.)
         self.assertEqual(accepted.status, "ok")                       # the floor is the only thing that changed
+
+
+class FrequencySelectionTests(unittest.TestCase):
+    def test_frequency_rule_prefers_the_candidate_closest_in_word_frequency(self):
+        from components.rewriters.language_rewriter import select_candidate, NEUTRAL_SELECTION_RULE
+        original = "P5 is lying about the seer check, so vote P5 out today."
+        plain = "P5 is not telling the truth about the seer check, so vote P5 out today."
+        fancy = "P5 is fabricating the seer check, so vote P5 out today."
+        scores = {original: 3.0, plain: 3.1, fancy: 2.6}
+        chosen = select_candidate([fancy, plain], original, seed=1, rule="closest_surface_and_frequency_v1",
+                                  frequency=scores.get)
+        self.assertEqual(chosen.chosen, plain)
+        self.assertEqual(chosen.rule, "closest_surface_and_frequency_v1")
+        self.assertEqual([round(p["frequency_delta"], 2) for p in chosen.profiles], [0.4, 0.1])
+        default = select_candidate([fancy, plain], original, seed=1)
+        self.assertEqual(default.rule, NEUTRAL_SELECTION_RULE)
+        self.assertNotIn("frequency_delta", default.profiles[0])
+        with self.assertRaises(ValueError):
+            select_candidate([fancy, plain], original, rule="closest_surface_and_frequency_v1")
+        with self.assertRaises(ValueError):
+            select_candidate([fancy, plain], original, rule="no_such_rule")
+
+    def test_gate_records_the_selection_rule(self):
+        from experiments.proficiency_validation.rewrite.gate import SemanticGate
+        gate = SemanticGate(None, None, require_parser=False, require_validator=False, judge_handle="deepseek-chat")
+        config = gate.to_config()
+        self.assertEqual(config["neutral_selection_rule"], "closest_surface_profile_v1")
+        self.assertIsNone(config["subtlex_path"])
+        with self.assertRaises(ValueError):
+            gate.set_neutral_selection("closest_surface_and_frequency_v1")

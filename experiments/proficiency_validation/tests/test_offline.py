@@ -524,10 +524,10 @@ class ReviewFixTests(unittest.TestCase):
         report = {"range": contrast_analysis(features, ["mattr"], frozen=frozen, n_boot=50, seed=1, family="r")}
         crit = frozen_criteria(report, frozen)
         by_name = {c["criterion"]: c for c in crit}
-        low = next(c for n, c in by_name.items() if n.startswith("Low vs Neutral: mattr"))
+        low = next(c for n, c in by_name.items() if n.startswith("A vs B: mattr"))
         self.assertIsNone(low["passed"])
-        listeners = [c for n, c in by_name.items() if n.startswith("Listener") and "low vs Neutral" in n]
-        controls = [c for n, c in by_name.items() if "Neutral vs Original equivalence" in n]
+        listeners = [c for n, c in by_name.items() if n.startswith("Listener") and "A vs B" in n]
+        controls = [c for n, c in by_name.items() if "B vs Original equivalence" in n]
         self.assertEqual(len(listeners), 3)                      # m1, m2, all_models
         self.assertEqual(len(controls), 3)                       # the H3 control for the same three
         self.assertTrue(all(c["passed"] is None for c in listeners + controls))
@@ -537,7 +537,7 @@ class ReviewFixTests(unittest.TestCase):
         # an explicit FDR non-rejection is a FAIL, not a pass
         report["range"]["low_vs_neutral"]["metrics"]["mattr"].update(
             {"reject_fdr_05": False, "direction_confirmed": True, "cohens_dz": -2.0})
-        low = next(c for c in frozen_criteria(report, frozen) if c["criterion"].startswith("Low vs Neutral: mattr"))
+        low = next(c for c in frozen_criteria(report, frozen) if c["criterion"].startswith("A vs B: mattr"))
         self.assertIs(low["passed"], False)
 
     def test_gated_rewriter_is_registered_and_reconstructible(self):
@@ -810,10 +810,10 @@ class FourthReviewFixTests(unittest.TestCase):
                                         "confidence": "high"})
         report = {"listener": listener_analysis(choices, n_boot=200, seed=1)}
         crit = {c["criterion"]: c for c in frozen_criteria(report, frozen)}
-        control = [c for n, c in crit.items() if "Neutral vs Original equivalence" in n]
+        control = [c for n, c in crit.items() if "B vs Original equivalence" in n]
         self.assertEqual(len(control), 2)                       # m1 and all_models
         self.assertTrue(all(c["passed"] is None for c in control))  # no equivalence margin frozen
-        low = next(c for n, c in crit.items() if n.startswith("Low vs Neutral: mattr"))
+        low = next(c for n, c in crit.items() if n.startswith("A vs B: mattr"))
         self.assertIsNone(low["passed"])                        # no threshold frozen -> not evaluated
         self.assertFalse(any(n.startswith("Neutral matching") for n in crit))   # no edit-distance matching criterion
         self.assertFalse(verdict(list(crit.values()))["confirmed"])
@@ -839,9 +839,14 @@ class FourthReviewFixTests(unittest.TestCase):
 class FifthReviewFixTests(unittest.TestCase):
     def test_bare_rewriter_config_round_trips_and_version_is_checked(self):
         from lurkingwolf.rewriter import Rewriter
-        rw = LanguageProficiencyRewriter(llm_client=None, condition="low", max_tokens=222)
-        again = Rewriter.from_config(rw.to_config(), llm_client=None)          # checkpoint resume path
-        self.assertEqual(again.to_config(), rw.to_config())
+        for condition in ("low", "high", "neutral"):
+            rw = LanguageProficiencyRewriter(llm_client=None, condition=condition, max_tokens=222)
+            again = Rewriter.from_config(rw.to_config(), llm_client=None)
+            self.assertEqual(again.to_config(), rw.to_config())
+        stale_rule = rw.to_config()
+        stale_rule["params"]["neutral_selection_rule"] = "obsolete"
+        with self.assertRaisesRegex(ValueError, "selection rule"):
+            Rewriter.from_config(stale_rule, llm_client=None)
         stale = rw.to_config()
         stale["params"]["prompt_version"] = "range_v0"
         with self.assertRaises(ValueError):
@@ -850,6 +855,25 @@ class FifthReviewFixTests(unittest.TestCase):
                               llm_client=FakeClient([]))
         self.assertEqual(Rewriter.from_config(gated.to_config(), llm_client=FakeClient([])).to_config(),
                          gated.to_config())
+
+    def test_gate_config_preserves_policy_budgets_and_secondary_identity(self):
+        from lurkingwolf.rewriter import Rewriter
+        from experiments.proficiency_validation.rewrite.runtime import ValidationModel
+        from experiments.proficiency_validation.rewrite.fidelity import EnglishFidelityValidator
+        gate = SemanticGate.from_handle("deepseek-chat", parser_abstention="no_verdict",
+                                        require_parser=False, require_validator=False)
+        gate.neutral_exposure_floor, gate.parser_context_words = .15, 1200
+        gate.parser.max_tokens, gate.validator.max_tokens = 900, 1800
+        gate.second_opinion = EnglishFidelityValidator(ValidationModel.resolve("deepseek-chat"), max_tokens=2400)
+        rewriter = GatedRewriter(base="neutral", gate=gate, llm_client=FakeClient([]))
+        config = rewriter.to_config()
+        restored = Rewriter.from_config(config, llm_client=FakeClient([]))
+        self.assertEqual(restored.to_config(), config)
+        self.assertEqual((restored.gate.parser_abstention, restored.gate.neutral_exposure_floor,
+                          restored.gate.parser_context_words), ("no_verdict", .15, 1200))
+        config["params"]["gate"]["second_opinion"]["identity"] = {"revision": "changed"}
+        with self.assertRaisesRegex(ValueError, "identity changed"):
+            Rewriter.from_config(config, llm_client=FakeClient([]))
 
     def test_parse_candidates_ignores_trailing_commentary(self):
         self.assertEqual(parse_candidates('["a", "b"] Note: [see] above'), ["a", "b"])

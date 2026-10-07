@@ -147,7 +147,25 @@ def _quote_pattern(quote):
     words = _WORD.findall(normalized)
     if not words:
         return r"\s+".join(re.escape(part) for part in normalized.split())
-    return r"(?<!\w)" + r"\W*".join(re.escape(w) for w in words) + r"(?!\w)"
+    boundary_before, boundary_after = r"(?<!\w)(?<!\w['-])", r"(?!\w|['-]\w)"
+    separator = boundary_after + r"\W+" + boundary_before
+    return boundary_before + separator.join(re.escape(w) for w in words) + boundary_after
+
+
+def audit_accepted_alignments(rows):
+    """Recheck stored alignment evidence for the recorded accepted texts."""
+    checked, issues = 0, []
+    for row in rows:
+        if row.get("status") != "ok":
+            continue
+        checked += 1
+        selected = [a for a in row.get("attempts", []) if a.get("text") == row.get("rewritten_text")
+                    and (a.get("gate") or {}).get("ok") is True]
+        dimensions = ((selected[-1].get("gate") or {}).get("semantic") or {}).get("dimensions", {}) if selected else {}
+        missing, broken = alignment_check(dimensions.get("alignments"), row["original_text"], row["rewritten_text"])
+        if missing or broken:
+            issues.append({"source_id": row["source_id"], "condition": row["condition"], "errors": missing + broken})
+    return {"checked": checked, "issues": issues}
 
 
 def alignment_check(alignments, original, rewritten):

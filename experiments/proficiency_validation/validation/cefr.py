@@ -1,4 +1,4 @@
-"""Auxiliary CEFR-referenced A/B/C ratings of whole-game passages, with optional external calibration; never a gate."""
+"""Auxiliary CEFR-referenced A/B/C passage ratings and external calibration."""
 from __future__ import annotations
 from experiments.proficiency_validation.rewrite.runtime import read_metadata, update_metadata
 from collections import Counter, defaultdict
@@ -8,7 +8,7 @@ import re
 from components.helpers import read_jsonl
 from components.judges.judge_model import JudgeModelError, JudgeTransportError
 from components.stats import mean, proportion_bootstrap
-from experiments.proficiency_validation.rewrite.runtime import now_iso, fmt, sha256_file
+from experiments.proficiency_validation.rewrite.runtime import condition_label, now_iso, fmt, pair_label, sha256_file
 from experiments.proficiency_validation.rewrite.fidelity import _quote_pattern, _TYPOGRAPHIC
 from experiments.proficiency_validation.rewrite.runtime import assert_unique, artifact_provenance, record_artifact, digest
 
@@ -279,7 +279,7 @@ def ordinal_analysis(rows, *, n_boot=2000, seed=101):
 
 
 def render_cefr(report):
-    lines = ["## Auxiliary CEFR-referenced A/B/C ratings", "",
+    lines = ["## Auxiliary CEFR band ratings", "",
         "Ratings describe the language demonstrated in each passage. Bands are ordinal, so the tables report band counts and "
         "paired band transitions.", ""]
     if report.get("calibration"):
@@ -288,14 +288,12 @@ def render_cefr(report):
         for h, r in report["calibration"].items():
             lines.append(f"| {h} | {r['n']} | {r['valid']} | {fmt(r['accuracy_all_items'])} |")
         lines += ["", "Calibration agreement describes the external learner-production references.", ""]
-    else:
-        lines += ["These are exploratory prompt-based model judgments under the stated rubric.", ""]
-    lines += ["| Rater | Condition | Rated / eligible | A | B | C |",
+    lines += ["| Rater | Condition | Rated / eligible | CEFR A | CEFR B | CEFR C |",
               "| --- | --- | ---: | ---: | ---: | ---: |"]
     for h, conditions in report.get("level_distributions", {}).items():
         for c, counts in conditions.items():
             coverage = report["raters"][h]["condition_coverage"][c]
-            lines.append(f"| {h} | {c} | {coverage['rated']}/{coverage['eligible']} | "
+            lines.append(f"| {h} | {condition_label(c)} | {coverage['rated']}/{coverage['eligible']} | "
                          + " | ".join(str(counts.get(level, 0)) for level in LEVELS) + " |")
     lines += ["",
         "| Rater | Contrast | Paired / eligible | Games | Lower | Same | Higher |",
@@ -303,7 +301,7 @@ def render_cefr(report):
     for h, rater in report.get("raters", {}).items():
         for contrast, r in rater["contrasts"].items():
             vals = [fmt(r["game_weighted_shares"][d]["estimate"]) for d in ("lower", "same", "higher")]
-            lines.append(f"| {h} | {contrast} | {r['paired']}/{r['eligible']} | {r['games']} | " + " | ".join(vals) + " |")
+            lines.append(f"| {h} | {pair_label(contrast)} | {r['paired']}/{r['eligible']} | {r['games']} | " + " | ".join(vals) + " |")
     lines += ["", "Shares weight speakers equally within games and games equally. Transition counts, "
               "cluster intervals and missing ratings are recorded in JSON.", ""]
     return lines
@@ -501,7 +499,7 @@ def main(args):
         checkpoint.finish()
     finally:
         checkpoint.close()
-    record_artifact(args.out, {**settings["artifact"], "created_at": now_iso(), "settings_sha256": digest(settings),
+    record_artifact(args.out, {**settings["artifact"], "created_at": now_iso(), "settings_sha256": checkpoint.settings["settings_sha256"],
         "command": args.cefr_command, "prompt_version": VERSION, "prompt_sha256": settings["rubric"],
         "max_tokens": args.max_tokens, "raters": {h: r.model.provenance() for h, r in raters.items()},
         "scale": list(LEVELS), "calibration": calibration,

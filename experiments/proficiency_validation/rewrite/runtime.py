@@ -20,6 +20,25 @@ from lurkingwolf.utils.speech_nl import parse_predicate
 
 EXPERIMENT_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = EXPERIMENT_DIR / "data" / "corpus"
+# Displayed names of the conditions: the three levels are A (restricted), B (source-level paraphrase)
+# and C (expanded); the untreated source stays Original.
+CONDITION_LABELS = {"low": "A", "neutral": "B", "high": "C", "original": "Original"}
+CONDITION_ORDER = ("original", "low", "neutral", "high")
+
+
+def ordered_conditions(conditions):
+    """Conditions in display order: Original, A, B, C."""
+    return sorted(conditions, key=lambda c: (CONDITION_ORDER.index(c) if c in CONDITION_ORDER else len(CONDITION_ORDER), c))
+
+
+def condition_label(condition):
+    return CONDITION_LABELS.get(condition, condition)
+
+
+def pair_label(pair, sep=" vs "):
+    """``"low:neutral"`` or ``"low_vs_neutral"`` -> ``"A vs B"``."""
+    parts = pair.split(":") if ":" in pair else pair.split("_vs_")
+    return sep.join(condition_label(p) for p in parts)
 RUNS_DIR = EXPERIMENT_DIR / "data" / "runs"
 FROZEN_CONFIG = EXPERIMENT_DIR / "data" / "protocol" / "frozen_config.json"
 
@@ -55,9 +74,8 @@ RANGE_METRICS: Dict[str, int] = {
     "mean_sentence_length": -1,
 }
 PRIMARY_RANGE_METRICS: tuple = ("subtlex_mean", "mattr", "subordinate_clause_rate")
-# clause_pattern_entropy is descriptive: Low splits long sentences into several short ones, which
-# raises the number of distinct clause patterns per passage, and the natural L1-L5 baseline shows
-# no level trend for it (experiments/natural_proficiency), so it carries no range expectation.
+# clause_pattern_entropy is descriptive: splitting long sentences into several short ones raises the
+# number of distinct clause patterns per passage, so it carries no range expectation.
 NUISANCE_METRICS: tuple = ("word_count", "n_sentences", "edit_distance_to_original", "clause_pattern_entropy")
 
 # Family B guardrail metrics (equivalence, not difference).
@@ -222,11 +240,16 @@ class ValidationModel(JudgeModel):
                    "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
                    "temperature": self.temperature if temperature is None else temperature,
                    "max_tokens": self.max_tokens if max_tokens is None else max_tokens}
+        if self.spec.provider == "openai":
+            # Current OpenAI models take max_completion_tokens and only the default temperature.
+            payload["max_completion_tokens"] = payload.pop("max_tokens")
+            if payload["temperature"] != 1:
+                payload.pop("temperature")
         headers = self._headers()
         request_metadata = {"model": self.spec.model, "purpose": self.purpose,
                             "system_chars": len(system), "user_chars": len(user),
                             "prompt_sha256": hashlib.sha256(json.dumps([system, user]).encode()).hexdigest(),
-                            "max_output_tokens": payload["max_tokens"]}
+                            "max_output_tokens": payload.get("max_tokens", payload.get("max_completion_tokens"))}
         for attempt in range(self.retries + 1):
             response = None
             try:
@@ -256,7 +279,8 @@ class ValidationModel(JudgeModel):
         self.transport_retries += attempt
         self.last_error = None
         self.model_served = str(data.get("model") or "")
-        if self.model_served != self.spec.model:
+        if self.model_served != self.spec.model and not self.model_served.startswith(self.spec.model + "-"):
+            # OpenAI answers an alias with its dated snapshot name.
             raise JudgeModelError(f"requested {self.spec.model!r}, server returned {self.model_served!r}")
         usage = dict(data.get("usage") or {})
         if self.ledger is not None:
@@ -376,14 +400,13 @@ def _write_manifest(manifest, data):
 
 
 def comparable_settings(settings):
-    """Settings as compared for resuming: per-module source hashes are dropped.
-
-    Resuming must not break because an analysis or reporting module changed; what a
-    stage's results depend on is kept explicitly (prompt and rubric hashes, model
-    identities, generation policy hashes, budgets)."""
+    """Compare model-output dependencies while allowing offline report changes."""
+    report_modules = {f"experiments.proficiency_validation.validation.{name}"
+                      for name in ("analysis", "report", "export", "power")}
     def strip(value):
         if isinstance(value, dict):
-            return {k: strip(v) for k, v in value.items() if k != "module_source_sha256"}
+            return {k: ({name: sha for name, sha in v.items() if name not in report_modules}
+                        if k == "module_source_sha256" else strip(v)) for k, v in value.items()}
         if isinstance(value, list):
             return [strip(v) for v in value]
         return value
@@ -440,7 +463,7 @@ class Checkpoint:
                 update_metadata(self.output, "checkpoint", self.settings)
             self.finished = self.output.exists()
             path = self.output if self.finished else self.partial
-            # Malformed partial rows fail visibly; they are never silently discarded.
+            # A malformed partial row raises.
             self.rows = read_jsonl(path) if path.exists() else []
         except Exception:
             self.close()
@@ -461,6 +484,21 @@ class Checkpoint:
                 self.partial.touch()
             os.replace(self.partial, self.output)
             self.finished = True
+
+    def reopen(self, keep):
+        """Drop the rows that fail ``keep`` and accept rows again, so those items can be re-asked."""
+        kept = [r for r in self.rows if keep(r)]
+        if len(kept) == len(self.rows) and not self.finished:
+            return 0
+        with self.partial.open("w", encoding="utf-8") as stream:
+            for row in kept:
+                stream.write(json.dumps(row, ensure_ascii=False, allow_nan=False) + "\n")
+        if self.output.exists():
+            self.output.unlink()
+        self.finished = False
+        dropped = len(self.rows) - len(kept)
+        self.rows = kept
+        return dropped
 
     def close(self):
         if self.lock is not None:

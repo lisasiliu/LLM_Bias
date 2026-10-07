@@ -70,7 +70,7 @@ class DecisionTests(unittest.TestCase):
         row = {"n_games": 1000, "n_bundles": 1000, "signed_preference": .04, "signed_ci95": [.02, .06],
                "by_order": {o: {"n_games": 1000, "n_bundles": 1000, "signed": .04, "ci95": [.02, .06]} for o in ("ab", "ba")}}
         report = {"listener": {"low:neutral": {"listeners": {"listener1": row}}}}
-        c = next(c for c in frozen_criteria(report, f) if c["criterion"] == "Listener listener1: low vs Neutral, both orders")
+        c = next(c for c in frozen_criteria(report, f) if c["criterion"] == "Listener listener1: A vs B, both orders")
         self.assertIs(c["passed"], False)
 
     def test_independent_treatments_and_judge_are_required(self):

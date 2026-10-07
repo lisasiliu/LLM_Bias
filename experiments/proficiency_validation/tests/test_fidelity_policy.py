@@ -48,6 +48,20 @@ class PropositionEvidenceTests(unittest.TestCase):
             "equivalent": True}], "P7 is a wolf.", "P7 is a wolf.")
         self.assertTrue(any(x.startswith("ungrounded_alignment_quote") for x in missing))
 
+    def test_archived_alignment_audit_checks_the_selected_accepted_text(self):
+        from experiments.proficiency_validation.rewrite.fidelity import audit_accepted_alignments
+        original, candidate = "P5 made a claim.", "P5's claim is clear."
+        alignment = [{"original": original, "rewrite": "P5", "equivalent": True},
+                     {"original": original, "rewrite": candidate, "equivalent": True}]
+        row = {"source_id": "g:s1", "condition": "high", "status": "ok", "original_text": original,
+               "rewritten_text": candidate, "attempts": [{"text": candidate,
+               "gate": {"ok": True, "semantic": {"dimensions": {"alignments": alignment}}}}]}
+        audit = audit_accepted_alignments([row, {**row, "status": "treatment_unavailable"}])
+        self.assertEqual(audit["checked"], 1)
+        self.assertEqual(audit["issues"][0]["errors"], ["ungrounded_alignment_quote:0:rewrite"])
+        alignment[0]["rewrite"] = candidate
+        self.assertEqual(audit_accepted_alignments([row])["issues"], [])
+
     def test_non_equivalence_overrides_global_true_flags(self):
         src = source(text="P7 is a seer claimant.")
         rewritten = "P7 is a seer."
@@ -255,6 +269,10 @@ class JudgeFormatRobustnessTests(unittest.TestCase):
         self.assertFalse(re.search(_quote_pattern("he pushed me second"), text))
         self.assertFalse(re.search(_quote_pattern("pushed me"), "he pushed meat first"))
         self.assertFalse(re.search(_quote_pattern("he pushed"), "she pushed"))
+        for quote, text in (("not able", "notable"), ("now here", "nowhere"),
+                            ("can", "can't"), ("able", "not-able"), ("not able", "not-able")):
+            self.assertIsNone(re.search(_quote_pattern(quote), text), (quote, text))
+        self.assertIsNotNone(re.search(_quote_pattern("not able"), "'not, able'"))
         rows = [{"original": 'P6\'s case against P5 is only "he pushed me first"', "rewrite": "P6's case is weak", "equivalent": True},
                 {"original": "and P6 is attacking the messenger", "rewrite": "P6's case is weak", "equivalent": True}]
         missing, _ = alignment_check(rows, raw, "P6's case is weak.")
@@ -435,7 +453,9 @@ class ThreeWayListenerTests(unittest.TestCase):
     def test_parse_three_way_reads_same_and_letters(self):
         from experiments.proficiency_validation.validation.perception import parse_three_way, prompt, VERSIONS
         for raw, want in (("A", "A"), ("passage B", "B"), ("same", "same"), ("No meaningful difference", "same"),
-                          ("neither", "same"), ("", None), ("C", None)):
+                          ("neither", "same"), ("same.", "same"), ("", None), ("C", None),
+                          ("cannot judge", None), ("not the same", None), ("none", None),
+                          ("same vocabulary but different syntax", None)):
             self.assertEqual(parse_three_way(raw), want, raw)
         for construct in VERSIONS:
             self.assertIn('"same"', prompt(construct))
@@ -446,6 +466,24 @@ class ThreeWayListenerTests(unittest.TestCase):
         self.assertEqual((r["signed_preference"], r["tie_rate"], r["position_bias"]["score"]), (0., 1., 0.))
         self.assertIsNone(r["share_treatment_more_limited"]); self.assertIsNone(r["bradley_terry"])
         self.assertEqual(r["order_consistency"]["same_condition"], 3 if False else 6)
+        self.assertLess(r["signed_ci90"][0], -.2)
+        self.assertGreater(r["signed_ci90"][1], .2)
+        self.assertIn("Hoeffding", r["signed_interval_method"])
+        for order in ("ab", "ba"):
+            self.assertLess(r["by_order"][order]["ci90"][0], -.2)
+        self.assertLess(r["position_bias"]["ci90"][0], -.2)
+
+    def test_unanimous_games_have_uncertainty_and_failed_rows_have_no_score(self):
+        from experiments.proficiency_validation.validation.analysis import signed_value, signed_bootstrap
+        self.assertIsNone(signed_value({"signed": 1, "ok": False}))
+        for sign in (-1, 0, 1):
+            result = signed_bootstrap({f"g{i}": [sign] for i in range(3)}, n_boot=50, seed=1)
+            self.assertEqual(result["estimate"], sign)
+            self.assertLess(result["ci_low"], result["ci_high"])
+            self.assertLessEqual(result["ci_low"], 0)
+            self.assertGreaterEqual(result["ci_high"], 0)
+        single = signed_bootstrap({"g1": [0]}, n_boot=50, seed=1)
+        self.assertIsNone(single["ci_low"])
 
     def test_always_choosing_slot_a_cancels_in_the_signed_score_but_shows_as_position_bias(self):
         rows = self.rows([("A", "A")] * 4, game="g1") + self.rows([("A", "A")] * 4, game="g2")
@@ -470,7 +508,7 @@ class ThreeWayListenerTests(unittest.TestCase):
                "position_bias": {"score": .5, "ci90": [.3, .7]}}
         report = {"listener": {"low:neutral": {"listeners": {"listener1": row, "all_models": row}}}}
         crit = {c["criterion"]: c for c in frozen_criteria(report, f)}
-        self.assertIs(crit["Listener listener1: low vs Neutral, both orders"]["passed"], True)
+        self.assertIs(crit["Listener listener1: A vs B, both orders"]["passed"], True)
         self.assertIs(crit["Listener position bias within margin: low:neutral"]["passed"], False)
         self.assertIsNone(crit["Listener position bias within margin: neutral:original"]["passed"])
 
@@ -482,8 +520,22 @@ class GuardrailNonInferiorityTests(unittest.TestCase):
             for b in range(2):
                 for c, value in (("neutral", .5), ("low", .5 + low_minus_neutral + (g % 2) * .01)):
                     out.append({"bundle_id": f"g{g}:P{b}", "game_id": f"g{g}", "condition": c, "complete": True,
-                                "cola_mean": value, "grammar_errors_per_100_words": .2 if c == "neutral" else .2 - low_minus_neutral})
+                                "cola_mean": value, "grammar_errors_per_100_words": .3 if c == "neutral" else .3 - low_minus_neutral + (g % 2) * .01})
         return out
+
+    def test_constant_game_differences_leave_noninferiority_unevaluated(self):
+        from experiments.proficiency_validation.validation.analysis import contrast_analysis
+        rows = self.rows(0, n_games=3)
+        for row in rows:
+            row["cola_mean"] = .5
+            row["grammar_errors_per_100_words"] = 0.
+        margins = {"cola_mean": .05, "grammar_errors_per_100_words": .05}
+        result = contrast_analysis(rows, list(margins), frozen={"noninferiority_margins": margins},
+                                   n_boot=100, seed=1, family="guardrail")
+        for metric in margins:
+            ni = result["low_vs_neutral"]["metrics"][metric]["noninferiority"]
+            self.assertIsNone(ni["noninferior"])
+            self.assertIsNone(ni["one_sided_95_bound"])
 
     def test_low_better_than_neutral_is_non_inferior_and_worse_than_margin_is_not(self):
         from experiments.proficiency_validation.validation.analysis import contrast_analysis
@@ -502,9 +554,11 @@ class GuardrailNonInferiorityTests(unittest.TestCase):
     def test_criteria_name_non_inferiority_for_the_treatment_and_equivalence_for_the_control(self):
         f = design()
         names = [c["criterion"] for c in frozen_criteria({}, f)]
-        self.assertTrue(any(n == "Low vs Neutral: cola_mean not meaningfully worse (non-inferiority)" for n in names))
-        self.assertTrue(any(n.startswith("Neutral vs Original: mattr equivalent") for n in names))
-        self.assertFalse(any("Low vs Neutral: cola_mean equivalent" in n for n in names))
+        self.assertTrue(any(n == "A vs B: cola_mean not meaningfully worse (non-inferiority)" for n in names))
+        self.assertTrue(any(n.startswith("B vs Original: mattr equivalent") for n in names))
+        self.assertIn("B vs Original: cola_mean equivalent", names)
+        self.assertIn("B vs Original: grammar_errors_per_100_words equivalent", names)
+        self.assertFalse(any("A vs B: cola_mean equivalent" in n for n in names))
         broken = dict(f); del broken["noninferiority_margins"]
         self.assertTrue(any("non-inferiority margin" in e for e in validate_design(broken)))
 
@@ -522,10 +576,19 @@ class PowerPlanningTests(unittest.TestCase):
                                          "neutral_vs_original": {"metrics": {"mattr": {"n_games": 3, "estimate": 0., "sd_diff": .005}}}},
                                "listener": {"low:neutral": {"listeners": {"all_models": {"n_games": 3, "signed_preference": .9, "sd_games": .1}}}}}}
         result = power.plan(report, equivalence_margins={"mattr": .01}, listener_margin=.2)
+        self.assertEqual(result["scope"], "per_measure")
         kinds = {r["quantity"]: r for r in result["rows"]}
-        self.assertEqual(kinds["Low − Neutral: mattr"]["games_80"], 6)
-        self.assertEqual(kinds["Neutral − Original: mattr equivalence"]["games_80"], power.games_for_equivalence(.005, .01))
-        self.assertIn("| Low − Neutral: mattr |", power.render(result))
+        self.assertEqual(kinds["A − B: mattr"]["games_80"], 6)
+        self.assertEqual(kinds["B − Original: mattr equivalence"]["games_80"], power.games_for_equivalence(.005, .01))
+        self.assertIn("| A − B: mattr |", power.render(result))
+
+    def test_invalid_probabilities_fail_before_planning(self):
+        from experiments.proficiency_validation.validation import power
+        for alpha in (0, 1, -1, float("nan")):
+            with self.assertRaises(ValueError):
+                power.sign_flip_minimum_games(alpha)
+        with self.assertRaises(ValueError):
+            power.games_for_difference(.5, .5, power=1.)
 
 
 class BooleanDimensionWordingTests(unittest.TestCase):

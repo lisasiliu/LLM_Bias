@@ -11,7 +11,7 @@ import sys
 from components.helpers import read_jsonl
 from components.stats import benjamini_hochberg, bradley_terry_bootstrap, cluster_bootstrap, flatten, median, paired_cohens_dz, percentile, sd, tost_equivalence, wilson_interval, proportion_bootstrap
 from experiments.proficiency_validation.rewrite.runtime import assert_unique
-from experiments.proficiency_validation.rewrite.runtime import CONTRASTS, NUISANCE_METRICS, RANGE_METRICS, PRIMARY_RANGE_METRICS, GUARDRAIL_HARM_DIRECTION, dump_json, fmt, load_frozen, now_iso
+from experiments.proficiency_validation.rewrite.runtime import CONTRASTS, NUISANCE_METRICS, RANGE_METRICS, PRIMARY_RANGE_METRICS, GUARDRAIL_HARM_DIRECTION, condition_label, dump_json, fmt, load_frozen, now_iso, pair_label
 from experiments.proficiency_validation.rewrite.gate import generation_qc, failure_cause
 
 
@@ -66,14 +66,14 @@ def criteria(report, frozen):
         available = None
         if all(v is not None for v in availability) and minimum is not None and max_gap is not None:
             available = min(availability) >= minimum and abs(availability[0] - availability[1]) <= max_gap
-        add(f"{treatment.title()} and Neutral treatment availability", available,
+        add(f"{condition_label(treatment)} and B treatment availability", available,
             {"rates": availability, "minimum": minimum, "max_differential_attrition": max_gap})
         contrast = f"{treatment}_vs_neutral"
         thresholds = frozen.get("range_effect_thresholds", {}).get(contrast, {})
         for metric in primary:
             m = report.get("range", {}).get(contrast, {}).get("metrics", {}).get(metric)
             threshold = thresholds.get(metric)
-            name = f"{treatment.title()} vs Neutral: {metric}, direction/FDR/effect/sample size"
+            name = f"{condition_label(treatment)} vs B: {metric}, direction/FDR/effect/sample size"
             if not m or threshold is None or m.get("reject_fdr_05") is None or m.get("cohens_dz") is None:
                 add(name, None, m, "metric, threshold or inferential result missing")
             else:
@@ -82,7 +82,7 @@ def criteria(report, frozen):
         for metric in GUARDRAIL_METRICS:
             m = report.get("guardrails", {}).get(contrast, {}).get("metrics", {}).get(metric)
             ni = (m or {}).get("noninferiority", {}).get("noninferior")
-            add(f"{treatment.title()} vs Neutral: {metric} not meaningfully worse (non-inferiority)",
+            add(f"{condition_label(treatment)} vs B: {metric} not meaningfully worse (non-inferiority)",
                 None if ni is None else bool(enough(m) and ni), m)
         block = report.get("listener", {}).get(f"{treatment}:neutral", {}).get("listeners", {})
         min_effect = frozen.get("listener_min_effect")
@@ -101,14 +101,18 @@ def criteria(report, frozen):
                 for order in ("ab", "ba"):
                     o = (row.get("by_order") or {}).get(order) or {}
                     passed = passed and bool(meets(o.get("ci95"), o.get("signed"))) and enough(o)
-            add(f"Listener {listener}: {treatment} vs Neutral, both orders", passed, row or None)
+            add(f"Listener {listener}: {condition_label(treatment)} vs B, both orders", passed, row or None)
         for listener in sorted(set(block) - set(listeners)):
             add(f"Unexpected listener {listener}", False)
         _position_bias_criterion(add, enough, frozen, block, f"{treatment}:neutral")
     for metric in primary:
         m = report.get("range", {}).get("neutral_vs_original", {}).get("metrics", {}).get(metric)
         eq = (m or {}).get("equivalence", {}).get("equivalent")
-        add(f"Neutral vs Original: {metric} equivalent", None if eq is None else bool(enough(m) and eq), m)
+        add(f"B vs Original: {metric} equivalent", None if eq is None else bool(enough(m) and eq), m)
+    for metric in GUARDRAIL_METRICS:
+        m = report.get("guardrails", {}).get("neutral_vs_original", {}).get("metrics", {}).get(metric)
+        eq = (m or {}).get("equivalence", {}).get("equivalent")
+        add(f"B vs Original: {metric} equivalent", None if eq is None else bool(enough(m) and eq), m)
     margin = frozen.get("listener_equivalence_margin")
     block = report.get("listener", {}).get("neutral:original", {}).get("listeners", {})
     for listener in listeners:
@@ -122,7 +126,7 @@ def criteria(report, frozen):
             for order in ("ab", "ba"):
                 o = (row.get("by_order") or {}).get(order) or {}
                 passed = passed and enough(o) and within(o.get("ci90"))
-        add(f"Listener {listener}: Neutral vs Original equivalence, both orders", passed, row or None)
+        add(f"Listener {listener}: B vs Original equivalence, both orders", passed, row or None)
     _position_bias_criterion(add, enough, frozen, block, "neutral:original")
     for c in frozen.get("conditions", []):
         row = report.get("absolute_quality", {}).get(c)
@@ -137,8 +141,7 @@ def criteria(report, frozen):
     if not report.get("integrity"):
         add("Frozen data provenance and cohort checks", None)
     if "perceived_proficiency" in frozen.get("perception_constructs", []):
-        # Apply the same prespecified listener decision rule to a separate
-        # construct. Range judgments cannot fill missing proficiency judgments.
+        # Evaluate perceived proficiency with the same listener criteria.
         perception_report = {**report, "listener": report.get("perceived_proficiency", {})}
         range_only = {**frozen, "perception_constructs": ["range"]}
         for item in criteria(perception_report, range_only):
@@ -192,9 +195,7 @@ def paired_clusters(rows: Sequence[dict], metric: str, treatment: str, comparato
 def contrast_analysis(rows: Sequence[dict], metrics: Sequence[str], *, frozen: Optional[dict],
                       n_boot: int, seed: int, family: str,
                       fdr_metrics: Optional[Sequence[str]] = None) -> Dict[str, dict]:
-    """Paired contrasts per metric. BH runs over ``fdr_metrics`` only (default: every
-    metric that is not a nuisance diagnostic), so word count or sentence count
-    cannot change the corrected p-values of the confirmatory range metrics."""
+    """Paired game contrasts with BH correction over the specified metric family."""
     bounds = (frozen or {}).get("equivalence_bounds", {}) or {}
     ni_margins = (frozen or {}).get("noninferiority_margins", {}) or {}
     fdr_set = set(fdr_metrics) if fdr_metrics is not None else {m for m in metrics if m not in NUISANCE_METRICS}
@@ -235,16 +236,17 @@ def contrast_analysis(rows: Sequence[dict], metrics: Sequence[str], *, frozen: O
                 entry["equivalence"] = (tost_equivalence(game_effects, bound, bootstrap=equivalence_from_same_draws)
                                         if bound is not None else {"bound": None, "equivalent": None})
             if metric in GUARDRAIL_METRICS and comparator == "neutral":
-                # Non-inferiority: the treatment may be better than Neutral but not meaningfully worse.
-                # One-sided 95% bound on the harmful side from the same game-bootstrap draws.
+                # Use the harmful tail of the game-bootstrap distribution.
                 draws = equivalence_from_same_draws.get("draws") or []
                 harm = GUARDRAIL_HARM_DIRECTION[metric]
                 margin = ni_margins.get(metric)
-                bound_value = (percentile(draws, 95) if harm > 0 else percentile(draws, 5)) if draws else None
+                estimable = boot["n_clusters"] >= 2 and draws and min(draws) < max(draws)
+                bound_value = (percentile(draws, 95) if harm > 0 else percentile(draws, 5)) if estimable else None
                 verdict_ni = None
-                if bound_value is not None and margin is not None and boot["n_clusters"] >= 2:
+                if bound_value is not None and margin is not None:
                     verdict_ni = bool(bound_value < margin) if harm > 0 else bool(bound_value > -margin)
                 entry["noninferiority"] = {"margin": margin, "harm_direction": "higher is worse" if harm > 0 else "lower is worse",
+                                           "interval_method": "game_bootstrap" if estimable else "insufficient_variation",
                                            "one_sided_95_bound": bound_value, "noninferior": verdict_ni}
             per_metric[metric] = entry
             if metric in fdr_set:
@@ -319,12 +321,11 @@ def splitting_sensitivity(features: Sequence[dict], *, primary: Sequence[str], n
 def sensitivity_lines(sensitivity: dict) -> List[str]:
     lines: List[str] = []
     for contrast, block in (sensitivity or {}).items():
-        treatment = contrast.split("_vs_")[0]
-        lines += [f"### Sentence-splitting sensitivity: {treatment} − neutral", "",
+        lines += [f"### Sentence-splitting sensitivity: {pair_label(contrast, ' − ')}", "",
                   f"Passages whose sentence count changed by at most {fmt(block['threshold_abs_delta_sentences'], 0)} "
                   f"(the median absolute change): {block['n_passages_modest']} of {block['n_passages_all']} passages, mean change "
                   f"{fmt(block['mean_delta_sentences_modest'], 2)} sentences against {fmt(block['mean_delta_sentences_all'], 2)} overall. "
-                  "Sentence count and length are diagnostics of how Low rewrites; they are not proficiency evidence on their own.", "",
+                  "Sentence count and length are diagnostics of how A rewrites.", "",
                   "| metric | expected | Δ game mean, modest splitting | 95% CI (game bootstrap) | games | passages | CI direction |",
                   "| --- | :-: | ---: | ---: | ---: | ---: | :-: |"]
         for metric, m in block["metrics"].items():
@@ -343,8 +344,8 @@ def _distribution(values: Sequence[float]) -> dict:
 def rewrite_exposure(rewrites: Sequence[dict]) -> dict:
     """How much rewriting each accepted condition carries: normalized token edit distance to the
     original, per condition, with the Low/High-versus-Neutral gap and distribution overlap on
-    sources where both were accepted. Diagnostic only. Neutral is generated independently of Low
-    and is NOT matched to it; the Neutral control is judged by its equivalence to Original."""
+    sources where both were accepted. Diagnostic only: Neutral is generated independently of Low,
+    and the Neutral control is judged by its equivalence to Original."""
     by_source: Dict[str, Dict[str, float]] = {}
     for r in rewrites:
         if r.get("status") == "ok" and r.get("edit_distance_to_original") is not None:
@@ -375,7 +376,7 @@ def rewrite_exposure(rewrites: Sequence[dict]) -> dict:
 
 
 def neutral_search_diagnostics(rewrites: Sequence[dict]) -> dict:
-    """Audit recorded Neutral candidate search behavior without changing any archived verdict."""
+    """Summarize the recorded Neutral candidate search."""
     counts = Counter()
     for row in rewrites:
         if row.get("condition") != "neutral" or not row.get("attempts"):
@@ -413,34 +414,33 @@ def exposure_lines(exposure: dict) -> List[str]:
     lines = ["", "| Condition | Accepted rewrites | Mean edit distance | SD | Median | p10 | p90 |",
              "| --- | ---: | ---: | ---: | ---: | ---: | ---: |"]
     for c, d in exposure["conditions"].items():
-        lines.append(f"| {c} | {d['n']} | {fmt(d['mean'])} | {fmt(d['sd'])} | {fmt(d['median'])} | {fmt(d['p10'])} | {fmt(d['p90'])} |")
+        lines.append(f"| {condition_label(c)} | {d['n']} | {fmt(d['mean'])} | {fmt(d['sd'])} | {fmt(d['median'])} | {fmt(d['p10'])} | {fmt(d['p90'])} |")
     for pair, d in exposure.get("pairs", {}).items():
-        treatment = pair.split("_vs_")[0].title()
-        lines += ["", f"On {d['n']} sources with both {treatment} and Neutral accepted, {treatment} changes a mean "
-                  f"{fmt(d['treatment_mean'])} of the tokens and Neutral {fmt(d['neutral_mean'])} (median gap "
-                  f"{fmt(d['gap']['median'])}; distribution overlap {fmt(d['distribution_overlap'], 2)}; Neutral reaches at "
+        treatment = condition_label(pair.split("_vs_")[0])
+        lines += ["", f"On {d['n']} sources with both {treatment} and B accepted, {treatment} changes a mean "
+                  f"{fmt(d['treatment_mean'])} of the tokens and B {fmt(d['neutral_mean'])} (median gap "
+                  f"{fmt(d['gap']['median'])}; distribution overlap {fmt(d['distribution_overlap'], 2)}; B reaches at "
                   f"least half of {treatment}'s distance in {fmt(d['neutral_at_least_half_of_treatment'], 2)} of sources)."]
     search = exposure.get("search") or {}
     if search.get("attempts"):
-        lines += ["", f"Across {search['attempts']} Neutral rounds, {search['passing_candidates']} of "
+        lines += ["", f"Across {search['attempts']} B rounds, {search['passing_candidates']} of "
                   f"{search['candidate_occurrences']} judged candidates passed the gate; {search['accepted_first_round']} sources "
                   f"were accepted in the first round and {search['accepted_after_retry']} after a retry. "
                   f"{search['failed_without_fidelity_passer']} sources never produced a passing candidate. "
                   f"{search['repeated_candidate_occurrences']} candidate occurrences repeat an earlier candidate; "
                   f"{search['reused_verdicts']} verdicts are marked as reused."]
-    lines += ["", "Edit distance is normalized token edit distance to the original. It describes rewrite exposure and is not a "
-              "matching requirement: Neutral is generated independently of Low, and its neutrality is tested by the "
-              "Neutral-versus-Original comparisons.", ""]
+    lines += ["", "Edit distance is normalized token edit distance to the original and describes rewrite exposure. "
+              "B is generated independently of A; its neutrality is tested by the B-versus-Original comparisons.", ""]
     return lines
 
 
 def signed_value(r: dict) -> Optional[int]:
     """+1 treatment judged more limited, -1 comparator judged more limited, 0 no meaningful
     difference; ``None`` when the response is unusable."""
-    if r.get("signed") in (1, 0, -1):
-        return r["signed"]
     if not r.get("ok"):
         return None
+    if type(r.get("signed")) is int and r["signed"] in (1, 0, -1):
+        return r["signed"]
     if r.get("choice") == "same" or r.get("tie"):
         return 0
     chosen = r.get("chosen_condition")
@@ -472,6 +472,28 @@ def _game_means(per_bundle: Dict[str, float], game_of: Dict[str, str]) -> Dict[s
     return {g: [mean(values)] for g, values in clusters.items()}
 
 
+def signed_bootstrap(clusters, *, n_boot, seed, alpha=.05):
+    """Bootstrap signed scores on [-1, 1], with a bounded-mean interval for constant draws."""
+    scaled = {g: [(v + 1) / 2 for v in values] for g, values in clusters.items()}
+    result = proportion_bootstrap(scaled, n_boot=n_boot, seed=seed, alpha=alpha)
+    for key in ("estimate", "ci_low", "ci_high"):
+        if result[key] is not None:
+            result[key] = 2 * result[key] - 1
+    result["draws"] = [2 * v - 1 for v in result.get("draws", [])]
+    return result
+
+
+def complete_listener_rows(choices):
+    """Keep passage/listener comparisons with valid responses in both orders."""
+    assert_unique(choices, ("bundle_id", "pair", "listener", "order"))
+    valid = [r for r in choices if signed_value(r) is not None]
+    orders = {}
+    for r in valid:
+        orders.setdefault((r["bundle_id"], r["pair"], r["listener"]), set()).add(r["order"])
+    rows = [r for r in valid if orders[(r["bundle_id"], r["pair"], r["listener"])] == {"ab", "ba"}]
+    return rows, len(choices) - len(valid), len(valid) - len(rows)
+
+
 def listener_analysis(choices: Sequence[dict], *, n_boot: int, seed: int) -> Dict[str, dict]:
     """Signed preference from complete counterbalanced three-way comparisons.
 
@@ -484,17 +506,10 @@ def listener_analysis(choices: Sequence[dict], *, n_boot: int, seed: int) -> Dic
     constructs = {r.get("construct", "range") for r in choices}
     if len(constructs) > 1:
         raise ValueError("analyze perception constructs separately")
-    assert_unique(choices, ("bundle_id", "pair", "listener", "order"))
     out: Dict[str, dict] = {}
     for pair in sorted({r["pair"] for r in choices}):
         pair_rows = [r for r in choices if r["pair"] == pair]
-        valid = [r for r in pair_rows if r.get("ok") and signed_value(r) is not None]
-        valid_orders: Dict[tuple, set] = {}
-        for r in valid:
-            valid_orders.setdefault((r["bundle_id"], r["listener"]), set()).add(r["order"])
-        rows = [r for r in valid if valid_orders[(r["bundle_id"], r["listener"])] == {"ab", "ba"}]
-        errors = len(pair_rows) - len(valid)
-        incomplete = len(valid) - len(rows)   # valid, but the counterbalanced partner is missing
+        rows, errors, incomplete = complete_listener_rows(pair_rows)
         if not rows:
             continue
         treatment, comparator = rows[0]["treatment"], rows[0]["comparator"]
@@ -515,10 +530,10 @@ def listener_analysis(choices: Sequence[dict], *, n_boot: int, seed: int) -> Dic
 
             signed_bundle = bundle_means(signed_value)
             signed_clusters = _game_means(signed_bundle, game_of)
-            s95 = cluster_bootstrap(signed_clusters, n_boot=n_boot, seed=seed); s95.pop("draws", None)
-            s90 = cluster_bootstrap(signed_clusters, n_boot=n_boot, seed=seed, alpha=.10); s90.pop("draws", None)
+            s95 = signed_bootstrap(signed_clusters, n_boot=n_boot, seed=seed); s95.pop("draws", None)
+            s90 = signed_bootstrap(signed_clusters, n_boot=n_boot, seed=seed, alpha=.10); s90.pop("draws", None)
             position_bundle = bundle_means(lambda r: {"A": 1, "B": -1, "same": 0}[position_of(r)])
-            p90 = cluster_bootstrap(_game_means(position_bundle, game_of), n_boot=n_boot, seed=seed, alpha=.10)
+            p90 = signed_bootstrap(_game_means(position_bundle, game_of), n_boot=n_boot, seed=seed, alpha=.10)
             p90.pop("draws", None)
             ties = sum(1 for r in subset if signed_value(r) == 0)
             non_tie = [r for r in subset if signed_value(r) != 0]
@@ -544,11 +559,12 @@ def listener_analysis(choices: Sequence[dict], *, n_boot: int, seed: int) -> Dic
                 for r in o:
                     ob.setdefault(r["bundle_id"], []).append(signed_value(r))
                 oc = _game_means({b: mean(v) for b, v in ob.items()}, game_of)
-                o95 = cluster_bootstrap(oc, n_boot=n_boot, seed=seed)
-                o90 = cluster_bootstrap(oc, n_boot=n_boot, seed=seed, alpha=.10)
+                o95 = signed_bootstrap(oc, n_boot=n_boot, seed=seed)
+                o90 = signed_bootstrap(oc, n_boot=n_boot, seed=seed, alpha=.10)
                 by_order[order] = {"n": len(o), "n_games": o95["n_clusters"], "n_bundles": len(ob),
                                    "signed": o95["estimate"], "ci95": [o95["ci_low"], o95["ci_high"]],
                                    "ci90": [o90["ci_low"], o90["ci_high"]],
+                                   "interval_method": o95["interval_method"],
                                    "tie_rate": sum(1 for r in o if signed_value(r) == 0) / len(o)}
             comps_by_cluster: Dict[str, List[Tuple[str, str]]] = {}
             for r in non_tie:
@@ -571,6 +587,7 @@ def listener_analysis(choices: Sequence[dict], *, n_boot: int, seed: int) -> Dic
                 "n_bundles": len(signed_bundle), "n_games": s95["n_clusters"],
                 "signed_preference": s95["estimate"], "sd_games": sd([v[0] for v in signed_clusters.values()]),
                 "signed_ci95": [s95["ci_low"], s95["ci_high"]], "signed_ci90": [s90["ci_low"], s90["ci_high"]],
+                "signed_interval_method": s95["interval_method"],
                 "signed_ci_excludes_zero": (s95["ci_low"] is not None and (s95["ci_low"] > 0 or s95["ci_high"] < 0)),
                 "n_ties": ties, "tie_rate": ties / len(subset),
                 "share_treatment_more_limited": share, "share_treatment_raw_votes": raw, "wilson_ci": wilson,
@@ -579,6 +596,7 @@ def listener_analysis(choices: Sequence[dict], *, n_boot: int, seed: int) -> Dic
                 "ci_covers_half": (share_ci[0] is not None and share_ci[1] is not None and share_ci[0] <= 0.5 <= share_ci[1]),
                 "by_order": by_order, "bradley_terry": bt,
                 "position_bias": {"score": p90["estimate"], "ci90": [p90["ci_low"], p90["ci_high"]],
+                                  "interval_method": p90["interval_method"],
                                   "n_responses": len(subset),
                                   "share_a": sum(position_of(r) == "A" for r in subset) / len(subset),
                                   "share_b": sum(position_of(r) == "B" for r in subset) / len(subset),
@@ -753,7 +771,7 @@ def integrity_checks(frozen: dict, *, rewrites=None, features_path=None,
 # ── rendering ──
 
 def _contrast_table(block: dict, metrics: Sequence[str]) -> List[str]:
-    lines = [f"### {block['treatment']} − {block['comparator']}  ({block['role']}; "
+    lines = [f"### {condition_label(block['treatment'])} − {condition_label(block['comparator'])}  ({block['role']}; "
              f"n bundles = {next(iter(block['metrics'].values()))['n_bundles']}, "
              f"games = {next(iter(block['metrics'].values()))['n_games']})", "",
              "| metric | expected | Δ game mean | 95% CI (game bootstrap) | game d_z | p (sign-flip) | q (BH) | CI direction only / equivalence |",
@@ -765,7 +783,8 @@ def _contrast_table(block: dict, metrics: Sequence[str]) -> List[str]:
         label = metric + (" (primary)" if block.get("family") == "linguistic_range" and metric in PRIMARY_RANGE_METRICS else "")
         exp = {1: "↑", -1: "↓", 0: "="}.get(m["expected_sign"], "")
         conf = m.get("direction_confirmed")
-        if m.get("expected_sign") == 0 and m.get("equivalence"):
+        if block["treatment"] == "neutral" and block["comparator"] == "original" and m.get("equivalence"):
+            exp = "="
             conf = m["equivalence"].get("equivalent")
         if m.get("noninferiority"):
             ni = m["noninferiority"]
@@ -787,7 +806,8 @@ def render(report: dict) -> str:
              f"{'yes' if report.get('frozen_config_used') else 'no (pilot / exploratory)'}.", ""]
     lines += ["The primary perception summary is the signed preference: +1 when the listener judges the treatment "
               "more limited, 0 for no meaningful difference, -1 when it judges the comparator more limited. Presentation "
-              "orders, listeners and passages within a game are averaged; games receive equal weight.", ""]
+              "orders, listeners and passages within a game are averaged; games receive equal weight. "
+              "Intervals resample games, with a Hoeffding bounded-mean interval for constant listener scores.", ""]
     if not report.get("frozen_config_used"):
         lines += ["Pilot analysis: the frozen effect-size, multiplicity and quality criteria apply to the confirmatory sets.", ""]
     if report.get("recorded_policy"):
@@ -799,21 +819,27 @@ def render(report: dict) -> str:
         lines += ["## Generation record inconsistencies", "",
                   "Archived settings disagree with the outputs. These records require the actual run metadata before reproducibility can be established.", ""]
         lines += [f"- {error}" for error in report["generation_record_errors"]] + [""]
+    audit = report.get("accepted_alignment_audit", {})
+    if audit.get("issues"):
+        lines += ["## Alignment evidence recheck", "",
+                  f"The current check flags {len(audit['issues'])} of {audit['checked']} accepted records. "
+                  "These records need a repeated fidelity evaluation. Passage tables use the recorded acceptance decisions.", ""]
+        lines += [f"- {r['source_id']} / {r['condition']}: {', '.join(r['errors'])}" for r in audit["issues"]] + [""]
     qc = report.get("generation_qc")
     if qc:
         lines += ["## Generation QC", "",
                   "| condition | n | accepted | first-pass | retried | treatment unavailable | infrastructure unavailable | fallback | mean attempts |",
                   "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"]
         for c, q in qc.items():
-            lines.append(f"| {c} | {q['n']} | {q['final_success']} | {q['first_pass_success']} | {q['needed_retry']} | "
+            lines.append(f"| {condition_label(c)} | {q['n']} | {q['final_success']} | {q['first_pass_success']} | {q['needed_retry']} | "
                          f"{q['treatment_unavailable']} | {q.get('infrastructure_unavailable', 0)} | "
                          f"{q['fallback_to_original']} | {fmt(q['mean_attempts'], 2)} |")
         lines.append("")
     if report.get("failure_causes"):
         lines += ["| Condition | Recorded outcome cause | Sources |", "| --- | --- | ---: |"]
         for c, counts in report["failure_causes"].items():
-            lines += [f"| {c} | {cause} | {n} |" for cause, n in counts.items() if cause != "accepted"]
-        lines += ["", "Evaluation-output failures are separate from transport failures. Legacy infrastructure status labels are retained in archived data.", ""]
+            lines += [f"| {condition_label(c)} | {cause} | {n} |" for cause, n in counts.items() if cause != "accepted"]
+        lines += ["", "Evaluation-output failures are separate from transport failures.", ""]
     if report.get("rewrite_exposure"):
         lines += ["## Rewrite exposure (normalized token edit distance to the original)"]
         lines += exposure_lines(report["rewrite_exposure"])
@@ -822,31 +848,31 @@ def render(report: dict) -> str:
                   "| Treatment | Eligible | Matched | Retained fraction | Retained mean original words | Excluded mean original words |",
                   "| --- | ---: | ---: | ---: | ---: | ---: |"]
         for c, row in report["passage_retention"].items():
-            lines.append(f"| {c} | {row['eligible']} | {row['matched']} | {fmt(row['retained_fraction'])} | "
+            lines.append(f"| {condition_label(c)} | {row['eligible']} | {row['matched']} | {fmt(row['retained_fraction'])} | "
                          f"{fmt(row['retained']['mean_original_words'])} | {fmt(row['excluded']['mean_original_words'])} |")
         lines += ["", "Eligible passages are defined by Original. A matched passage needs every selected utterance "
-                  "in both treatment and Neutral. Results describe the retained cohort.", ""]
+                  "in both treatment and B. Results describe the retained cohort.", ""]
     if report.get("measurement_status"):
         lines += ["## Measurement coverage", "", "| Measure | Status |", "| --- | --- |"]
         lines += [f"| {name} | {status} |" for name, status in report["measurement_status"].items() if status != "not measured"]
         lines.append("")
     if report.get("range"):
-        lines += ["## Family A: linguistic range", ""]
+        lines += ["## Linguistic range", ""]
         for block in report["range"].values():
             lines += _contrast_table(block, list(RANGE_METRICS) + list(NUISANCE_METRICS))
         lines += sensitivity_lines(report.get("splitting_sensitivity"))
     if report.get("guardrails"):
-        lines += ["## Family B: grammar / acceptability guardrail (equivalence)", ""]
+        lines += ["## Grammar and acceptability guardrails", ""]
         for block in report["guardrails"].values():
             lines += _contrast_table(block, GUARDRAIL_METRICS)
-    for key, title in (("listener", "Family C: perceived linguistic range"),
+    for key, title in (("listener", "Perceived linguistic range"),
                        ("perceived_proficiency", "Perceived English proficiency")):
         if not report.get(key):
             continue
         lines += [f"## {title}", ""]
         for pair, block in report[key].items():
-            lines += [f"### {block['treatment']} vs {block['comparator']}: share choosing "
-                      f"**{block['treatment']}** as more limited"
+            lines += [f"### {condition_label(block['treatment'])} vs {condition_label(block['comparator'])}: share choosing "
+                      f"**{condition_label(block['treatment'])}** as more limited"
                       + (f"  ({block['n_invalid_responses']} invalid responses excluded)"
                          if block.get("n_invalid_responses") else ""), "",
                       "| listener | responses | bundles | game-weighted share | raw-vote share | "
@@ -883,8 +909,6 @@ def render(report: dict) -> str:
             status = {True: "pass", False: "FAIL", None: "not evaluated"}[c["passed"]]
             lines.append(f"| {c['criterion']} | {status} | {c.get('note', '')} |")
         lines.append("")
-        lines += ["The validation scope is measured linguistic range and model perception. "
-                  "Generalization to human perception or overall English ability requires separate evidence.", ""]
     return "\n".join(lines)
 
 
@@ -932,13 +956,13 @@ def build_analysis(args) -> dict:
     report["input_sha256"]["listeners"] = {str(path): sha256_file(path) for path in args.listener or []}
     report["measurement_status"] = {"SUBTLEX": "not measured", "Grammar and acceptability": "not measured",
         "Perceived linguistic range": "not measured", "Perceived English proficiency": "not measured",
-        "Auxiliary CEFR-referenced A/B/C ratings": "not measured"}
+        "Auxiliary CEFR band ratings": "not measured"}
     if frozen:
         report["expected_bundles"] = len(selected)
     rewrites = None
     if args.rewrites:
         rewrites = read_jsonl(args.rewrites)
-        from experiments.proficiency_validation.rewrite.fidelity import SEMANTIC_RUBRIC_VERSION
+        from experiments.proficiency_validation.rewrite.fidelity import SEMANTIC_RUBRIC_VERSION, audit_accepted_alignments
         from components.rewriters.language_rewriter import PROMPT_VERSION
         rw_versions = dict(Counter(r.get("prompt_version", "unknown") for r in rewrites))
         fidelity_versions = dict(Counter((r.get("gate_provenance") or {}).get("semantic_rubric_version", "unknown") for r in rewrites))
@@ -949,6 +973,7 @@ def build_analysis(args) -> dict:
                                     for c in sorted({r["condition"] for r in rewrites})}
         from experiments.proficiency_validation.rewrite.__main__ import audit_generation
         report["generation_record_errors"] = audit_generation(args.rewrites)
+        report["accepted_alignment_audit"] = audit_accepted_alignments(rewrites)
         report["rewrite_exposure"] = rewrite_exposure(rewrites)
     if args.features:
         features = read_jsonl(args.features)
@@ -994,6 +1019,9 @@ def build_analysis(args) -> dict:
         if args.rewrites:
             report["integrity"].append({"check": "generation settings match archived output rows",
                 "passed": not report["generation_record_errors"], "detail": report["generation_record_errors"]})
+            issues = report["accepted_alignment_audit"]["issues"]
+            report["integrity"].append({"check": "accepted rewrites have grounded alignment evidence",
+                "passed": not issues, "detail": issues})
     if getattr(args, "cefr", None):
         from experiments.proficiency_validation.validation.cefr import ordinal_analysis, verify_ratings
         rows = read_jsonl(args.cefr)
@@ -1004,7 +1032,7 @@ def build_analysis(args) -> dict:
         report["cefr"]["calibration"] = provenance.get("calibration")
         report["cefr"]["calibration_status"] = provenance["calibration_status"]
         report["input_sha256"]["cefr"] = sha256_file(args.cefr)
-        report["measurement_status"]["Auxiliary CEFR-referenced A/B/C ratings"] = (
+        report["measurement_status"]["Auxiliary CEFR band ratings"] = (
             f"{sum(r.get('ok', False) for r in rows)}/{len(rows)} rated"
             + (f"; calibration {provenance['calibration_status']}" if provenance.get("calibration_status") not in (None, "not_measured") else ""))
     if frozen and frozen.get("cefr", {}).get("enabled"):

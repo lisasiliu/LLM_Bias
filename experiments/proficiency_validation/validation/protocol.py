@@ -13,7 +13,7 @@ from typing import Dict, List, Optional
 from experiments.proficiency_validation.rewrite.fidelity import (SEMANTIC_RUBRIC_VERSION, semantic_prompt_sha,
                                                                  VERSION as INVENTORY_VERSION, inventory_prompt_sha)
 from components.judges.inverse_predicate_parser import build_system_prompt as parser_system_prompt
-from components.rewriters.language_rewriter import PROMPT_VERSION, LanguageProficiencyRewriter
+from components.rewriters.language_rewriter import PROMPT_VERSION, LanguageProficiencyRewriter, NEUTRAL_SELECTION_RULE, NEUTRAL_SELECTION_RULES
 from lurkingwolf.rewriter import RewriteContext
 from experiments.proficiency_validation.rewrite.runtime import FROZEN_CONFIG, load_json
 from components.helpers import read_jsonl
@@ -48,6 +48,10 @@ def validate_design(f):
             "treatment_condition must name the declared treatment")
     require(f.get("neutral_generation") == "independent",
             "neutral_generation must be independent: Neutral never reads the treatment rewrite or its edit distance")
+    require(f.get("neutral_selection_rule", NEUTRAL_SELECTION_RULE) in NEUTRAL_SELECTION_RULES,
+            f"neutral_selection_rule must be one of {NEUTRAL_SELECTION_RULES}")
+    require(f.get("neutral_selection_rule", NEUTRAL_SELECTION_RULE) != "closest_surface_and_frequency_v1" or bool(f.get("subtlex_path")),
+            "the frequency selection rule needs subtlex_path")
     require(f.get("parser_abstention_policy") == "no_verdict",
             "confirmatory runs freeze parser_abstention_policy = no_verdict (a parseable predicate the parser cannot recover leaves no verdict)")
     primary = f.get("primary_range_metrics", [])

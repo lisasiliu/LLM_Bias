@@ -47,7 +47,7 @@ cannot find a meaningful difference; do not force a choice. Return JSON only:
  "reason": "brief explanation about the English"}
 """
 
-SAME_WORDS = ("same", "neither", "equal", "no difference", "no meaningful", "cannot", "tie", "none")
+SAME_ANSWERS = {"same", "neither", "equal", "no difference", "no meaningful difference", "tie"}
 
 
 def parse_three_way(value):
@@ -55,8 +55,8 @@ def parse_three_way(value):
     choice = parse_choice(value)
     if choice:
         return choice
-    text = str(value or "").strip().lower()
-    if text and any(word in text for word in SAME_WORDS):
+    text = " ".join(str(value or "").strip().lower().split()).strip('.!"\' ')
+    if text in SAME_ANSWERS:
         return "same"
     return None
 
@@ -89,6 +89,7 @@ class BlindLanguageProbe:
         provenance = {**completion.to_dict(), "construct": self.construct, "prompt_version": self.prompt_version}
         if not isinstance(parsed, dict):
             return ProbeResult(ok=False, error="unparseable_json", provenance=provenance)
+        provenance["raw_choice"] = parsed.get("more_limited")
         choice = parse_three_way(parsed.get("more_limited"))
         if choice is None:
             return ProbeResult(ok=False, error="unknown_choice", provenance=provenance)
@@ -96,7 +97,7 @@ class BlindLanguageProbe:
                            reason=str(parsed.get("reason", "")), provenance=provenance)
 
 
-DEFAULT_PAIRS = "low:neutral,high:neutral,neutral:original"
+DEFAULT_PAIRS = "low:neutral,high:neutral,low:high,neutral:original"
 
 
 def parse_pairs(spec: str) -> List[Tuple[str, str]]:
@@ -212,6 +213,7 @@ def add_parser(sub) -> None:
     p.add_argument("--concurrency", type=int, default=8, help="parallel comparison requests")
     p.add_argument("--run-id", default=None)
     p.add_argument("--resume", action="store_true")
+    p.add_argument("--retry-failed", action="store_true", help="with --resume: ask again for comparisons whose earlier response failed")
     p.add_argument("--split", choices=["pilot", "set_a", "set_b"], default="pilot")
     p.add_argument("--frozen", type=Path, default=None,
                    help="frozen_config.json: verify hashes and pin the listener set")
@@ -231,7 +233,8 @@ def main_probe(args) -> int:
         cohort(frozen, args.split)
         if args.construct not in frozen["perception_constructs"]:
             raise ValueError("perception construct is outside the frozen design")
-        args.pairs = ",".join([f"{c}:neutral" for c in ("low", "high") if c in frozen["conditions"]] + ["neutral:original"])
+        args.pairs = ",".join([f"{c}:neutral" for c in ("low", "high") if c in frozen["conditions"]]
+                              + (["low:high"] if "high" in frozen["conditions"] else []) + ["neutral:original"])
         args.max_tokens = frozen["probe_max_tokens"]
         if args.limit:
             raise ValueError("a frozen probe cannot use --limit")
@@ -258,6 +261,9 @@ def main_probe(args) -> int:
     # JSON normalization keeps tuples stable across resumed processes.
     checkpoint = Checkpoint(args.out, json.loads(json.dumps(settings)), resume=args.resume)
     try:
+        if getattr(args, "retry_failed", False):
+            dropped = checkpoint.reopen(lambda r: r.get("ok"))
+            print(f"re-asking {dropped} failed comparisons")
         rows = run_probe(assembled, listeners, pairs, ledger=ledger, limit=args.limit,
                          completed_rows=checkpoint.rows, on_row=checkpoint.append,
                          concurrency=getattr(args, "concurrency", 1))
