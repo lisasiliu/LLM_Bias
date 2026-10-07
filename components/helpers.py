@@ -19,7 +19,9 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
 from components.rewriters.politeness_rewriter import predicate_definition, predicate_entry
+from lurkingwolf.engine import GameState
 from lurkingwolf.rewriter import RewriteContext
+from lurkingwolf.schemas import build_public_history
 from lurkingwolf.utils.speech_nl import parse_predicate
 
 
@@ -342,6 +344,8 @@ def write_back_record(
     treatment_kind: str = "politeness",
 ) -> RoundTripResult:
     """Write ONE validated rewrite through the real path, reload it, and compare."""
+    from lurkingwolf.run_game import _compact_json
+
     strategy = record.get("strategy", "")
     rewritten = (record.get("rewritten_nl") or "").strip()
 
@@ -496,5 +500,4 @@ def decide(*, parser_structural_match: Optional[bool],
                         semantic_status=semantic_status,
                         adjudication_required=bool(reasons),
                         reasons=reasons)
-
 
