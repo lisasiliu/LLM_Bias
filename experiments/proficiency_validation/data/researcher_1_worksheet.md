@@ -67,7 +67,7 @@ note:
 > Should P8 address s64 by specifying a particular night and offering a coherent rationale for targeting P7, I stand ready to reconsider; however, a vague or shifting response would confirm the P7-P8 pairing, compelling me to cast my vote for P8.
 
 more_limited: A
-note: vocab
+note:
 
 ---
 
@@ -631,7 +631,7 @@ note:
 >
 > Take a hard look at P9: given that P6 and P9 are the only two left alive, P9's quiet drift and refusal to commit on any lynch line fits a wolf coasting to endgame far better than P6's consistent pressure.
 
-more_limited:
+more_limited: same
 note:
 
 ---
@@ -662,7 +662,7 @@ note:
 >
 > As sheriff I am fixing my 1.5 vote upon P6: P6 is the third seer claim, cleared P7 before P7 had spoken a single word, and has now been challenged twice — by P7 in s31 and by P8 in s36 — to explain why he chose P7, and has answered neither.
 
-more_limited:
+more_limited: B
 note:
 
 ---
@@ -697,7 +697,7 @@ note:
 >
 > P2, cast a vote to execute P5 — P5 is a confirmed wolf from my divination, and with P6 also confirmed wolf_camp on Night 0, removing P5 now eliminates one of the wolves' two known members before they can reach parity.
 
-more_limited:
+more_limited: A
 note:
 
 ---
@@ -728,7 +728,7 @@ note:
 >
 > P7 ranks as my third suspect: P7 declared seer on Day 1 and named P4 as villager_camp, but P7 has delivered no second divination result on Day 2 or Day 3, and a real seer with two nights of checks would hold two results to report by now.
 
-more_limited:
+more_limited: A
 note:
 
 ---
@@ -759,7 +759,7 @@ note:
 >
 > P4, you say we should execute P2 for "two divinations in one night," but you did not question P1's claim about you. If a seer who checks once cannot give two results, why is P1's one result on you trustworthy while P2's is not?
 
-more_limited:
+more_limited: same
 note:
 
 ---
@@ -782,7 +782,7 @@ note:
 >
 > P2, as sheriff, your 1.5-vote weight ought to be cast against P9 rather than P5: P9 is the fourth seer claimant, having cleared a player who knows that such a clear is false, and his sole maneuver today was to divert your vote toward the very player who offered a specific rationale for his target.
 
-more_limited:
+more_limited: A
 note:
 
 ---
@@ -813,7 +813,7 @@ note:
 >
 > P2, as sheriff, your 1.5-vote weight ought to be cast against P6 rather than P5; P6's seer claim is the one that cleared a player who had remained silent, and should P6 flip wolf, that outcome would also clarify the nature of the P2/P8 bloc.
 
-more_limited:
+more_limited: A
 note:
 
 ---
@@ -836,7 +836,7 @@ note:
 >
 > P4, cast a vote to execute P7 today: P7's sole contribution is a divine on you that cannot be checked, P7 has never pressed any of the rival seer claimants, and clearing the least active player is the cheapest way for a wolf to buy an ally without risking a contradiction.
 
-more_limited:
+more_limited: B
 note:
 
 ---
@@ -863,7 +863,7 @@ note:
 >
 > P5, you are the one player I have personally confirmed as village_camp, so I want you to vote for me, P1, for Sheriff. Putting the badge on the real Seer keeps it out of wolf hands and lets me name my next divine target and badge successor publicly each day.
 
-more_limited:
+more_limited: same
 note:
 
 ---
@@ -886,7 +886,7 @@ note:
 >
 > P2, as sheriff your 1.5 vote should fall on P9 not P5: P9 is the fourth seer claim, he cleared a player who knows that clear is false, and his only push today was to redirect your vote onto the one player who gave a specific reason for his target.
 
-more_limited:
+more_limited: same
 note:
 
 ---
@@ -909,7 +909,7 @@ note:
 >
 > P2, as sheriff, your 1.5-vote weight ought to be cast for P5's execution rather than P6's: P5 stands alone today in pushing a specific execution while professing zero information, and his s23 dissociation from you reads as a wolf pre-emptively building distance from the genuine seer before the vote is tallied.
 
-more_limited:
+more_limited: A
 note:
 
 ---
@@ -940,7 +940,7 @@ note:
 >
 > P9 and I are not on the same side. My result on P9 came back wolf_camp, so the village should treat P9 as the priority threat rather than trusting their framing of me.
 
-more_limited:
+more_limited: same
 note:
 
 ---
@@ -963,7 +963,7 @@ note:
 >
 > P2, as sheriff, your 1.5-vote weight ought to be cast against P9 rather than P5: P9 is the fourth seer claimant, having cleared a player who knows that such a clear is false, and his sole maneuver today was to divert your vote toward the very player who offered a specific rationale for his target.
 
-more_limited:
+more_limited: A
 note:
 
 ---
@@ -986,7 +986,7 @@ note:
 >
 > P2, as sheriff, your 1.5 vote should go to P5, not P6. P5 is the only player today who pushed for an execution while saying he has no information. Also, his s23 move to distance himself from you looks like a wolf trying to get away from the real seer before the vote happens.
 
-more_limited:
+more_limited: B
 note:
 
 ---
@@ -1017,7 +1017,7 @@ note:
 >
 > P4, while you advocate executing P2 on the grounds of "two divinations in one night," you conspicuously failed to challenge P1's claim_divine regarding yourself; given that a single-check seer cannot yield two results, why should P1's solitary finding on you be deemed trustworthy, whereas P2's is treated as disqualifying?
 
-more_limited:
+more_limited: A
 note:
 
 ---
@@ -1040,7 +1040,7 @@ note:
 >
 > P8 made a seer claim on D1 and cleared P7, but P7 is dead and P8 has provided no second divination result in two days — a real seer with the badge would have reported at least one more check by now, and P8's failure to do so while holding the sheriff's 1.5 vote is the strongest sign P8 is a wolf wearing the seer's skin.
 
-more_limited:
+more_limited: A
 note:
 
 ---
@@ -1063,7 +1063,7 @@ note:
 >
 > P8 made a seer claim on D1 and cleared P7, but P7 is dead and P8 has provided no second divination result in two days — a real seer with the badge would have reported at least one more check by now, and P8's failure to do so while holding the sheriff's 1.5 vote is the strongest sign P8 is a wolf wearing the seer's skin.
 
-more_limited:
+more_limited: B
 note:
 
 ---
@@ -1094,7 +1094,7 @@ note:
 >
 > P2, as sheriff your 1.5 vote should be cast on P6 instead of P5 — P6's seer claim is the one that cleared a player who had said nothing, and if P6 flips wolf it also tells us what to make of the P2/P8 bloc.
 
-more_limited:
+more_limited: B
 note:
 
 ---
@@ -1125,7 +1125,7 @@ note:
 >
 > P2, as sheriff your 1.5 vote should land on P6 rather than P5 — P6's seer claim is the one that cleared a player who had said nothing, and if P6 flips wolf it also tells us what to make of the P2/P8 bloc.
 
-more_limited:
+more_limited: B
 note:
 
 ---
@@ -1148,7 +1148,7 @@ note:
 >
 > P4, vote to execute P7 today. P7's only move is a divine on you that we cannot check. P7 has never pressed any of the rival seer claimants. Also, clearing the least active player is the cheapest way for a wolf to buy an ally without risking a contradiction.
 
-more_limited:
+more_limited: B
 note:
 
 ---
@@ -1171,7 +1171,7 @@ note:
 >
 > P8's Day 1 seer claim, which cleared P7, has now been rendered suspect by P7's death and the absence of a second divination over two days; had P8 truly been a seer wielding the 1.5-vote badge, a living suspect would have been named by now, making this stalled assertion the most compelling evidence that he is a werewolf masquerading as the seer.
 
-more_limited:
+more_limited: A
 note:
 
 ---
@@ -1206,7 +1206,7 @@ note:
 >
 > P2, vote to execute P5. P5 is a confirmed wolf from my divination. P6 is also a confirmed wolf from Night 0. If we remove P5 now, we take out one of the two known wolves before they can reach parity.
 
-more_limited:
+more_limited: B
 note:
 
 ---
@@ -1237,7 +1237,7 @@ note:
 >
 > P9 and I do not share the same side — my result on P9 came back wolf_camp, so the village should view P9 as the priority threat rather than relying on their framing of me.
 
-more_limited:
+more_limited: same
 note:
 
 ---
@@ -1260,7 +1260,7 @@ note:
 >
 > P9 has used this whole day to attack every seer claimant except P7, and P9's only concrete push is to execute P1 — the sheriff — which conveniently removes the badge holder without ever naming a single piece of evidence that P1's divine on P6 was false, and that pattern of protecting one claimant while dismantling the rest fits a wolf covering for P7.
 
-more_limited:
+more_limited: A
 note:
 
 ---
@@ -1295,7 +1295,7 @@ note:
 >
 > P1, you hold the badge and claimed Seer too, but P5 is the confirmed wolf in my divination — vote to execute P5 today so the village doesn't lose its real information source.
 
-more_limited:
+more_limited: same
 note:
 
 ---
@@ -1326,7 +1326,7 @@ note:
 >
 > I intend to vote to execute P2 today, since P2's reported results are internally impossible for a single-check seer and P2 only revised his story after the contradiction was already public — eliminating P2 resolves the largest contradiction on the board without spending the day on the quieter claimants.
 
-more_limited:
+more_limited: same
 note:
 
 ---
@@ -1353,7 +1353,7 @@ note:
 >
 > P5, as the sole player I have personally verified as village-aligned, I urge you to cast your vote for me, P1, to assume the Sheriff role; securing the badge with a genuine Seer not only prevents it from falling into wolf hands but also empowers me to publicly designate my next divination target and badge successor each day.
 
-more_limited:
+more_limited: A
 note:
 
 ---
@@ -1384,7 +1384,7 @@ note:
 >
 > Should P8 respond to s64 with a specific night and a coherent reason for targeting P7, I will reconsider, yet a vague or shifting answer confirms the P7-P8 pairing and I will vote P8.
 
-more_limited:
+more_limited: same
 note:
 
 ---
@@ -1419,7 +1419,7 @@ note:
 >
 > P2, vote to execute P5: since my divination has confirmed P5 as a wolf, and P6 was already established as wolf-camp on Night 0, eliminating P5 now removes one of the two known members before they can reach parity.
 
-more_limited:
+more_limited: A
 note:
 
 ---
@@ -1450,7 +1450,7 @@ note:
 >
 > Should P8 respond to s64 with a specific night and a coherent reason for targeting P7, I will reconsider, yet a vague or shifting answer confirms the P7-P8 pairing and I will vote P8.
 
-more_limited:
+more_limited: B
 note:
 
 ---
@@ -1473,7 +1473,7 @@ note:
 >
 > P8 said he was the seer on D1 and said P7 was safe, but P7 is dead and P8 has not given a second check in two days. A real seer with the badge would have reported at least one more check by now. P8 not doing this while holding the sheriff's 1.5 vote is the strongest sign P8 is a werewolf wearing the seer's skin.
 
-more_limited:
+more_limited: B
 note:
 
 ---
@@ -1504,7 +1504,7 @@ note:
 >
 > I will cast my vote to execute P2 today, given that P2's reported results are internally impossible for a single-check seer and that P2 only revised his story after the contradiction was already public; eliminating P2 resolves the largest contradiction on the board without spending the day on the quieter claimants.
 
-more_limited:
+more_limited: A
 note:
 
 ---
@@ -1539,7 +1539,7 @@ note:
 >
 > P2, as sheriff you should direct today's execution at P7 rather than at P9 — P7's seer claim has produced exactly one result in three days and only after being pressured, and if P7 flips wolf, P9's push against him was correct all along.
 
-more_limited:
+more_limited: same
 note:
 
 ---
@@ -1562,7 +1562,7 @@ note:
 >
 > P2, as sheriff your 1.5 vote should fall on P5 instead of P6: P5 is the only player today who pushed a specific execution while claiming zero information, and his s23 dissociation from you reads as a wolf pre-building distance from the real seer before the vote lands.
 
-more_limited:
+more_limited: same
 note:
 
 ---
@@ -1593,7 +1593,7 @@ note:
 >
 > P9 and I are not aligned; my divination of P9 returned a wolf_camp result, meaning the village should regard P9 as the primary threat rather than accepting their framing of me.
 
-more_limited:
+more_limited: A
 note:
 
 ---
@@ -1620,7 +1620,7 @@ note:
 >
 > P5, you are the only player I have personally confirmed as village_camp, so I want you to vote for me, P1, for Sheriff — putting the badge on the real Seer keeps it out of wolf hands and allows me to name my next divine target and badge successor publicly each day.
 
-more_limited:
+more_limited: same
 note:
 
 ---
@@ -1651,7 +1651,7 @@ note:
 >
 > I will cast my vote to execute P2 today, given that P2's reported results are internally impossible for a single-check seer and that P2 only revised his story after the contradiction was already public; eliminating P2 resolves the largest contradiction on the board without spending the day on the quieter claimants.
 
-more_limited:
+more_limited: A
 note:
 
 ---
@@ -1674,7 +1674,7 @@ note:
 >
 > P4, vote to execute P7 today. P7's only move is a divine on you that we cannot check. P7 has never pressed any of the rival seer claimants. Also, clearing the least active player is the cheapest way for a wolf to buy an ally without risking a contradiction.
 
-more_limited:
+more_limited: same
 note:
 
 ---
@@ -1697,7 +1697,7 @@ note:
 >
 > P2, as sheriff, your 1.5-vote weight ought to be cast for P5's execution rather than P6's: P5 stands alone today in pushing a specific execution while professing zero information, and his s23 dissociation from you reads as a wolf pre-emptively building distance from the genuine seer before the vote is tallied.
 
-more_limited:
+more_limited: A
 note:
 
 ---
@@ -1720,7 +1720,7 @@ note:
 >
 > P8 made a seer claim on D1 and cleared P7, but P7 is dead and P8 has provided no second divination result in two days — a real seer with the badge would have reported at least one more check by now, and P8's failure to do so while holding the sheriff's 1.5 vote is the strongest sign P8 is a wolf wearing the seer's skin.
 
-more_limited:
+more_limited: same
 note:
 
 ---
@@ -1755,7 +1755,7 @@ note:
 >
 > P2, as sheriff, you ought to direct today's execution toward P7 rather than P9; P7's seer claim has yielded precisely one result across three days, and only after being pressured, so should P7 flip wolf, P9's opposition would have been justified all along.
 
-more_limited:
+more_limited: A
 note:
 
 ---
@@ -1778,5 +1778,5 @@ note:
 >
 > P4, vote to execute P7 today: P7's only contribution is a divine on you that cannot be checked, P7 has never pressed any of the rival seer claimants, and clearing the least active player is the cheapest way for a wolf to buy an ally without risking a contradiction.
 
-more_limited:
+more_limited: same
 note:
