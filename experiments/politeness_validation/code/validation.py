@@ -354,13 +354,29 @@ def analyse_manual(records: Sequence[dict]) -> Dict[str, Any]:
                     if annotation(r, a).get(name) != annotation(r, b).get(name)],
             }
 
-    # The automatic classifier is diagnostic only: one agreement number, no table.
-    automatic = {}
-    for rater in raters:
-        pairs = [(annotation(r, rater).get("strategy"), r.get("automatic_politeness_strategy"))
-                 for r in records if r.get("automatic_politeness_strategy")]
-        automatic[rater] = {"n": len(pairs),
-                            "agreed": sum(1 for x, y in pairs if x == y)}
+    # The automatic classifier is diagnostic only. Agreement is pooled over the
+    # raters (the average, not one number per researcher) and also reported
+    # against the consensus label on items where every rater agrees.
+    scored = [r for r in records if r.get("automatic_politeness_strategy")]
+    pooled = [(annotation(r, rater).get("strategy"), r["automatic_politeness_strategy"])
+              for r in scored for rater in raters if annotation(r, rater).get("strategy")]
+    consensus = []
+    for r in scored:
+        labels = {annotation(r, rater).get("strategy") for rater in raters}
+        if len(labels) == 1 and None not in labels:
+            consensus.append((labels.pop(), r["automatic_politeness_strategy"]))
+    automatic = {
+        "n_items": len(scored),
+        "n_raters": len(raters),
+        "pooled_n": len(pooled),
+        "pooled_agreed": sum(1 for x, y in pooled if x == y),
+        "consensus_n": len(consensus),
+        "consensus_agreed": sum(1 for x, y in consensus if x == y),
+        "consensus_per_class": per_class(consensus),
+        "consensus_confusion": confusion(consensus),
+        "model": next((r.get("politeness_classifier_model") for r in scored), None),
+        "prompt": next((r.get("politeness_classifier_prompt") for r in scored), None),
+    } if scored else {}
 
     return {"n": len(records), "raters": raters, "strategies": strategies,
             "per_rater": per_rater, "reliability": reliability,
@@ -461,23 +477,49 @@ def render(manual: Dict[str, Any], external: Dict[str, Any],
 
     auto = manual["automatic_classifier"]
     if auto:
-        agrees = ", ".join(f"{label[r]} {rate(auto[r]['agreed'], auto[r]['n'])}"
-                           for r in raters if r in auto)
         out += ["", "## Automatic politeness classifier", "",
-                f"Agreement with the human annotations: {agrees}. Recall is "
-                "substantially lower than the annotators' for positive-politeness "
-                "and off-record realizations, so the classifier is used only "
-                "diagnostically and never as an acceptance criterion."]
+                f"Model `{auto['model']}`, prompt `{auto['prompt']}`, three-pass "
+                "majority vote (each item is classified three independent times "
+                "and the label at least two passes agree on is kept). Diagnostic "
+                "only; never an acceptance criterion.", "",
+                f"**Agreement with human annotators, averaged over the "
+                f"{auto['n_raters']} raters: {rate(auto['pooled_agreed'], auto['pooled_n'])}** "
+                f"({auto['n_items']} items x {auto['n_raters']} raters). "
+                f"Against the consensus label (items where all raters agree): "
+                f"{rate(auto['consensus_agreed'], auto['consensus_n'])}.", "",
+                "| Human consensus label | n | classifier agrees | recall |",
+                "| --- | ---: | ---: | ---: |"]
+        for lab, st in sorted(auto["consensus_per_class"].items()):
+            if st["support"]:
+                hit = int(round(st["recall"] * st["support"]))
+                out.append(f"| {PRETTY.get(lab, lab)} | {st['support']} | {hit} | "
+                           f"{st['recall']:.0%} |")
+        out += ["", "Rows are the human label; columns are the classifier label.", ""]
+        out += _matrix(auto["consensus_confusion"], "human \\ classifier")
 
     if external:
         pn = external["positive_vs_negative"]
-        out += ["", "## External construct check", "",
-                f"Among {pn['n_gold_pair']} gold positive/negative items in "
-                f"Zhao & Hawkins, {pn['n_predicted_in_pair']} were also placed by our "
-                f"classifier in the positive/negative pair; agreement within those "
-                f"{pn['n_predicted_in_pair']} was "
-                f"**{pn['conditional_agreement']:.1%}**. Conditional construct "
-                "evidence, not general classifier accuracy."]
+        out += ["", "## External construct check (Zhao & Hawkins, non-Werewolf)", "",
+                f"{external['n_eligible']} held-out items whose published label is a "
+                f"single Brown & Levinson family. Four-way accuracy: "
+                f"**{external['accuracy']:.1%}** "
+                f"({int(round(external['accuracy'] * external['n_eligible']))}/"
+                f"{external['n_eligible']}), macro-F1 {external['macro_f1']:.3f}.", "",
+                "| Published label | n | classifier agrees | recall |",
+                "| --- | ---: | ---: | ---: |"]
+        for lab, st in sorted(external["per_class"].items()):
+            if st["support"]:
+                hit = int(round(st["recall"] * st["support"]))
+                out.append(f"| {PRETTY.get(lab, lab)} | {st['support']} | {hit} | "
+                           f"{st['recall']:.0%} |")
+        out += ["", "Rows are the published label; columns are the classifier label.", ""]
+        out += _matrix(external["confusion"], "published \\ classifier")
+        out += ["",
+                f"Positive vs negative only: of {pn['n_gold_pair']} gold positive/negative "
+                f"items, {pn['n_predicted_in_pair']} were placed by the classifier in "
+                f"that pair (coverage {pn['coverage']:.0%}); agreement within those "
+                f"{pn['n_predicted_in_pair']} was **{pn['conditional_agreement']:.1%}**. "
+                "This is conditional, not an end-to-end accuracy."]
     return "\n".join(out) + "\n"
 
 
@@ -539,10 +581,10 @@ judged not preserved and %(m1_unsure)d and %(m2_unsure)d uncertain. Exact agreem
 %(mn_agreed)d/%(mn_n)d (%(mn_pct).1f\%%), $\kappa = %(mn_kappa).3f$; %(n_dis)d disagreements
 %(dis_text)s
 
-An automatic politeness classifier was run on the same items but agreed with the
-annotators on only %(auto)d/%(auto_n)d, with markedly lower recall for
-positive-politeness and off-record realizations. We therefore report it
-diagnostically and never use it as an acceptance criterion.
+An automatic politeness classifier (%(auto_model)s, three-pass majority vote) was run on
+the same items and agreed with the annotators on %(auto)d/%(auto_n)d labels
+(averaged over annotators). We report it diagnostically and never use it as an
+acceptance criterion.
 
 As an external construct check we compared our scheme against the
 Brown and Levinson strategy annotations of \citet{zhao2025politeness}, whose
@@ -568,7 +610,8 @@ positive/negative distinction rather than an end-to-end accuracy measure.
         "n_dis": len(mn.get("disagreements", [])),
         "dis_text": ("concerned action recommendations rendered indirectly."
                      if mn.get("disagreements") else "occurred."),
-        "auto": auto[raters[0]]["agreed"], "auto_n": auto[raters[0]]["n"],
+        "auto": auto.get("pooled_agreed", 0), "auto_n": auto.get("pooled_n", 0),
+        "auto_model": auto.get("model") or "model",
         "pn_gold": pn.get("n_gold_pair", 0), "pn_in": pn.get("n_predicted_in_pair", 0),
         "pn_acc": 100 * (pn.get("conditional_agreement") or 0),
     }

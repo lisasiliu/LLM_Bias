@@ -1,97 +1,50 @@
 # Politeness validation
 
-Validation of controlled Brown & Levinson politeness rewrites of LURK Werewolf
-utterances: whether each rewrite realizes the requested strategy, and whether it
-preserves game-relevant meaning.
-
-Read **[VALIDATION.md](VALIDATION.md)** for the results and what they mean.
+Controlled Brown & Levinson politeness rewrites of LURK Werewolf utterances, and
+the evidence that they realize the requested strategy and keep the game meaning.
+Results and method: [VALIDATION.md](VALIDATION.md).
 
 ## Data
 
 | file | contents |
 | --- | --- |
-| `data/manual_validation.jsonl` | one record per rewritten utterance: provenance, predicate, speaker, untreated original, requested strategy, rewrite, the blind manual annotation, every automatic verdict, and the prompt/rubric hashes it was produced under |
-| `data/external_validation.jsonl` | one record per external construct-check item: the published label, how it maps onto our strategies, the split, and our automatic prediction |
-| `data/provenance.json` | source runs, sampling and annotation procedure, what was hidden from the annotator, models and settings, frozen prompt and rubric hashes, git commit |
-| `data/researcher_1_worksheet.md` | the worksheet researcher 1 was issued, **as returned** with their answers — the raw primary annotation record |
-| `data/researcher_1_key.json` | the hidden record for that worksheet |
-| `data/researcher_2_worksheet.md` | the same 48 items as a blank blind worksheet for a second, independent annotator; not yet collected |
-| `data/researcher_2_key.json` | the hidden record for that worksheet — do not open it before annotating |
-
-The JSONL files are the scientifically useful artifacts; everything in
-`VALIDATION.md` is computed from them.
+| `data/manual_validation.jsonl` | one record per rewrite: source, predicate, original, requested strategy, rewrite, both human annotations, the LLM politeness judge's label and the meaning-check outputs |
+| `data/external_validation.jsonl` | the 135 Zhao & Hawkins items: published label, mapped strategy, judge label |
+| `data/classifier_passes.jsonl` | every judge pass (3 per item) with the evidence it gave |
+| `data/provenance.json` | sources, sampling, annotation procedure, models and settings |
+| `data/researcher_{1,2}_worksheet.md` | the blind worksheets the annotators filled in |
+| `data/researcher_{1,2}_key.json` | the hidden key for each worksheet |
 
 ## Commands
 
-All run offline — none of them calls a model.
-
-Build a blank worksheet for a new blind annotation round:
-
-```bash
-python -m experiments.politeness_validation.code.validation build-worksheet \
-    --items data/manual_validation.jsonl \
-    --out worksheet.md --key worksheet_key.json
-```
-
-It shows the predicate, the original, the rewrite and any referenced statement,
-hides the requested strategy and all automatic verdicts, shuffles the items, and
-refuses to write a worksheet that leaks a hidden verdict. `--compact` asks only
-for strategy, confidence, meaning and a note.
-
-Merge a completed worksheet back into the hidden record:
-
-```bash
-python -m experiments.politeness_validation.code.validation import-annotations \
-    --worksheet worksheet.md --key worksheet_key.json \
-    --out data/manual_validation.jsonl
-```
-
-### Second annotator
-
-Each item carries an `annotations` list, one entry per rater (`rater_1`,
-`rater_2`), plus `strategy_agreement` / `meaning_agreement` flags. Categorical
-labels are never averaged across raters.
-
-`data/researcher_2_worksheet.md` holds all 48 items, shuffled under a different
-seed, blind to the requested condition, to every automatic verdict, and to
-researcher 1's labels. **Do not send `researcher_1_worksheet.md` to researcher
-2** — it contains researcher 1's answers. Once the second sheet comes back:
-
-```bash
-python -m experiments.politeness_validation.code.validation import-annotations \
-    --worksheet researcher_2_worksheet.md \
-    --key data/researcher_2_key.json \
-    --annotator rater_2 \
-    --out data/manual_validation.jsonl
-```
-
-`analyze` reports each rater against the requested strategy, inter-rater
-agreement with unweighted Cohen's kappa, and the meaning counts.
-`--latex -` prints a paste-ready LaTeX subsection with the same numbers.
-
-Reproduce every statistic in `VALIDATION.md`:
+Recompute every statistic in VALIDATION.md (offline):
 
 ```bash
 python -m experiments.politeness_validation.code.validation analyze
+python -m experiments.politeness_validation.code.validation verify-provenance
 ```
 
-Check that the frozen prompts and the semantic rubric still match what
-`provenance.json` records:
+Re-run the LLM politeness judge on both reference sets (calls the OpenAI API,
+about $0.20), then write its labels into the two JSONL files:
 
 ```bash
-python -m experiments.politeness_validation.code.validation verify-provenance
+python -m experiments.politeness_validation.code.classifier_eval run
+python -m experiments.politeness_validation.code.classifier_eval apply
+```
+
+Build a blind worksheet for a new annotation round, and merge it back:
+
+```bash
+python -m experiments.politeness_validation.code.validation build-worksheet \
+    --items data/manual_validation.jsonl --out worksheet.md --key worksheet_key.json
+python -m experiments.politeness_validation.code.validation import-annotations \
+    --worksheet worksheet.md --key worksheet_key.json --annotator rater_3 \
+    --out data/manual_validation.jsonl
 ```
 
 ## Reusable components
 
-The rewriter and the judges live outside this directory because the downstream
-listener experiment uses them too:
-
-- `components/rewriters/politeness_rewriter.py` — the frozen rewriter
-- `components/judges/politeness_classifier.py` — the strategy classifier
-  (diagnostic only)
-- `components/judges/inverse_parser.py` — the inverse predicate parser
-- `components/judges/semantic_dimensions.py` — the dimensional semantic validator
-- `components/judges/semantic.py` — deterministic structural checks
-- `components/validation/adjudication.py` — the accept/queue policy
-- `components/validation/sources.py` — reading untreated sources from a game run
+- `components/rewriters/politeness_rewriter.py` - the rewriter
+- `components/judges/blind_politeness_classifier.py` - the LLM politeness judge prompt and parser
+- `components/judges/judge_model.py`, `majority_vote.py` - model access and the 3-pass vote
+- `components/judges/inverse_predicate_parser.py`, `dimensional_semantic_validator.py`, `structural_check.py` - meaning checks
