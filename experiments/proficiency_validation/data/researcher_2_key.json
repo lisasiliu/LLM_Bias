@@ -15,7 +15,9 @@
       "second_condition": "high",
       "passage_a_condition": "high",
       "passage_b_condition": "neutral",
-      "presentation_order": "ba"
+      "presentation_order": "ba",
+      "passage_a_sha256": "e38d8f7c064dab6c0f7fb9ac408d23fd31481a75f59b575e8f9e2c43851e56f0",
+      "passage_b_sha256": "e8d1574429117de79daafe4f6afe18a593645a1d94d64de0633a500cf54f009a"
     },
     "item_002": {
       "pair_id": "run03:P9|neutral:high",
@@ -27,7 +29,9 @@
       "second_condition": "high",
       "passage_a_condition": "high",
       "passage_b_condition": "neutral",
-      "presentation_order": "ba"
+      "presentation_order": "ba",
+      "passage_a_sha256": "1b910b05048b0cf5797c5ad8f3889243c85f9ef8c83a44a4e77ac253c2ee4396",
+      "passage_b_sha256": "a36465f8812861ad3556a142243597f306aa011b1b39376caf8201e591e2ad3a"
     },
     "item_003": {
       "pair_id": "run01:P1|neutral:original",
@@ -39,7 +43,9 @@
       "second_condition": "original",
       "passage_a_condition": "original",
       "passage_b_condition": "neutral",
-      "presentation_order": "ba"
+      "presentation_order": "ba",
+      "passage_a_sha256": "ba9688902737bba2ccc1bd30e4ce2b7f7d4919720eff4aef8c61df865704dac4",
+      "passage_b_sha256": "3b85b011ddee089e27059fb8ae582b51178eeb34f2787f7d59e6514f3538a52c"
     },
     "item_004": {
       "pair_id": "run01:P2|neutral:high",
@@ -51,7 +57,9 @@
       "second_condition": "high",
       "passage_a_condition": "high",
       "passage_b_condition": "neutral",
-      "presentation_order": "ba"
+      "presentation_order": "ba",
+      "passage_a_sha256": "6a1a4c551c831ee408d005c2ae1ad2d2e24b7f4e1f07e54644265b96ff367313",
+      "passage_b_sha256": "b8f303a786e1c7adfe360688b0de9559adc51c935b841cbab59964bac542db4c"
     },
     "item_005": {
       "pair_id": "run02:P1|neutral:original",
@@ -63,7 +71,9 @@
       "second_condition": "original",
       "passage_a_condition": "original",
       "passage_b_condition": "neutral",
-      "presentation_order": "ba"
+      "presentation_order": "ba",
+      "passage_a_sha256": "1250301680743b8ed8ea608260772d41d578b19a24db471d9c44d3075c9ac043",
+      "passage_b_sha256": "3f9fa7dd7219e0aef18bca18e34bf30101710e03bb66297d67447289578ff0f0"
     },
     "item_006": {
       "pair_id": "run03:P1|neutral:high",
@@ -75,7 +85,9 @@
       "second_condition": "high",
       "passage_a_condition": "neutral",
       "passage_b_condition": "high",
-      "presentation_order": "ab"
+      "presentation_order": "ab",
+      "passage_a_sha256": "7345b06970e56426873a151e5f75ebdac6b93ac99ccf68d1e4b0f0ee3eadb3d5",
+      "passage_b_sha256": "6048d6a72686a268afb3916c48cc55490ce9a1c755fa1aaab257b6cf51d54a4d"
     },
     "item_007": {
       "pair_id": "run02:P5|neutral:original",
@@ -87,7 +99,9 @@
       "second_condition": "original",
       "passage_a_condition": "original",
       "passage_b_condition": "neutral",
-      "presentation_order": "ba"
+      "presentation_order": "ba",
+      "passage_a_sha256": "a76c464b198d1f7fdfa809f9270509b79d0e89963c13a12b7e98fa6b76057fbf",
+      "passage_b_sha256": "20b325e27e74cee46aa3a7eb61bfca6cc59befcb207f1f7c67f0772c7509ae5a"
     },
     "item_008": {
       "pair_id": "run01:P1|neutral:high",
@@ -99,7 +113,9 @@
       "second_condition": "high",
       "passage_a_condition": "neutral",
       "passage_b_condition": "high",
-      "presentation_order": "ab"
+      "presentation_order": "ab",
+      "passage_a_sha256": "3b85b011ddee089e27059fb8ae582b51178eeb34f2787f7d59e6514f3538a52c",
+      "passage_b_sha256": "1857e0245c737ccc49ca2656a0511cd461e43f9161ce47882c2ef9573bd0942e"
     },
     "item_009": {
       "pair_id": "run02:P7|low:high",
@@ -111,7 +127,9 @@
       "second_condition": "high",
       "passage_a_condition": "high",
       "passage_b_condition": "low",
-      "presentation_order": "ba"
+      "presentation_order": "ba",
+      "passage_a_sha256": "139d48ab968e9f8d59f02cc412fa994d1ba264437235af58100c58bb49442aaa",
+      "passage_b_sha256": "483c18b6b010e966b2447dd0cc9e27ac096fa061939f252b8830111b1b575f0f"
     },
     "item_010": {
       "pair_id": "run02:P7|neutral:high",
@@ -123,7 +141,9 @@
       "second_condition": "high",
       "passage_a_condition": "neutral",
       "passage_b_condition": "high",
-      "presentation_order": "ab"
+      "presentation_order": "ab",
+      "passage_a_sha256": "a8d5aabfccdfd66c87cb773500bcd88ec317464fff882d583229d209630c3274",
+      "passage_b_sha256": "139d48ab968e9f8d59f02cc412fa994d1ba264437235af58100c58bb49442aaa"
     },
     "item_011": {
       "pair_id": "run02:P7|low:neutral",
@@ -135,7 +155,9 @@
       "second_condition": "neutral",
       "passage_a_condition": "neutral",
       "passage_b_condition": "low",
-      "presentation_order": "ba"
+      "presentation_order": "ba",
+      "passage_a_sha256": "a8d5aabfccdfd66c87cb773500bcd88ec317464fff882d583229d209630c3274",
+      "passage_b_sha256": "483c18b6b010e966b2447dd0cc9e27ac096fa061939f252b8830111b1b575f0f"
     },
     "item_012": {
       "pair_id": "run02:P9|neutral:original",
@@ -147,7 +169,9 @@
       "second_condition": "original",
       "passage_a_condition": "neutral",
       "passage_b_condition": "original",
-      "presentation_order": "ab"
+      "presentation_order": "ab",
+      "passage_a_sha256": "1113273a9640cc47e25d860dff8abb3d0cd00fad6a5fa02b595de81f74188a72",
+      "passage_b_sha256": "5a345545c74ea3b07dd9650eaad1238deeb5c0d1f17b6b8f4a15e00da4b37bcf"
     },
     "item_013": {
       "pair_id": "run02:P7|neutral:original",
@@ -159,7 +183,9 @@
       "second_condition": "original",
       "passage_a_condition": "original",
       "passage_b_condition": "neutral",
-      "presentation_order": "ba"
+      "presentation_order": "ba",
+      "passage_a_sha256": "cf4e431b7a22b7deb5d904a39763b92253bbf1df8b869193afb7e22ebdd693c2",
+      "passage_b_sha256": "a8d5aabfccdfd66c87cb773500bcd88ec317464fff882d583229d209630c3274"
     },
     "item_014": {
       "pair_id": "run01:P7|low:high",
@@ -171,7 +197,9 @@
       "second_condition": "high",
       "passage_a_condition": "low",
       "passage_b_condition": "high",
-      "presentation_order": "ab"
+      "presentation_order": "ab",
+      "passage_a_sha256": "1296143035e75fdcede3d3d612f6a79647301c52dec42c50ff1d9408c74f27b7",
+      "passage_b_sha256": "5158dc176a90d07dcc2c863e6ae7a54e8d11fcd6e6564e3404a7a02f9589dba7"
     },
     "item_015": {
       "pair_id": "run02:P6|neutral:original",
@@ -183,7 +211,9 @@
       "second_condition": "original",
       "passage_a_condition": "neutral",
       "passage_b_condition": "original",
-      "presentation_order": "ab"
+      "presentation_order": "ab",
+      "passage_a_sha256": "1c892892d3054ee2917f92ce5b48dd1fad074cffd1964597fe3a8f1d8bcccccd",
+      "passage_b_sha256": "3bf94b24f4efbb2aa519470ac725fb449cc0313bf96f7bc432379c5f3479e499"
     },
     "item_016": {
       "pair_id": "run03:P9|low:high",
@@ -195,7 +225,9 @@
       "second_condition": "high",
       "passage_a_condition": "high",
       "passage_b_condition": "low",
-      "presentation_order": "ba"
+      "presentation_order": "ba",
+      "passage_a_sha256": "1b910b05048b0cf5797c5ad8f3889243c85f9ef8c83a44a4e77ac253c2ee4396",
+      "passage_b_sha256": "244e28e0a3f391ed4dfffdb2eeb3873f83edba473b7688dcc61f22039669400b"
     },
     "item_017": {
       "pair_id": "run01:P3|low:neutral",
@@ -207,7 +239,9 @@
       "second_condition": "neutral",
       "passage_a_condition": "low",
       "passage_b_condition": "neutral",
-      "presentation_order": "ab"
+      "presentation_order": "ab",
+      "passage_a_sha256": "cce1ed3d5ba0bcc1807a1d3be5ce038ee13717ac467b4f038540b61c3fd5044f",
+      "passage_b_sha256": "8819374754548bfc99313b0ca9c95fec5c6f86ba73a9ef72bbbf1fa13a5a2ea0"
     },
     "item_018": {
       "pair_id": "run01:P7|neutral:high",
@@ -219,7 +253,9 @@
       "second_condition": "high",
       "passage_a_condition": "high",
       "passage_b_condition": "neutral",
-      "presentation_order": "ba"
+      "presentation_order": "ba",
+      "passage_a_sha256": "5158dc176a90d07dcc2c863e6ae7a54e8d11fcd6e6564e3404a7a02f9589dba7",
+      "passage_b_sha256": "191b987bb03e32e0c7db9a3a9b384118f7b52918537d8f5f6aedc1744bf1ff2e"
     },
     "item_019": {
       "pair_id": "run02:P5|low:neutral",
@@ -231,7 +267,9 @@
       "second_condition": "neutral",
       "passage_a_condition": "low",
       "passage_b_condition": "neutral",
-      "presentation_order": "ab"
+      "presentation_order": "ab",
+      "passage_a_sha256": "3ea039767944b1b12bb3728b256357c112ebfcb4b77d914c6f3df8ec8e114e8f",
+      "passage_b_sha256": "20b325e27e74cee46aa3a7eb61bfca6cc59befcb207f1f7c67f0772c7509ae5a"
     },
     "item_020": {
       "pair_id": "run03:P9|low:neutral",
@@ -243,7 +281,9 @@
       "second_condition": "neutral",
       "passage_a_condition": "low",
       "passage_b_condition": "neutral",
-      "presentation_order": "ab"
+      "presentation_order": "ab",
+      "passage_a_sha256": "244e28e0a3f391ed4dfffdb2eeb3873f83edba473b7688dcc61f22039669400b",
+      "passage_b_sha256": "a36465f8812861ad3556a142243597f306aa011b1b39376caf8201e591e2ad3a"
     },
     "item_021": {
       "pair_id": "run03:P1|neutral:original",
@@ -255,7 +295,9 @@
       "second_condition": "original",
       "passage_a_condition": "original",
       "passage_b_condition": "neutral",
-      "presentation_order": "ba"
+      "presentation_order": "ba",
+      "passage_a_sha256": "1ec00b52495ca39b3cb7203c2ab79beb24d7db96e39c94f331f8577ab6ee85ec",
+      "passage_b_sha256": "7345b06970e56426873a151e5f75ebdac6b93ac99ccf68d1e4b0f0ee3eadb3d5"
     },
     "item_022": {
       "pair_id": "run03:P4|low:high",
@@ -267,7 +309,9 @@
       "second_condition": "high",
       "passage_a_condition": "low",
       "passage_b_condition": "high",
-      "presentation_order": "ab"
+      "presentation_order": "ab",
+      "passage_a_sha256": "3dfd65d828b234f17bfdc858603d8e4cfb3c6bb160bd643ef0e3b61cfa586b17",
+      "passage_b_sha256": "8bb6ea1d1e70dbfbff86fa066f30c106190f67fce7cf9f1f2e22e30ece78767f"
     },
     "item_023": {
       "pair_id": "run03:P5|neutral:high",
@@ -279,7 +323,9 @@
       "second_condition": "high",
       "passage_a_condition": "high",
       "passage_b_condition": "neutral",
-      "presentation_order": "ba"
+      "presentation_order": "ba",
+      "passage_a_sha256": "2c7e091b01944116d441b731ed55f0fece6c3f09a6651b6c1bc2277cbeee1d84",
+      "passage_b_sha256": "a4d60826d76c9726257fdf632c3c301095fb5cb89d5eed3d037af9e77285e4e4"
     },
     "item_024": {
       "pair_id": "run02:P4|neutral:high",
@@ -291,7 +337,9 @@
       "second_condition": "high",
       "passage_a_condition": "neutral",
       "passage_b_condition": "high",
-      "presentation_order": "ab"
+      "presentation_order": "ab",
+      "passage_a_sha256": "ce7bb878c15d0effa64e1b7e019aae95bf5410bbf5a1d825145d9ec81ab0a0fe",
+      "passage_b_sha256": "44e49ab484f7b2646b6f2f27df233550b042aab49fd3062b2fc3dd31d56a579b"
     },
     "item_025": {
       "pair_id": "run02:P1|low:high",
@@ -303,7 +351,9 @@
       "second_condition": "high",
       "passage_a_condition": "high",
       "passage_b_condition": "low",
-      "presentation_order": "ba"
+      "presentation_order": "ba",
+      "passage_a_sha256": "9ece337cc968d1cc9baf47944a877d50d180aa7b4eb1b16333a637ba8f5d0bd7",
+      "passage_b_sha256": "ea586b6f426785da36e21d2823220cf925284f7afaac8bc184ed75bc6df2c8e0"
     },
     "item_026": {
       "pair_id": "run03:P2|neutral:original",
@@ -315,7 +365,9 @@
       "second_condition": "original",
       "passage_a_condition": "neutral",
       "passage_b_condition": "original",
-      "presentation_order": "ab"
+      "presentation_order": "ab",
+      "passage_a_sha256": "a3a687d9eb8108a136dae465672f0963414fdb34d24b65a2e15b38420b63381d",
+      "passage_b_sha256": "6a1aa50395e31b84bd1a5d85b61c05ce13c1836a62c8261d1aad5d729acd1a8a"
     },
     "item_027": {
       "pair_id": "run02:P8|low:neutral",
@@ -327,7 +379,9 @@
       "second_condition": "neutral",
       "passage_a_condition": "neutral",
       "passage_b_condition": "low",
-      "presentation_order": "ba"
+      "presentation_order": "ba",
+      "passage_a_sha256": "e8d1574429117de79daafe4f6afe18a593645a1d94d64de0633a500cf54f009a",
+      "passage_b_sha256": "ab8ebe1e4b71dea9a136ed4a74ff377ccea4b37140b0e160fb823fcd91fd096c"
     },
     "item_028": {
       "pair_id": "run01:P3|neutral:high",
@@ -339,7 +393,9 @@
       "second_condition": "high",
       "passage_a_condition": "neutral",
       "passage_b_condition": "high",
-      "presentation_order": "ab"
+      "presentation_order": "ab",
+      "passage_a_sha256": "8819374754548bfc99313b0ca9c95fec5c6f86ba73a9ef72bbbf1fa13a5a2ea0",
+      "passage_b_sha256": "3dc46e3545ee14b28ee8493a90e25d98005e031e0c7267944ea0d8155fb7fdf0"
     },
     "item_029": {
       "pair_id": "run02:P9|low:neutral",
@@ -351,7 +407,9 @@
       "second_condition": "neutral",
       "passage_a_condition": "low",
       "passage_b_condition": "neutral",
-      "presentation_order": "ab"
+      "presentation_order": "ab",
+      "passage_a_sha256": "a124e8bf70a73f4258301ce1f6e90aa8d12aef48a7ab9fc70bb3c0fa2a5e9a12",
+      "passage_b_sha256": "1113273a9640cc47e25d860dff8abb3d0cd00fad6a5fa02b595de81f74188a72"
     },
     "item_030": {
       "pair_id": "run01:P9|neutral:high",
@@ -363,7 +421,9 @@
       "second_condition": "high",
       "passage_a_condition": "neutral",
       "passage_b_condition": "high",
-      "presentation_order": "ab"
+      "presentation_order": "ab",
+      "passage_a_sha256": "c4b7ec6858ecaee8f86a0975be88fb29866b5ab7a8c17eab680454e3bde994a9",
+      "passage_b_sha256": "8735707e8881e198875b31cba42c359e0d19c6681e045e66bd4d367b4fc09cf1"
     },
     "item_031": {
       "pair_id": "run01:P9|low:high",
@@ -375,7 +435,9 @@
       "second_condition": "high",
       "passage_a_condition": "low",
       "passage_b_condition": "high",
-      "presentation_order": "ab"
+      "presentation_order": "ab",
+      "passage_a_sha256": "b11b8157e5a0377666fac168c60592ede8e2bbd88ad99d9b2c48a6b92bf541e2",
+      "passage_b_sha256": "8735707e8881e198875b31cba42c359e0d19c6681e045e66bd4d367b4fc09cf1"
     },
     "item_032": {
       "pair_id": "run01:P1|low:neutral",
@@ -387,7 +449,9 @@
       "second_condition": "neutral",
       "passage_a_condition": "neutral",
       "passage_b_condition": "low",
-      "presentation_order": "ba"
+      "presentation_order": "ba",
+      "passage_a_sha256": "3b85b011ddee089e27059fb8ae582b51178eeb34f2787f7d59e6514f3538a52c",
+      "passage_b_sha256": "13ccef2220f90f18c2285e77b981d71e5fafc650ae00ade580d9c1c2a0fe9621"
     },
     "item_033": {
       "pair_id": "run03:P6|neutral:high",
@@ -399,7 +463,9 @@
       "second_condition": "high",
       "passage_a_condition": "neutral",
       "passage_b_condition": "high",
-      "presentation_order": "ab"
+      "presentation_order": "ab",
+      "passage_a_sha256": "e854b2ce32cf66997a9665f058ee5291636817693231ddaae0cd7c837aaaac5d",
+      "passage_b_sha256": "adc35c6eab247d05ef574e84967587d1ca724bbbb77bf872d90b172d38e2916b"
     },
     "item_034": {
       "pair_id": "run01:P3|neutral:original",
@@ -411,7 +477,9 @@
       "second_condition": "original",
       "passage_a_condition": "original",
       "passage_b_condition": "neutral",
-      "presentation_order": "ba"
+      "presentation_order": "ba",
+      "passage_a_sha256": "1b63a8ec9eaca2fac6ffeb80cb2d3b8a36c96c76d92357a9281a8b5e6f077808",
+      "passage_b_sha256": "8819374754548bfc99313b0ca9c95fec5c6f86ba73a9ef72bbbf1fa13a5a2ea0"
     },
     "item_035": {
       "pair_id": "run01:P2|neutral:original",
@@ -423,7 +491,9 @@
       "second_condition": "original",
       "passage_a_condition": "original",
       "passage_b_condition": "neutral",
-      "presentation_order": "ba"
+      "presentation_order": "ba",
+      "passage_a_sha256": "d94dde33bfb35b5db78ca5aa2f04ea66b1bcc826a967e55c50715f5fad34c402",
+      "passage_b_sha256": "b8f303a786e1c7adfe360688b0de9559adc51c935b841cbab59964bac542db4c"
     },
     "item_036": {
       "pair_id": "run03:P4|neutral:original",
@@ -435,7 +505,9 @@
       "second_condition": "original",
       "passage_a_condition": "original",
       "passage_b_condition": "neutral",
-      "presentation_order": "ba"
+      "presentation_order": "ba",
+      "passage_a_sha256": "fc6603426bc602897c69aa8786d1925182b806b38bb8324e545a40cdb4c5eec4",
+      "passage_b_sha256": "48a1547e4fe39a0c06488eced4a73a15b5d091161c7d35ab0787307bb32ccc4f"
     },
     "item_037": {
       "pair_id": "run02:P1|neutral:high",
@@ -447,7 +519,9 @@
       "second_condition": "high",
       "passage_a_condition": "neutral",
       "passage_b_condition": "high",
-      "presentation_order": "ab"
+      "presentation_order": "ab",
+      "passage_a_sha256": "3f9fa7dd7219e0aef18bca18e34bf30101710e03bb66297d67447289578ff0f0",
+      "passage_b_sha256": "9ece337cc968d1cc9baf47944a877d50d180aa7b4eb1b16333a637ba8f5d0bd7"
     },
     "item_038": {
       "pair_id": "run03:P4|neutral:high",
@@ -459,7 +533,9 @@
       "second_condition": "high",
       "passage_a_condition": "high",
       "passage_b_condition": "neutral",
-      "presentation_order": "ba"
+      "presentation_order": "ba",
+      "passage_a_sha256": "8bb6ea1d1e70dbfbff86fa066f30c106190f67fce7cf9f1f2e22e30ece78767f",
+      "passage_b_sha256": "48a1547e4fe39a0c06488eced4a73a15b5d091161c7d35ab0787307bb32ccc4f"
     },
     "item_039": {
       "pair_id": "run01:P6|low:high",
@@ -471,7 +547,9 @@
       "second_condition": "high",
       "passage_a_condition": "high",
       "passage_b_condition": "low",
-      "presentation_order": "ba"
+      "presentation_order": "ba",
+      "passage_a_sha256": "246c7cd89cab3e9b015387bd91328b2d386e4b5ba5171381a197d4e3657b036c",
+      "passage_b_sha256": "2a9fb12675df4e9e1418459ebf96eaf10b6b740aa34016d0123d465eecca1bcc"
     },
     "item_040": {
       "pair_id": "run03:P9|neutral:original",
@@ -483,7 +561,9 @@
       "second_condition": "original",
       "passage_a_condition": "original",
       "passage_b_condition": "neutral",
-      "presentation_order": "ba"
+      "presentation_order": "ba",
+      "passage_a_sha256": "b26d88564838dda63a97f19ecbcd3a418ad275accdff33a83b81a2c9efd65df4",
+      "passage_b_sha256": "a36465f8812861ad3556a142243597f306aa011b1b39376caf8201e591e2ad3a"
     },
     "item_041": {
       "pair_id": "run03:P8|low:neutral",
@@ -495,7 +575,9 @@
       "second_condition": "neutral",
       "passage_a_condition": "low",
       "passage_b_condition": "neutral",
-      "presentation_order": "ab"
+      "presentation_order": "ab",
+      "passage_a_sha256": "a8e6196543c84962d2a60b46c62b2aff2d64e6b5a290d58388cbbfb3fc0309bb",
+      "passage_b_sha256": "eb1af60d05101998a7ab6ffd4fcfa2e4117670ff6a0c85a699d23c96141af144"
     },
     "item_042": {
       "pair_id": "run02:P2|low:high",
@@ -507,7 +589,9 @@
       "second_condition": "high",
       "passage_a_condition": "high",
       "passage_b_condition": "low",
-      "presentation_order": "ba"
+      "presentation_order": "ba",
+      "passage_a_sha256": "e36e89828ad9ef99000caad3efddfee6e0106bec2eded1079b72bddcb77013bb",
+      "passage_b_sha256": "d0530704a9059a94fb96a21df17e07b52489374c49563b26ed045a6799006169"
     },
     "item_043": {
       "pair_id": "run03:P1|low:neutral",
@@ -519,7 +603,9 @@
       "second_condition": "neutral",
       "passage_a_condition": "low",
       "passage_b_condition": "neutral",
-      "presentation_order": "ab"
+      "presentation_order": "ab",
+      "passage_a_sha256": "c9f8fff3c0ec4a16c2b032a237c289bfec12c1cdd22ce6a9c032b62474c7b81d",
+      "passage_b_sha256": "7345b06970e56426873a151e5f75ebdac6b93ac99ccf68d1e4b0f0ee3eadb3d5"
     },
     "item_044": {
       "pair_id": "run01:P9|neutral:original",
@@ -531,7 +617,9 @@
       "second_condition": "original",
       "passage_a_condition": "original",
       "passage_b_condition": "neutral",
-      "presentation_order": "ba"
+      "presentation_order": "ba",
+      "passage_a_sha256": "f08dcb67136bef1e15fa46eca943c5cdddb5114a4123dcb7b0ea6924fa7823f6",
+      "passage_b_sha256": "c4b7ec6858ecaee8f86a0975be88fb29866b5ab7a8c17eab680454e3bde994a9"
     },
     "item_045": {
       "pair_id": "run02:P4|neutral:original",
@@ -543,7 +631,9 @@
       "second_condition": "original",
       "passage_a_condition": "neutral",
       "passage_b_condition": "original",
-      "presentation_order": "ab"
+      "presentation_order": "ab",
+      "passage_a_sha256": "ce7bb878c15d0effa64e1b7e019aae95bf5410bbf5a1d825145d9ec81ab0a0fe",
+      "passage_b_sha256": "57007ab7d93a7036d9158a5494b7a6374285eddb8568f594a065942f212aab48"
     },
     "item_046": {
       "pair_id": "run01:P7|low:neutral",
@@ -555,7 +645,9 @@
       "second_condition": "neutral",
       "passage_a_condition": "neutral",
       "passage_b_condition": "low",
-      "presentation_order": "ba"
+      "presentation_order": "ba",
+      "passage_a_sha256": "191b987bb03e32e0c7db9a3a9b384118f7b52918537d8f5f6aedc1744bf1ff2e",
+      "passage_b_sha256": "1296143035e75fdcede3d3d612f6a79647301c52dec42c50ff1d9408c74f27b7"
     },
     "item_047": {
       "pair_id": "run03:P6|neutral:original",
@@ -567,7 +659,9 @@
       "second_condition": "original",
       "passage_a_condition": "neutral",
       "passage_b_condition": "original",
-      "presentation_order": "ab"
+      "presentation_order": "ab",
+      "passage_a_sha256": "e854b2ce32cf66997a9665f058ee5291636817693231ddaae0cd7c837aaaac5d",
+      "passage_b_sha256": "5f60d82d90119b756c54b661a2bb410cbc035e25896a1b634a5671a6227dae63"
     },
     "item_048": {
       "pair_id": "run02:P6|low:neutral",
@@ -579,7 +673,9 @@
       "second_condition": "neutral",
       "passage_a_condition": "neutral",
       "passage_b_condition": "low",
-      "presentation_order": "ba"
+      "presentation_order": "ba",
+      "passage_a_sha256": "1c892892d3054ee2917f92ce5b48dd1fad074cffd1964597fe3a8f1d8bcccccd",
+      "passage_b_sha256": "d24e0b33129927226383137ae78dd5d2da5ecf17a18554d4bdbe59f41bed6d37"
     },
     "item_049": {
       "pair_id": "run03:P8|neutral:original",
@@ -591,7 +687,9 @@
       "second_condition": "original",
       "passage_a_condition": "original",
       "passage_b_condition": "neutral",
-      "presentation_order": "ba"
+      "presentation_order": "ba",
+      "passage_a_sha256": "cc8a55e607ab0e937fe901e7dcc54985306f92f3be077d5f7a949045a06cabf0",
+      "passage_b_sha256": "eb1af60d05101998a7ab6ffd4fcfa2e4117670ff6a0c85a699d23c96141af144"
     },
     "item_050": {
       "pair_id": "run02:P8|low:high",
@@ -603,7 +701,9 @@
       "second_condition": "high",
       "passage_a_condition": "high",
       "passage_b_condition": "low",
-      "presentation_order": "ba"
+      "presentation_order": "ba",
+      "passage_a_sha256": "e38d8f7c064dab6c0f7fb9ac408d23fd31481a75f59b575e8f9e2c43851e56f0",
+      "passage_b_sha256": "ab8ebe1e4b71dea9a136ed4a74ff377ccea4b37140b0e160fb823fcd91fd096c"
     },
     "item_051": {
       "pair_id": "run01:P1|low:high",
@@ -615,7 +715,9 @@
       "second_condition": "high",
       "passage_a_condition": "low",
       "passage_b_condition": "high",
-      "presentation_order": "ab"
+      "presentation_order": "ab",
+      "passage_a_sha256": "13ccef2220f90f18c2285e77b981d71e5fafc650ae00ade580d9c1c2a0fe9621",
+      "passage_b_sha256": "1857e0245c737ccc49ca2656a0511cd461e43f9161ce47882c2ef9573bd0942e"
     },
     "item_052": {
       "pair_id": "run03:P1|low:high",
@@ -627,7 +729,9 @@
       "second_condition": "high",
       "passage_a_condition": "low",
       "passage_b_condition": "high",
-      "presentation_order": "ab"
+      "presentation_order": "ab",
+      "passage_a_sha256": "c9f8fff3c0ec4a16c2b032a237c289bfec12c1cdd22ce6a9c032b62474c7b81d",
+      "passage_b_sha256": "6048d6a72686a268afb3916c48cc55490ce9a1c755fa1aaab257b6cf51d54a4d"
     },
     "item_053": {
       "pair_id": "run03:P5|low:high",
@@ -639,7 +743,9 @@
       "second_condition": "high",
       "passage_a_condition": "low",
       "passage_b_condition": "high",
-      "presentation_order": "ab"
+      "presentation_order": "ab",
+      "passage_a_sha256": "925e1a1cd131c56524bf25e530352a18294f60256bb06da7b76daf0e77b837cb",
+      "passage_b_sha256": "2c7e091b01944116d441b731ed55f0fece6c3f09a6651b6c1bc2277cbeee1d84"
     },
     "item_054": {
       "pair_id": "run03:P5|low:neutral",
@@ -651,7 +757,9 @@
       "second_condition": "neutral",
       "passage_a_condition": "neutral",
       "passage_b_condition": "low",
-      "presentation_order": "ba"
+      "presentation_order": "ba",
+      "passage_a_sha256": "a4d60826d76c9726257fdf632c3c301095fb5cb89d5eed3d037af9e77285e4e4",
+      "passage_b_sha256": "925e1a1cd131c56524bf25e530352a18294f60256bb06da7b76daf0e77b837cb"
     },
     "item_055": {
       "pair_id": "run01:P3|low:high",
@@ -663,7 +771,9 @@
       "second_condition": "high",
       "passage_a_condition": "low",
       "passage_b_condition": "high",
-      "presentation_order": "ab"
+      "presentation_order": "ab",
+      "passage_a_sha256": "cce1ed3d5ba0bcc1807a1d3be5ce038ee13717ac467b4f038540b61c3fd5044f",
+      "passage_b_sha256": "3dc46e3545ee14b28ee8493a90e25d98005e031e0c7267944ea0d8155fb7fdf0"
     },
     "item_056": {
       "pair_id": "run03:P5|neutral:original",
@@ -675,7 +785,9 @@
       "second_condition": "original",
       "passage_a_condition": "original",
       "passage_b_condition": "neutral",
-      "presentation_order": "ba"
+      "presentation_order": "ba",
+      "passage_a_sha256": "627546896bf59f0bba43dac6cdec22ee255d4055083b73fd287f74dd5a2de6bd",
+      "passage_b_sha256": "a4d60826d76c9726257fdf632c3c301095fb5cb89d5eed3d037af9e77285e4e4"
     },
     "item_057": {
       "pair_id": "run01:P9|low:neutral",
@@ -687,7 +799,9 @@
       "second_condition": "neutral",
       "passage_a_condition": "neutral",
       "passage_b_condition": "low",
-      "presentation_order": "ba"
+      "presentation_order": "ba",
+      "passage_a_sha256": "c4b7ec6858ecaee8f86a0975be88fb29866b5ab7a8c17eab680454e3bde994a9",
+      "passage_b_sha256": "b11b8157e5a0377666fac168c60592ede8e2bbd88ad99d9b2c48a6b92bf541e2"
     },
     "item_058": {
       "pair_id": "run02:P1|low:neutral",
@@ -699,7 +813,9 @@
       "second_condition": "neutral",
       "passage_a_condition": "low",
       "passage_b_condition": "neutral",
-      "presentation_order": "ab"
+      "presentation_order": "ab",
+      "passage_a_sha256": "ea586b6f426785da36e21d2823220cf925284f7afaac8bc184ed75bc6df2c8e0",
+      "passage_b_sha256": "3f9fa7dd7219e0aef18bca18e34bf30101710e03bb66297d67447289578ff0f0"
     },
     "item_059": {
       "pair_id": "run01:P7|neutral:original",
@@ -711,7 +827,9 @@
       "second_condition": "original",
       "passage_a_condition": "neutral",
       "passage_b_condition": "original",
-      "presentation_order": "ab"
+      "presentation_order": "ab",
+      "passage_a_sha256": "191b987bb03e32e0c7db9a3a9b384118f7b52918537d8f5f6aedc1744bf1ff2e",
+      "passage_b_sha256": "e30e9bf5aa91757c2ad2551f5d3d8ebc57926460c820095aba623b0a1d40339b"
     },
     "item_060": {
       "pair_id": "run02:P8|neutral:original",
@@ -723,7 +841,9 @@
       "second_condition": "original",
       "passage_a_condition": "neutral",
       "passage_b_condition": "original",
-      "presentation_order": "ab"
+      "presentation_order": "ab",
+      "passage_a_sha256": "e8d1574429117de79daafe4f6afe18a593645a1d94d64de0633a500cf54f009a",
+      "passage_b_sha256": "1ce2b0251adf8f5b4a296064d986f84698296ae0e0c7060f627138772821267c"
     },
     "item_061": {
       "pair_id": "run01:P5|low:high",
@@ -735,7 +855,9 @@
       "second_condition": "high",
       "passage_a_condition": "low",
       "passage_b_condition": "high",
-      "presentation_order": "ab"
+      "presentation_order": "ab",
+      "passage_a_sha256": "db07e5382c277d9e9fbce6a6e1f64910837874d3e7dc2da71cc3df9f1eaf4b07",
+      "passage_b_sha256": "472776ee86ef97eaa9e1f9d21bbef7d957e1217619c22f18fc17fa0f178224e3"
     },
     "item_062": {
       "pair_id": "run03:P4|low:neutral",
@@ -747,7 +869,14 @@
       "second_condition": "neutral",
       "passage_a_condition": "low",
       "passage_b_condition": "neutral",
-      "presentation_order": "ab"
+      "presentation_order": "ab",
+      "passage_a_sha256": "3dfd65d828b234f17bfdc858603d8e4cfb3c6bb160bd643ef0e3b61cfa586b17",
+      "passage_b_sha256": "48a1547e4fe39a0c06488eced4a73a15b5d091161c7d35ab0787307bb32ccc4f"
     }
-  }
+  },
+  "expected_raters": [
+    "researcher_1",
+    "researcher_2"
+  ],
+  "worksheet_sha256": "70db653ff910271dd1b947348a2ff01cba81cf5ee5ff1c4bbfc5b8693e5b4d74"
 }

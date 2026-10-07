@@ -478,7 +478,9 @@ def prepare(args):
     return 0
 
 
-def summarize(data_dir, pilot_dir=None):
+def summarize(data_dir, pilot_dir=None, annotations_path=None):
+    if annotations_path is not None and (pilot_dir is None or not Path(annotations_path).is_file()):
+        raise ValueError("an annotation report requires a pilot run and an existing annotations file")
     data_dir = Path(data_dir)
     prov = read_metadata(data_dir / "sources.jsonl")
     for name in ARTIFACTS:
@@ -537,10 +539,12 @@ def summarize(data_dir, pilot_dir=None):
                 guardrails=opt("grammar_guardrails.jsonl"), cefr=opt("cefr_auxiliary.jsonl"),
                 listener=listener_files(robustness, "range_listener") + listener_files(robustness, "perceived_proficiency_listener")))
             result["whole_game"] = secondary_cohort(robustness, pilot_dir / "rewrite/rewrites.jsonl")
-        manual = data_dir.parent / "manual_validation.jsonl"
+        manual = Path(annotations_path) if annotations_path is not None else data_dir.parent / "manual_validation.jsonl"
         if manual.exists():
-            from experiments.proficiency_validation.validation.annotation import summary as human_summary
-            result["human_listeners"] = human_summary(read_jsonl(manual), read_listener_rows(measured, "range_listener"))
+            from experiments.proficiency_validation.validation.annotation import verified_summary
+            result["human_listeners"] = verified_summary(read_jsonl(manual),
+                measured / "linguistic_features_assembled.jsonl", listener_files(measured, "range_listener"))
+            result["human_listeners"]["annotations_sha256"] = sha256_file(manual)
     return result
 
 
@@ -686,7 +690,7 @@ def render(report):
 
 
 def report_command(args):
-    report = summarize(args.data_dir, args.pilot_dir)
+    report = summarize(args.data_dir, args.pilot_dir, getattr(args, "annotations", None))
     if args.out:
         args.out.parent.mkdir(parents=True, exist_ok=True)
         args.out.write_text(render(report), encoding="utf-8")
@@ -714,4 +718,5 @@ def add_parser(sub):
     p.add_argument("--out", type=Path)
     p.add_argument("--json", type=Path)
     p.add_argument("--pilot-dir", type=Path, help="archived rewrite, feature and listener outputs to audit")
+    p.add_argument("--annotations", type=Path, help="human labels for this run; defaults to data/manual_validation.jsonl")
     p.set_defaults(func=report_command)

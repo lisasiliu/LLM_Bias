@@ -27,8 +27,9 @@ of analysis is a speaker passage: 150 to 250 words of whole utterances by one pl
 drawn with a fixed seed from the early, middle and late thirds of that player's timeline and
 kept in speech order. The utterance set is fixed on the Original before any rewrite exists and is
 identical across conditions, which yields 24 passages. Whole-game transcripts (every public
-utterance of a player) form a robustness cohort. Games are the independent units throughout:
-players are averaged within a game, games receive equal weight, and intervals resample games.
+utterance of a player) form a robustness cohort. Directional effects average players within
+each game and give games equal weight; intervals resample games. Annotation agreement and
+Cohen's κ summarize the paired judgments.
 
 ## Generation and fidelity gate
 
@@ -79,7 +80,14 @@ order with randomized sides, on a blind sheet in the format of the politeness va
 analysis reports percent agreement and Cohen's κ between the
 researchers, the direction and signed preference per comparison, consensus labels after
 adjudication, each model listener's agreement with the consensus, and each model's consistency
-across presentation orders.
+across presentation orders. Directional shares and scores average responses within passages,
+then passages within games, with equal weight for each game. Model comparisons use complete
+pairs of presentation orders. κ is reported as undefined when both raters use just one category.
+
+Each sheet is tied to its researcher, item order and passage texts through its key file, and
+the report checks those materials against the run before it reports human results. Both
+researchers finish their independent labels before adjudication; the consensus sheet shows the
+disagreements under anonymous item IDs.
 
 **Auxiliary CEFR ratings.** A model assigns a CEFR band (A, B or C) with quoted evidence to each
 passage; band distributions and paired transitions describe where the conditions fall.
@@ -178,17 +186,29 @@ python -m experiments.proficiency_validation.validation build-worksheets \
     --assembled $RUN/validation/linguistic_features_assembled.jsonl --out-dir $DATA
 # each researcher fills in more_limited (A / B / same) in their own worksheet, then:
 python -m experiments.proficiency_validation.validation import-annotations \
-    --worksheet $DATA/researcher_1_worksheet.md --key $DATA/researcher_1_key.json --rater researcher_1
+    --worksheet $DATA/researcher_1_worksheet.md --key $DATA/researcher_1_key.json --rater researcher_1 \
+    --out $DATA/manual_validation.jsonl
 python -m experiments.proficiency_validation.validation import-annotations \
-    --worksheet $DATA/researcher_2_worksheet.md --key $DATA/researcher_2_key.json --rater researcher_2
+    --worksheet $DATA/researcher_2_worksheet.md --key $DATA/researcher_2_key.json --rater researcher_2 \
+    --out $DATA/manual_validation.jsonl
 python -m experiments.proficiency_validation.validation consensus-worksheet \
+    --annotations $DATA/manual_validation.jsonl --data-dir $DATA \
     --assembled $RUN/validation/linguistic_features_assembled.jsonl        # disagreements only
-python -m experiments.proficiency_validation.validation import-consensus --worksheet $DATA/consensus_worksheet.md
+python -m experiments.proficiency_validation.validation import-consensus \
+    --annotations $DATA/manual_validation.jsonl --data-dir $DATA \
+    --worksheet $DATA/consensus_worksheet.md \
+    --assembled $RUN/validation/linguistic_features_assembled.jsonl
 python -m experiments.proficiency_validation.validation annotation-summary \
+    --annotations $DATA/manual_validation.jsonl \
+    --assembled $RUN/validation/linguistic_features_assembled.jsonl \
     --listener $RUN/validation/range_listener.jsonl $RUN/validation/range_listener_openai.jsonl
+python -m experiments.proficiency_validation.validation report --pilot-dir $RUN \
+    --annotations $DATA/manual_validation.jsonl \
+    --out experiments/proficiency_validation/VALIDATION.md --json $RUN/validation/report.json
 ```
 
-The report includes the human section once `data/manual_validation.jsonl` exists. Internal
+The report includes the human section once `data/manual_validation.jsonl` exists and its
+material hashes match the run. Worksheets for another run go to a separate `--out-dir`. Internal
 condition identifiers are `low`, `neutral`, `high` and `original`; the report and the export
 display them as A, B, C and Original.
 
