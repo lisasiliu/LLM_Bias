@@ -13,7 +13,7 @@ from experiments.proficiency_validation.rewrite.fidelity import _quote_pattern, 
 from experiments.proficiency_validation.rewrite.runtime import assert_unique, artifact_provenance, record_artifact, digest
 
 
-VERSION = "cefr_band_v2"
+VERSION = "cefr_band"
 LEVELS = ("A", "B", "C")
 REFERENCE_BANDS = {**{band: band for band in LEVELS},
                    **{band + suffix: band for band in LEVELS for suffix in ("1", "2")}}

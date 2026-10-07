@@ -68,7 +68,7 @@ def _fill(text, choose):
     return "\n".join(out)
 
 
-def test_import_round_trip_markdown_and_csv():
+def test_import_round_trip():
     pairs = ann.build_pairs(_assembled())
     items = ann.worksheet_items(pairs, "researcher_1")
     key = {"worksheet_version": ann.WORKSHEET_VERSION, "assembled_sha256": "x", "items": ann.worksheet_key(items)}
@@ -80,9 +80,6 @@ def test_import_round_trip_markdown_and_csv():
         r = by_item[item["item_id"]]
         expected = item["passage_a_condition"] if r["raw_label"] == "A" else "same"
         assert r["condition_level_label"] == expected and r["pair_id"] == item["pair_id"]
-    csv_text = ann.render_csv(items).replace(",,\n", ",B,checked\n").replace(',,\r\n', ',B,checked\r\n')
-    answers = ann.parse_csv(csv_text)
-    assert len(answers) == len(items) and all(a["more_limited"] == "B" and a["note"] == "checked" for a in answers.values())
     with pytest.raises(ValueError):
         ann.import_annotations({k: v for k, v in ann.parse_worksheet(filled).items() if k != "item_001"}, key, "researcher_1")
     with pytest.raises(ValueError):
@@ -157,7 +154,7 @@ def test_write_and_consensus_sheet(tmp_path):
     assembled = tmp_path / "assembled.jsonl"
     assembled.write_text("\n".join(json.dumps(r) for r in _assembled()) + "\n")
     result = ann.write_worksheets(assembled, tmp_path / "out", seed=3)
-    assert result["n_pairs"] == 14 and len(result["files"]) == 6
+    assert result["n_pairs"] == 14 and len(result["files"]) == 4
     key = json.loads((tmp_path / "out/researcher_1_key.json").read_text())
     assert key["rater"] == "researcher_1" and len(key["items"]) == 14
     text = (tmp_path / "out/researcher_1_worksheet.md").read_text()

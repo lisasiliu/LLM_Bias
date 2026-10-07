@@ -17,9 +17,8 @@ model listeners from two model families and two human annotators on the same pas
 
 Every condition is generated independently from the Original. A versus B is the primary
 contrast. B versus Original tests that paraphrasing by itself leaves the measured properties
-unchanged. C versus B describes the upper direction. The labels follow the CEFR-derived
-A/B/C levels used in the automated proficiency literature; the conditions are relative levels
-of one speaker's text, and the auxiliary CEFR ratings below are reported separately.
+unchanged. C versus B describes the upper direction. The labels follow the A/B/C levels of the
+CEFR-derived proficiency literature.
 
 ## Materials
 
@@ -47,12 +46,12 @@ candidates all fail is recorded as unavailable, and a passage enters a compariso
 one of its utterances is available in both conditions.
 
 B generates five candidates per call. Candidates that change under 5% of the tokens are set
-aside, the gate judges the rest, and the passer whose sentence count and length are closest to
-the Original is kept. An optional selection rule (`--neutral-selection
-closest_surface_and_frequency_v1`) ranks the passers first by the closeness of their mean
-SUBTLEX word frequency to the Original's; the run records which rule was used. Judge calibration on 315 constructed rewrites (a broken target, role,
-polarity, reason, certainty or directive force, plus preserved paraphrases) measures the gate's
-sensitivity and specificity.
+aside, the gate judges the rest, and the passer closest to the Original is kept: smallest change
+in mean word frequency (SUBTLEX Lg10CD), then in sentence count, then in length; the
+B-versus-Original comparison on word frequency therefore verifies this selection, and the other
+measures, the guardrails and the listeners test the control. Judge calibration on 315 constructed
+rewrites (a broken target, role, polarity, reason, certainty or directive force, plus preserved
+paraphrases) measures the gate's sensitivity and specificity.
 
 ## Measures
 
@@ -76,7 +75,8 @@ C–B, A–C and B–Original.
 
 **Human annotation.** Two researchers independently label every complete pair of the four
 comparisons (62 pairs in the current run) with the same three-way question, in a randomized
-order with randomized sides. The analysis reports percent agreement and Cohen's κ between the
+order with randomized sides, on a blind sheet in the format of the politeness validation. The
+analysis reports percent agreement and Cohen's κ between the
 researchers, the direction and signed preference per comparison, consensus labels after
 adjudication, each model listener's agreement with the consensus, and each model's consistency
 across presentation orders.
@@ -93,43 +93,42 @@ the pilot's between-game variance.
 ## Pilot results
 
 Run of 7 October 2026 (Qwen3.5-27B as generator, judge, first listener and CEFR rater;
-GPT luna as second listener; prompts `range_v9`, rubric `english_fidelity_v7`). Full tables are
-in [VALIDATION.md](VALIDATION.md).
+GPT luna as second listener). Full tables are in [VALIDATION.md](VALIDATION.md).
 
-- Gate acceptance: A 269 of 280 utterances, C 269, B 255 (20 B sources produced only near-copies
-  below the 5% paraphrase floor and 5 returned the original unchanged). Primary cohort: 15
-  complete A–B passages, 13 C–B, 15 A–C and 19 B–Original across all three games; the whole-game
-  robustness cohort has 7 A–B and 7 C–B transcripts.
-- Rewrite exposure (token edit distance to the original): A changes 0.25 of the tokens, C 0.47,
+- Gate acceptance: A 269 of 280 utterances, C 267, B 255 (19 B sources produced only near-copies
+  below the 5% paraphrase floor and 6 returned the original unchanged). Primary cohort: 15
+  complete A–B passages, 14 C–B, 14 A–C and 19 B–Original across all three games; the whole-game
+  robustness cohort has 6 A–B and 6 C–B transcripts.
+- Rewrite exposure (token edit distance to the original): A changes 0.25 of the tokens, C 0.46,
   B 0.10.
 - A versus B (15 passages): all three primary measures in the predicted direction with intervals
-  excluding zero (SUBTLEX +0.30, MATTR −0.022, subordinate clauses −1.2 per 100 words); MTLD
-  −11.7, repetition +0.059, dependency distance −0.53, tree depth −1.18 and sentence length −27
-  words agree. On the 9 passages where A split sentences least, all three primary measures hold
-  (MATTR −0.013, interval [−0.029, −0.004]).
-- B versus Original (19 passages): MATTR +0.001, subordinate clauses −0.17 (interval
-  [−0.45, 0.11]), sentence length +0.1; B uses slightly rarer words (SUBTLEX −0.066, interval
-  [−0.103, −0.007]) and repeats less (−0.025). Grammar errors −0.05 per 100 words, CoLA +0.02.
-- C versus B (13 passages): rarer and more varied vocabulary (SUBTLEX −0.43, MATTR +0.013, MTLD
-  +14); subordinate clauses −0.17 (interval [−1.36, 0.90]); dependency distance, tree depth and
+  excluding zero (SUBTLEX +0.26, MATTR −0.015, subordinate clauses −1.0 per 100 words); MTLD
+  −7.3, repetition +0.060, dependency distance −0.64, tree depth −1.35 and sentence length −30
+  words agree. On the 9 passages where A split sentences least, word frequency holds (+0.26),
+  MATTR is −0.007 (interval [−0.012, 0.001]) and subordinate clauses −0.86 (interval
+  [−2.18, 0.19]).
+- B versus Original (19 passages): SUBTLEX −0.028 (interval [−0.056, 0.015]), MATTR −0.002,
+  subordinate clauses −0.23 (interval [−0.54, 0.05]), sentence length +0.7; B repeats slightly
+  less (−0.018). Grammar errors −0.02 per 100 words, CoLA +0.01.
+- C versus B (14 passages): rarer and more varied vocabulary (SUBTLEX −0.50, MATTR +0.019, MTLD
+  +13); subordinate clauses −0.34 (interval [−1.32, 0.29]); dependency distance, tree depth and
   sentence length within noise.
-- Guardrails for A versus B: grammar errors +0.02 per 100 words (one-sided bound 0.05), CoLA
-  acceptability +0.17.
-- Listeners, range question: both model families judge A more limited than B and than C in
-  every passage, and C less limited than B in every passage, in both presentation orders (Qwen
-  answers "same" once in 30 A–B comparisons). On B versus Original the Qwen listener answers
-  "same" in 92% of pairs (signed preference −0.07); luna answers "same" in 55% and otherwise calls
-  the Original more limited (−0.43, interval [−0.64, −0.30]).
-- Listeners, proficiency question: Qwen calls most pairs the same (60% of A–B, 81% of C–B) and
-  otherwise picks the expected side (A–B +0.42, A–C +0.71); luna agrees with the expected side on
-  C–B (−0.56) and answers A–B inconsistently across orders (+0.03; 8 of 15 passages receive the
-  same answer in both orders).
+- Guardrails for A versus B: grammar errors +0.02 per 100 words (one-sided bound 0.04), CoLA
+  acceptability +0.20.
+- Listeners, range question: both model families judge A more limited than B and than C, and C
+  less limited than B, in every passage and both presentation orders (Qwen answers "same" in 2 of
+  30 A–B comparisons). On B versus Original the Qwen listener answers "same" in 97% of pairs
+  (signed preference −0.02); luna answers "same" in 63% and otherwise calls the Original more
+  limited (−0.30, interval [−0.57, −0.14]).
+- Listeners, proficiency question: Qwen calls most pairs the same (70% of A–B, 75% of C–B) and
+  otherwise picks the expected side (A–B +0.30, A–C +0.71); luna agrees with the expected side on
+  C–B (−0.62) and gives the same answer in both orders for 7 of 15 A–B passages (+0.00).
 - Judge calibration on 315 constructed rewrites: sensitivity 0.996, specificity 0.978 under
   both parser policies.
-- CEFR: 6 of 19 A passages receive band B and 13 band C; every rated B, C and Original passage
+- CEFR: 7 of 18 A passages receive band B and 11 band C; every rated B, C and Original passage
   receives band C.
-- Power: six games per primary measure and for the range-listener score at 80% power for the
-  A–B contrast.
+- Power: six games for word frequency, MATTR and the range-listener score and eight for
+  subordinate clauses at 80% power for the A–B contrast.
 
 ## Files
 
@@ -139,7 +138,7 @@ in [VALIDATION.md](VALIDATION.md).
 | `validation/` | Passages, measures, listeners, CEFR ratings, human annotation, power, export and the report (`python -m experiments.proficiency_validation.validation`) |
 | `data/corpus/` | The untreated utterances and their baseline measures |
 | `data/runs/pilot_qwen35_27b/` | The current run: every rewrite attempt, passages, measures, listener answers, CEFR ratings and `manifest.json` |
-| `data/researcher_1_worksheet.{md,csv}`, `data/researcher_2_worksheet.{md,csv}` | Blind annotation sheets; the `_key.json` files hold the hidden condition assignment |
+| `data/researcher_1_worksheet.md`, `data/researcher_2_worksheet.md` | Blind annotation sheets, one per researcher; the `_key.json` files hold the hidden condition assignment |
 | `data/manual_validation.jsonl` | Imported human labels and consensus (written by `import-annotations`) |
 | `data/provenance.json`, `data/automatic_validation.jsonl` | Publication export: models, settings, hashes, and one row per passage and condition |
 | `tests/` | Offline tests (`python -m pytest experiments/proficiency_validation/tests`) |

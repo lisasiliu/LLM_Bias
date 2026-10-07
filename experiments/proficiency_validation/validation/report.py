@@ -617,8 +617,8 @@ def render(report):
         lines.append(f"| {row['label']} | {row['n_bundles']} | {fmt(row['mean'])} | {fmt(row['median'])} |")
     spacy = p["instruments"]["spacy"]
     syntax_note = (f"Syntax uses {spacy['lang']}_{spacy['model']} {spacy['model_version']} "
-                   f"with spaCy {spacy['spacy_version']}.") if spacy else "Syntax was not measured."
-    lines += ["", syntax_note, "MATTR uses a 50-token window. Player and statement IDs are excluded "
+                   f"with spaCy {spacy['spacy_version']}. ") if spacy else ""
+    lines += ["", syntax_note + "MATTR uses a 50-token window. Player and statement IDs are excluded "
               "from lexical diversity; domain words are excluded from content-word measures. "
               "These statistics describe the Original condition.", "",
               "## Validation evidence", "",

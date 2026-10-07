@@ -21,6 +21,9 @@ from experiments.proficiency_validation.validation.protocol import frozen_hashes
 from experiments.proficiency_validation.rewrite.gate import GatedRewriter, SemanticGate, TreatmentUnavailable, generate_with_gate, generation_qc, source_from_context
 
 
+def _constant_frequency(text):
+    return 0.0
+
 def source(predicate="estimate(D1, P3, P7, werewolf)", text="P7 is a werewolf, because he pushed "
            "the vote onto P2 without ever giving a read of his own.", speaker="P3", name=None):
     from lurkingwolf.utils.speech_nl import parse_predicate
@@ -121,27 +124,27 @@ class RewriterTests(unittest.TestCase):
         self.assertEqual(parse_candidates("1. first one\n2) second one"), ["first one", "second one"])
         self.assertEqual(parse_candidates("```json\n[\"x\"]\n```"), ["x"])
 
-    def test_select_candidate(self):
+    def test_select_candidate(self, frequency=_constant_frequency):
         original = "P7 is a werewolf because he pushed the vote onto P2"
         cands = [original,                                                          # copy
                  "P7 is a werewolf since he pushed the vote onto P2",               # small change
                  "P7 is a werewolf since he pushed the vote onto P2",               # duplicate
                  "I am sure P7 is a wolf: he steered the whole vote toward P2 himself"]  # large
-        sel = select_candidate(cands, original, seed=1)
+        sel = select_candidate(cands, original, seed=1, frequency=_constant_frequency)
         self.assertEqual(sel.chosen, cands[1])                  # same sentence count, fewest word changes
         self.assertEqual(sorted(d["reason"] for d in sel.dropped), ["duplicate", "identical_to_original"])
-        self.assertEqual(sel.rule, "closest_surface_profile_v1")
+        self.assertEqual(sel.rule, "closest_profile")
         self.assertEqual(len(sel.distances), 2)                 # exposure is recorded for every kept candidate
         with self.assertRaises(RuntimeError):
-            select_candidate([original], original, seed=1)
+            select_candidate([original], original, seed=1, frequency=_constant_frequency)
 
     def test_neutral_records_its_selection_and_never_calls_for_an_anchor(self):
         client = FakeClient([json.dumps(["P7 is a werewolf, since he pushed the vote onto P2 without ever giving a read of his own.",
                                          "P7 is a wolf: he steered the vote toward P2 and never offered one read of his own."])])
-        rw = LanguageProficiencyRewriter(llm_client=client, condition="neutral")
+        rw = LanguageProficiencyRewriter(llm_client=client, condition="neutral", neutral_frequency=_constant_frequency)
         text = rw.rewrite(self.ctx)
         self.assertEqual(text, rw.last_selection.chosen)
-        self.assertEqual(rw.last_selection.rule, "closest_surface_profile_v1")
+        self.assertEqual(rw.last_selection.rule, "closest_profile")
         self.assertEqual(len(rw.last_selection.distances), 2)        # recorded, not used for ranking
         self.assertEqual(len(client.calls), 1)                        # one candidate call, no Low anchor
         self.assertNotIn("edit-distance", client.calls[0]["messages"][1]["content"].lower())
@@ -242,6 +245,7 @@ class ChallengeTests(unittest.TestCase):
 class GateTests(unittest.TestCase):
     def test_cheap_gate_rejects_copy_and_hedge(self):
         gate = SemanticGate(None, None, require_parser=False, require_validator=False)
+        gate.neutral_frequency = _constant_frequency
         src = source()
         self.assertFalse(gate.evaluate(src, src.original_nl, "low").ok)
         hedged = gate.evaluate(src, "Maybe P7 is a werewolf; he pushed the vote onto P2 and never gave a read.", "low")
@@ -255,6 +259,7 @@ class GateTests(unittest.TestCase):
 
     def test_retry_then_success_and_unavailable(self):
         gate = SemanticGate(None, None, require_parser=False, require_validator=False)
+        gate.neutral_frequency = _constant_frequency
         src = source()
         ctx = build_context(src)
         client = FakeClient([src.original_nl,  # identical -> fail
@@ -301,6 +306,7 @@ class GateTests(unittest.TestCase):
                 return super().create(**kwargs)
         rw = LanguageProficiencyRewriter(llm_client=Boom([good]), condition="low")
         gate = SemanticGate(None, None, require_parser=False, require_validator=False)
+        gate.neutral_frequency = _constant_frequency
         outcome = generate_with_gate(rw, gate, ctx, src, max_corrective_retries=2)
         self.assertEqual(outcome.status, STATUS_OK)
         self.assertEqual(outcome.attempts[0].error[:12], "RuntimeError")
@@ -315,14 +321,16 @@ class GateTests(unittest.TestCase):
         ctx = build_context(src)
         cands = json.dumps(["Perhaps P7 is a werewolf because he pushed the vote onto P2."])  # hedged: fails
         client = FakeClient([cands, cands, cands])
-        rw = LanguageProficiencyRewriter(llm_client=client, condition="neutral")
+        rw = LanguageProficiencyRewriter(llm_client=client, condition="neutral", neutral_frequency=_constant_frequency)
         gate = SemanticGate(None, None, require_parser=False, require_validator=False)
+        gate.neutral_frequency = _constant_frequency
         outcome = generate_with_gate(rw, gate, ctx, src, max_corrective_retries=2)
         self.assertEqual(outcome.status, "treatment_unavailable")
         self.assertEqual(len(client.calls), 3)               # three candidate rounds, nothing else
 
     def test_gated_rewriter_fallback_and_raise(self):
         gate = SemanticGate(None, None, require_parser=False, require_validator=False)
+        gate.neutral_frequency = _constant_frequency
         src = source()
         ctx = build_context(src)
         base = LanguageProficiencyRewriter(llm_client=FakeClient([src.original_nl] * 3), condition="low")
@@ -349,6 +357,7 @@ class GateTests(unittest.TestCase):
 
     def test_neutral_gate_selects_among_passers(self):
         gate = SemanticGate(None, None, require_parser=False, require_validator=False)
+        gate.neutral_frequency = _constant_frequency
         src = source()
         ctx = build_context(src)
         cands = [src.original_nl,                                           # fails: copy
@@ -492,11 +501,13 @@ class ReviewFixTests(unittest.TestCase):
         src.public_history = ["[s1|P1] claim_role(D1, P1, seer): I am the seer.",
                               f"[s5|P3] {src.predicate_text}: {src.original_nl}"]
         gate = SemanticGate(FakeParser(), None, require_validator=False)
+        gate.neutral_frequency = _constant_frequency
         gate.evaluate(src, "P7 is a werewolf. He pushed the vote onto P2. He gave no read.", "low")
         self.assertEqual(seen["history"], src.public_history[:1])
 
     def test_judge_all_scores_identity_controls(self):
         gate = SemanticGate(None, None, require_parser=False, require_validator=False)
+        gate.neutral_frequency = _constant_frequency
         src = source()
         verdicts = gate.judge_all(src, src.original_nl)
         self.assertTrue(verdicts["structural"]["ok"])
@@ -610,6 +621,7 @@ class SecondReviewFixTests(unittest.TestCase):
         copies = json.dumps([src.original_nl, src.original_nl])
         rw = LanguageProficiencyRewriter(llm_client=FakeClient([copies] * 3), condition="neutral")
         gate = SemanticGate(None, None, require_parser=False, require_validator=False)
+        gate.neutral_frequency = _constant_frequency
         outcome = generate_with_gate(rw, gate, ctx, src, max_corrective_retries=2)
         self.assertEqual(outcome.status, "treatment_unavailable")       # not an infrastructure error
         self.assertTrue(all(a.error == "" for a in outcome.attempts))
@@ -627,6 +639,7 @@ class SecondReviewFixTests(unittest.TestCase):
         ctx = build_context(src)
         rw = LanguageProficiencyRewriter(llm_client=Dead([]), condition="neutral")
         gate = SemanticGate(None, None, require_parser=False, require_validator=False)
+        gate.neutral_frequency = _constant_frequency
         outcome = generate_with_gate(rw, gate, ctx, src, max_corrective_retries=2)   # must not raise
         self.assertEqual(outcome.status, STATUS_INFRASTRUCTURE_UNAVAILABLE)
         self.assertEqual(len(outcome.attempts), 3)
@@ -716,10 +729,12 @@ class ThirdReviewFixTests(unittest.TestCase):
         ctx = build_context(src)
         good = "P7 is a werewolf. He pushed the vote onto P2. He never gave a read of his own."
         gate = SemanticGate(None, OddValidator(), require_parser=False)
+        gate.neutral_frequency = _constant_frequency
         self.assertIsNone(gate.evaluate(src, good, "low").ok)
         rw = LanguageProficiencyRewriter(llm_client=FakeClient([good] * 3), condition="low")
         self.assertEqual(generate_with_gate(rw, gate, ctx, src).status, STATUS_INFRASTRUCTURE_UNAVAILABLE)
         gate = SemanticGate(None, FailingValidator(), require_parser=False)
+        gate.neutral_frequency = _constant_frequency
         self.assertIs(gate.evaluate(src, good, "low").ok, False)
         rw = LanguageProficiencyRewriter(llm_client=FakeClient([good] * 3), condition="low")
         self.assertEqual(generate_with_gate(rw, gate, ctx, src).status, STATUS_TREATMENT_UNAVAILABLE)
@@ -740,6 +755,7 @@ class ThirdReviewFixTests(unittest.TestCase):
         y = "P7 is a werewolf, given that he pushed the vote onto P2 without ever offering his own read."
         rw = LanguageProficiencyRewriter(llm_client=FakeClient([json.dumps([x, x, y, x])]), condition="neutral")
         gate = SemanticGate(None, CountingValidator(), require_parser=False)
+        gate.neutral_frequency = _constant_frequency
         outcome = generate_with_gate(rw, gate, ctx, src)
         self.assertEqual(outcome.status, "ok")
         self.assertEqual(sorted(CountingValidator.seen), sorted([x, y]))
@@ -848,7 +864,7 @@ class FifthReviewFixTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "selection rule"):
             Rewriter.from_config(stale_rule, llm_client=None)
         stale = rw.to_config()
-        stale["params"]["prompt_version"] = "range_v0"
+        stale["params"]["prompt_version"] = "range_stale"
         with self.assertRaises(ValueError):
             Rewriter.from_config(stale, llm_client=None)
         gated = GatedRewriter(base="low", gate=SemanticGate(None, None, judge_handle="deepseek-chat"),
@@ -910,6 +926,7 @@ class FifthReviewFixTests(unittest.TestCase):
         b = "P7 is a werewolf. He pushed the vote onto P2 and never gave a read of his own"
         rw = LanguageProficiencyRewriter(llm_client=FakeClient([json.dumps([a, b])]), condition="neutral")
         gate = SemanticGate(None, CountingValidator(), require_parser=False)
+        gate.neutral_frequency = _constant_frequency
         outcome = generate_with_gate(rw, gate, ctx, src)
         self.assertEqual(outcome.status, "ok")
         self.assertEqual(len(CountingValidator.seen), 2)  # sentence boundaries are different

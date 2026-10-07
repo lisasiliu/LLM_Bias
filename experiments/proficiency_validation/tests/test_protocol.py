@@ -24,6 +24,9 @@ from experiments.proficiency_validation.tests.test_offline import source, FakeCl
 from components.helpers import build_context
 
 
+def _constant_frequency(text):
+    return 0.0
+
 def design(treatment="low"):
     """Synthetic decisions for tests only, not proposed study thresholds."""
     metrics = list(PRIMARY_RANGE_METRICS)
@@ -60,7 +63,7 @@ def design(treatment="low"):
         "instruments": {"spacy_model": "en_core_web_sm", "spacy_model_version": "test", "spacy_version": "test",
             "languagetool_version": "LanguageTool test", "languagetool_language": "en-US", "cola_model": "test-cola",
             "cola_commit_hash": "c"*40, "cola_acceptable_index": 1, "cola_max_length": 512,
-            "cola_label_rationale": "test metadata with an explicitly verified label", "subtlex_sha256": "d"*64,
+            "cola_label_rationale": "test metadata with an explicitly verified label", "subtlex_sha256": "d"*64, "subtlex_path": "subtlex.txt",
             "subtlex_measure": "Lg10CD", "include_domain_terms": False},
         "models": {"generator": "generator", "judge": "judge", "listeners": handles[2:],
                    "identities": identities, "behavioral_families": ["behavior"]}, "splits": splits,
@@ -136,6 +139,7 @@ class EnglishContractTests(unittest.TestCase):
     def test_sentence_boundary_change_is_not_copy(self):
         src = source(text="P7 is a werewolf; P2 is a villager.")
         gate = SemanticGate(require_parser=False, require_validator=False)
+        gate.neutral_frequency = _constant_frequency
         result = gate.evaluate(src, "P7 is a werewolf. P2 is a villager.", "low")
         self.assertTrue(result.passed)
 
@@ -145,6 +149,7 @@ class EnglishContractTests(unittest.TestCase):
         client = FakeClient([json.dumps([neutral])])
         rw = LanguageProficiencyRewriter(llm_client=client, condition="neutral")
         gate = SemanticGate(require_parser=False, require_validator=False)
+        gate.neutral_frequency = _constant_frequency
         result = generate_with_gate(rw, gate, build_context(src), src)
         self.assertEqual((result.status, result.text), ("ok", neutral))
         self.assertEqual(len(client.calls), 1)
@@ -265,3 +270,4 @@ class LocalModelTests(unittest.TestCase):
     def test_gemini_compatible_url_is_not_double_versioned(self):
         self.assertEqual(completion_url("https://generativelanguage.googleapis.com/v1beta/openai"),
                          "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions")
+

@@ -11,7 +11,6 @@ from components.api_usage import UsageLedger
 from components.helpers import SourceRecord, build_context, read_jsonl
 from components.metrics.edit_distance import normalized_token_edit_distance
 from components.rewriters.language_rewriter import (
-    NEUTRAL_SELECTION_RULE, NEUTRAL_SELECTION_RULES,
     CONDITIONS as REWRITE_CONDITIONS, PROMPT_VERSION, LanguageProficiencyRewriter)
 from experiments.proficiency_validation.rewrite.gate import SemanticGate, generate_with_gate, generation_qc
 from experiments.proficiency_validation.rewrite.runtime import (
@@ -195,9 +194,7 @@ def add_generate_parser(sub) -> None:
                         "(defer, recorded per row) or give no verdict (no_verdict)")
     p.add_argument("--neutral-exposure-floor", type=float, default=.05,
                    help="a gate-passing Neutral candidate must change at least this share of the tokens (near-copy floor)")
-    p.add_argument("--neutral-selection", choices=list(NEUTRAL_SELECTION_RULES), default=NEUTRAL_SELECTION_RULE,
-                   help="how gate-passing Neutral candidates are ranked")
-    p.add_argument("--subtlex", type=Path, default=None, help="SUBTLEX-US file for the frequency selection rule")
+    p.add_argument("--subtlex", type=Path, default=None, help="SUBTLEX-US file; ranks the Neutral candidates")
     p.add_argument("--spacy-model", default="en_core_web_sm")
     p.add_argument("--parser-context-words", type=int, default=6000,
                    help="prior-history word budget for the parser: referenced speech, then the current phase, then the most recent")
@@ -286,7 +283,9 @@ def generate_command(args) -> int:
     if not 0 <= args.neutral_exposure_floor <= .5:
         raise ValueError("neutral exposure floor must be between 0 and 0.5")
     gate.neutral_exposure_floor = args.neutral_exposure_floor
-    gate.set_neutral_selection(args.neutral_selection, args.subtlex, args.spacy_model)
+    if not args.subtlex:
+        raise ValueError("--subtlex is required: the Neutral candidates are ranked by word frequency")
+    gate.set_neutral_frequency(args.subtlex, args.spacy_model)
     if args.parser_context_words < 100:
         raise ValueError("parser context budget must be at least 100 words")
     gate.parser_context_words = args.parser_context_words
@@ -316,8 +315,7 @@ def generate_command(args) -> int:
                 "temperature": args.temperature, "max_tokens": args.max_tokens, "judge_max_tokens": args.judge_max_tokens,
                 "n_neutral_candidates": args.n_neutral_candidates, "retries": args.max_retries,
                 "parser_abstention": args.parser_abstention, "neutral_exposure_floor": args.neutral_exposure_floor,
-                "neutral_selection_rule": args.neutral_selection,
-                "subtlex_sha256": sha256_file(args.subtlex) if args.subtlex else None,
+                "subtlex_sha256": sha256_file(args.subtlex),
                 "parser_context_words": args.parser_context_words,
                 "secondary_judge": secondary.model.identity_record if secondary else None,
                 "source_ids": [s.source_id for s in sources]}

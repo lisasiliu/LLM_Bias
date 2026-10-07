@@ -51,7 +51,7 @@ def proficiency_check(source, rewritten):
     return CheckResult(ok=not hard, reasons=hard, details=details)
 
 
-SEMANTIC_RUBRIC_VERSION = "english_fidelity_v7"
+SEMANTIC_RUBRIC_VERSION = "english_fidelity"
 DIMENSIONS = {
     "content_preserved": "Preserve every proposition, reason, number, target, role, action and logical relation in both directions.",
     "commitment_preserved": "Preserve certainty, evidential status and whose claim or belief each proposition is. A claimed role is not an established role. Equivalent stance paraphrases are permitted; assess their strength and scope.",
@@ -381,7 +381,7 @@ class EnglishFidelityValidator:
         return CheckResult(ok=None, reasons=["english_validator_missing:" + ",".join(missing)], details=details)
 
 
-VERSION = "predicate_inventory_v2"
+VERSION = "predicate_inventory"
 
 
 INVENTORY_SYSTEM = """Extract ALL explicitly expressed speech acts from one Werewolf utterance.

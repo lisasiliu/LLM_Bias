@@ -1,8 +1,6 @@
 """Human listener annotation: blind pairwise worksheets for two researchers, import of their labels,
 inter-rater reliability, consensus, and the comparison with the model listeners on the same pairs."""
 from __future__ import annotations
-import csv
-import io
 import json
 import random
 import re
@@ -21,7 +19,7 @@ COMPARISONS: Tuple[Tuple[str, str], ...] = (("low", "neutral"), ("neutral", "hig
 EXPECTED_SIGN = {("low", "neutral"): 1, ("neutral", "high"): 1, ("low", "high"): 1, ("neutral", "original"): 0}
 LABELS = ("A", "B", "same")
 RATERS = ("researcher_1", "researcher_2")
-WORKSHEET_VERSION = "range_annotation_v1"
+WORKSHEET_VERSION = "range_annotation"
 DEFINITION = ("A more limited range of English means more common or repetitive vocabulary, less lexical "
               "variety, and simpler or narrower sentence structures with less syntactic embedding.")
 QUESTION = "Which passage appears to use a more limited range of English?"
@@ -98,14 +96,6 @@ def render_worksheet(items: Sequence[dict], rater: str) -> str:
     return "\n".join(lines)
 
 
-def render_csv(items: Sequence[dict]) -> str:
-    buf = io.StringIO()
-    writer = csv.writer(buf)
-    writer.writerow(["item_id", "passage_a", "passage_b", "more_limited", "note"])
-    for item in items:
-        writer.writerow([item["item_id"], item["passage_a_text"], item["passage_b_text"], "", ""])
-    return buf.getvalue()
-
 
 def worksheet_key(items: Sequence[dict]) -> Dict[str, dict]:
     hidden = ("pair_id", "bundle_id", "game_id", "speaker_id", "comparison_type", "first_condition", "second_condition",
@@ -121,12 +111,11 @@ def write_worksheets(assembled_path: Path, out_dir: Path, *, seed: int = 101, pe
     written = []
     for rater in raters:
         items = worksheet_items(pairs, rater, seed=seed)
-        md, csv_path, key_path = out_dir / f"{rater}_worksheet.md", out_dir / f"{rater}_worksheet.csv", out_dir / f"{rater}_key.json"
+        md, key_path = out_dir / f"{rater}_worksheet.md", out_dir / f"{rater}_key.json"
         md.write_text(render_worksheet(items, rater), encoding="utf-8")
-        csv_path.write_text(render_csv(items), encoding="utf-8")
         dump_json(key_path, {"worksheet_version": WORKSHEET_VERSION, "created_at": now_iso(), "seed": seed,
                              "assembled_sha256": sha256_file(assembled_path), "rater": rater, "items": worksheet_key(items)})
-        written += [md, csv_path, key_path]
+        written += [md, key_path]
     return {"n_pairs": len(pairs), "by_comparison": dict(Counter(p["comparison_type"] for p in pairs)),
             "by_game": dict(Counter(p["game_id"] for p in pairs)), "files": [str(p) for p in written]}
 
@@ -151,14 +140,6 @@ def parse_worksheet(text: str) -> Dict[str, Dict[str, str]]:
             out[current][field] = normalize_label(value) if field == "more_limited" else value
     return {k: v for k, v in out.items() if v.get("more_limited")}
 
-
-def parse_csv(text: str) -> Dict[str, Dict[str, str]]:
-    out: Dict[str, Dict[str, str]] = {}
-    for row in csv.DictReader(io.StringIO(text)):
-        label = (row.get("more_limited") or "").strip()
-        if label:
-            out[row["item_id"]] = {"more_limited": normalize_label(label), "note": (row.get("note") or "").strip()}
-    return out
 
 
 def normalize_label(value: str) -> str:
@@ -496,14 +477,13 @@ def load_pairs_from_keys(data_dir: Path, assembled_path: Optional[Path] = None) 
 
 
 def read_answers(path: Path) -> Dict[str, Dict[str, str]]:
-    text = path.read_text(encoding="utf-8")
-    return parse_csv(text) if path.suffix.lower() == ".csv" else parse_worksheet(text)
+    return parse_worksheet(path.read_text(encoding="utf-8"))
 
 
 # ── commands ──
 
 def add_parser(sub) -> None:
-    p = sub.add_parser("build-worksheets", help="blind pairwise worksheets (markdown and CSV) and hidden keys for two researchers")
+    p = sub.add_parser("build-worksheets", help="blind pairwise worksheets and hidden keys for two researchers")
     p.add_argument("--assembled", type=Path, required=True, help="the run's linguistic_features_assembled.jsonl")
     p.add_argument("--out-dir", type=Path, default=DATA_DIR.parent)
     p.add_argument("--seed", type=int, default=101)
@@ -512,7 +492,7 @@ def add_parser(sub) -> None:
     p.set_defaults(func=cmd_build)
 
     p = sub.add_parser("import-annotations", help="import one researcher's filled worksheet into manual_validation.jsonl")
-    p.add_argument("--worksheet", type=Path, required=True, help="the filled .md or .csv worksheet")
+    p.add_argument("--worksheet", type=Path, required=True, help="the filled worksheet")
     p.add_argument("--key", type=Path, required=True)
     p.add_argument("--rater", required=True)
     p.add_argument("--out", type=Path, default=MANUAL_FILE)

@@ -18,7 +18,7 @@ from experiments.proficiency_validation.rewrite.runtime import EXPERIMENT_NAME, 
 
 
 CONSTRUCTS = ("range", "perceived_proficiency")
-VERSIONS = {"range": "range_pairwise_v5", "perceived_proficiency": "perceived_proficiency_pairwise_v3"}
+VERSIONS = {"range": "range_pairwise", "perceived_proficiency": "perceived_proficiency_pairwise"}
 THREE_WAY = ('Answer "A" if passage A shows the more limited range, "B" if passage B does, or "same" when you\n'
              'cannot find a meaningful difference between them. Do not force a choice.')
 RANGE_PROMPT = (system_prompt()

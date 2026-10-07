@@ -22,6 +22,9 @@ from experiments.proficiency_validation.tests.test_offline import source, FakeCl
 from experiments.proficiency_validation.tests.test_protocol import design
 
 
+def _constant_frequency(text):
+    return 0.0
+
 class ScriptedModel:
     family = "fixture"
     identity_record = {"handle": "rater", "family": "fixture", "revision": "fixture-only"}
@@ -91,6 +94,7 @@ class EvidenceRepairTests(unittest.TestCase):
         model = ScriptedModel([{}, {}])
         client = FakeClient([candidate])
         gate = SemanticGate(validator=EnglishFidelityValidator(model), require_parser=False)
+        gate.neutral_frequency = _constant_frequency
         rw = LanguageProficiencyRewriter(llm_client=client, condition="low")
         result = generate_with_gate(rw, gate, build_context(src), src)
         self.assertIsNone(result.text)
@@ -104,6 +108,7 @@ class EvidenceRepairTests(unittest.TestCase):
         client = FakeClient([json.dumps([candidate])])
         rw = LanguageProficiencyRewriter(llm_client=client, condition="neutral")
         gate = SemanticGate(require_parser=False, require_validator=False)
+        gate.neutral_frequency = _constant_frequency
         result = generate_with_gate(rw, gate, build_context(src), src, max_corrective_retries=0)
         self.assertEqual((result.status, result.text), ("ok", candidate))
         self.assertEqual(failure_cause(result.to_dict()), "accepted")
@@ -132,6 +137,7 @@ class InventoryTests(unittest.TestCase):
         parser.model = model
         gate = SemanticGate(parser=parser, validator=EnglishFidelityValidator(
             ScriptedModel([judgment(src.original_nl, candidate)])))
+        gate.neutral_frequency = _constant_frequency
         verdict = gate.evaluate(src, candidate, "low")
         self.assertTrue(verdict.ok)
         self.assertEqual(verdict.parser["comparison_basis"], "act_inventory")
@@ -290,7 +296,7 @@ class CEFRTests(unittest.TestCase):
             self.assertIn("## Auxiliary CEFR band ratings", text)
             self.assertIn("| CEFR A | CEFR B | CEFR C |", text)
             # A legacy scale or an invented calibration claim cannot masquerade as this run.
-            for overrides in ({"prompt_version": "cefr_text_v1"}, {"calibration_status": "measured"}):
+            for overrides in ({"prompt_version": "cefr_text_other"}, {"calibration_status": "measured"}):
                 record_artifact(output, {**prov, **overrides})
                 self.assertTrue(cefr.verify_ratings(output, rewrites_path=rewrites)[1])
 
@@ -365,7 +371,7 @@ class CEFRTests(unittest.TestCase):
 
 
 class GenerationRecordTests(unittest.TestCase):
-    def shard(self, path, *, version="fixture_v1", recorded_version=None):
+    def shard(self, path, *, version="fixture_a", recorded_version=None):
         settings = {"artifact": {}, "conditions": ["low"], "source_ids": [path.stem],
                     "hashes": {"rewriter_prompt_version": recorded_version or version,
                         "rewriter_prompt_sha256": {"low": "prompt"}, "semantic_rubric_version": "rubric",
@@ -389,7 +395,7 @@ class GenerationRecordTests(unittest.TestCase):
             root = Path(td)
             shards = [root / "a.jsonl", root / "b.jsonl"]
             self.shard(shards[0])
-            self.shard(shards[1], version="fixture_v2")
+            self.shard(shards[1], version="fixture_b")
             with self.assertRaisesRegex(ValueError, "different policies"):
                 merge(SimpleNamespace(shards=shards, sources=root / "unused", out=root / "merged.jsonl"))
             self.assertFalse((root / "merged.jsonl").exists())
@@ -444,6 +450,7 @@ class SecondaryJudgeAndCalibrationTests(unittest.TestCase):
             {"role": "system", "content": kw.get("system", "")}, {"role": "user", "content": kw.get("user", "")}]),
             model=kw.get("model")).choices[0].message.content, model_served="fake", usage={})
         gate = SemanticGate(require_parser=False, require_validator=False)
+        gate.neutral_frequency = _constant_frequency
         class Disagreeing:
             model = SimpleNamespace(spec=SimpleNamespace(handle="second", family="other"))
             def validate(self, source_record, text, *, condition=None, **_):

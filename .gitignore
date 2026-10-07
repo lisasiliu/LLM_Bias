@@ -250,3 +250,9 @@ __pycache__/
 
 # Raw baselines and replays of the proficiency flip pilot; summaries live in experiments/proficiency_flip/data/
 /experiments/proficiency_flip/games/
+
+# Judge-calibration items are repeated verbatim inside judged.jsonl
+experiments/proficiency_validation/data/runs/*/validation/calibration/items.jsonl
+experiments/proficiency_validation/data/runs/*/rewrite/shards/
+experiments/proficiency_validation/data/runs/*/validation/calibration/shards/
+experiments/proficiency_validation/data/runs/*/logs/

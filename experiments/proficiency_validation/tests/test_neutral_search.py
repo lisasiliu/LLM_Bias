@@ -13,6 +13,9 @@ from experiments.proficiency_validation.rewrite.gate import GateResult, generate
 from experiments.proficiency_validation.tests.test_offline import FakeClient, source
 
 
+def _constant_frequency(text):
+    return 0.0
+
 class RecordedGate:
     def __init__(self, verdicts=None):
         self.verdicts = verdicts or {}
@@ -42,6 +45,7 @@ class NeutralIndependenceTests(unittest.TestCase):
         client = FakeClient([json.dumps(candidates) for candidates in rounds])
         rewriter = LanguageProficiencyRewriter(llm_client=client, condition="neutral")
         gate = gate or RecordedGate()
+        gate.neutral_frequency = getattr(gate, "neutral_frequency", None) or _constant_frequency
         outcome = generate_with_gate(rewriter, gate, self.ctx, self.src, max_corrective_retries=len(rounds) - 1)
         return outcome, client, gate
 
@@ -60,21 +64,21 @@ class NeutralIndependenceTests(unittest.TestCase):
         self.assertNotIn("edit-distance", retry.lower())
 
     def test_selection_prefers_the_candidate_closest_to_the_original_surface_profile(self):
-        selection = select_candidate([self.split, self.heavier, self.light], self.src.original_nl, seed=7)
+        selection = select_candidate([self.split, self.heavier, self.light], self.src.original_nl, seed=7, frequency=_constant_frequency)
         self.assertEqual(selection.candidates, [self.split, self.heavier, self.light])
         self.assertEqual(selection.chosen, self.light)                   # same sentence count, fewest word changes
-        self.assertEqual(selection.rule, "closest_surface_profile_v1")
+        self.assertEqual(selection.rule, "closest_profile")
         self.assertEqual(len(selection.distances), 3)
         self.assertEqual(selection.profiles[0]["sentence_delta"], 1)       # the split candidate ranks last
-        self.assertEqual(candidate_profile(self.light, self.src.original_nl), {"sentence_delta": 0, "word_delta_ratio": 0.})
+        self.assertEqual(candidate_profile(self.light, self.src.original_nl, _constant_frequency), {"frequency_delta": 0.0, "sentence_delta": 0, "word_delta_ratio": 0.})
 
     def test_exact_profile_ties_break_by_the_fixed_seed_only(self):
         a = self.src.original_nl.replace("pushed", "pressed")
         b = self.src.original_nl.replace("pushed", "shoved")
-        first = select_candidate([a, b], self.src.original_nl, seed=3).chosen
-        self.assertEqual(first, select_candidate([a, b], self.src.original_nl, seed=3).chosen)
-        self.assertEqual(first, select_candidate([b, a], self.src.original_nl, seed=3).chosen)   # order-independent
-        self.assertEqual({select_candidate([a, b], self.src.original_nl, seed=s).chosen for s in range(40)}, {a, b})
+        first = select_candidate([a, b], self.src.original_nl, seed=3, frequency=_constant_frequency).chosen
+        self.assertEqual(first, select_candidate([a, b], self.src.original_nl, seed=3, frequency=_constant_frequency).chosen)
+        self.assertEqual(first, select_candidate([b, a], self.src.original_nl, seed=3, frequency=_constant_frequency).chosen)   # order-independent
+        self.assertEqual({select_candidate([a, b], self.src.original_nl, seed=s, frequency=_constant_frequency).chosen for s in range(40)}, {a, b})
 
     def test_first_round_with_a_fidelity_passer_is_accepted_whatever_its_distance(self):
         result, client, gate = self.run_search([[self.light, self.heavier]])
@@ -167,9 +171,10 @@ class ExposureFloorTests(unittest.TestCase):
 
     def run_search(self, rounds, floor):
         client = FakeClient([json.dumps(c) for c in rounds])
-        gate = RecordedGate(); gate.neutral_exposure_floor = floor
+        gate = RecordedGate(); gate.neutral_exposure_floor = floor; gate.neutral_frequency = _constant_frequency
         outcome = generate_with_gate(LanguageProficiencyRewriter(llm_client=client, condition="neutral"), gate,
                                      self.ctx, self.src, max_corrective_retries=len(rounds) - 1)
+
         return outcome, client
 
     def test_near_copies_are_rejected_with_feedback_and_a_thorough_passer_is_chosen(self):
@@ -193,30 +198,23 @@ class ExposureFloorTests(unittest.TestCase):
 
 
 class FrequencySelectionTests(unittest.TestCase):
-    def test_frequency_rule_prefers_the_candidate_closest_in_word_frequency(self):
+    def test_selection_prefers_the_candidate_closest_in_word_frequency(self):
         from components.rewriters.language_rewriter import select_candidate, NEUTRAL_SELECTION_RULE
         original = "P5 is lying about the seer check, so vote P5 out today."
         plain = "P5 is not telling the truth about the seer check, so vote P5 out today."
         fancy = "P5 is fabricating the seer check, so vote P5 out today."
         scores = {original: 3.0, plain: 3.1, fancy: 2.6}
-        chosen = select_candidate([fancy, plain], original, seed=1, rule="closest_surface_and_frequency_v1",
-                                  frequency=scores.get)
+        chosen = select_candidate([fancy, plain], original, seed=1, frequency=scores.get)
         self.assertEqual(chosen.chosen, plain)
-        self.assertEqual(chosen.rule, "closest_surface_and_frequency_v1")
+        self.assertEqual(chosen.rule, NEUTRAL_SELECTION_RULE)
         self.assertEqual([round(p["frequency_delta"], 2) for p in chosen.profiles], [0.4, 0.1])
-        default = select_candidate([fancy, plain], original, seed=1)
-        self.assertEqual(default.rule, NEUTRAL_SELECTION_RULE)
-        self.assertNotIn("frequency_delta", default.profiles[0])
         with self.assertRaises(ValueError):
-            select_candidate([fancy, plain], original, rule="closest_surface_and_frequency_v1")
-        with self.assertRaises(ValueError):
-            select_candidate([fancy, plain], original, rule="no_such_rule")
+            select_candidate([fancy, plain], original, frequency=None)
 
-    def test_gate_records_the_selection_rule(self):
+    def test_gate_records_the_subtlex_file(self):
         from experiments.proficiency_validation.rewrite.gate import SemanticGate
         gate = SemanticGate(None, None, require_parser=False, require_validator=False, judge_handle="deepseek-chat")
-        config = gate.to_config()
-        self.assertEqual(config["neutral_selection_rule"], "closest_surface_profile_v1")
-        self.assertIsNone(config["subtlex_path"])
+        gate.neutral_frequency = _constant_frequency
+        self.assertIsNone(gate.to_config()["subtlex_path"])
         with self.assertRaises(ValueError):
-            gate.set_neutral_selection("closest_surface_and_frequency_v1")
+            gate.set_neutral_frequency(None)

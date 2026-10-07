@@ -328,9 +328,9 @@ def manifest_path(artifact):
 
 def _manifest(path):
     if not path.exists():
-        return {"format": "proficiency_artifacts_v1", "artifacts": {}}
+        return {"format": "proficiency_artifacts", "artifacts": {}}
     data = json.loads(path.read_text(encoding="utf-8"))
-    if data.get("format") != "proficiency_artifacts_v1":
+    if data.get("format") != "proficiency_artifacts":
         raise ValueError(f"unrecognized proficiency manifest: {path}")
     return data
 

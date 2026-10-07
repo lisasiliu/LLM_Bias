@@ -1,21 +1,21 @@
 {
-  "worksheet_version": "range_annotation_v1",
-  "created_at": "2026-10-07T07:42:49+00:00",
+  "worksheet_version": "range_annotation",
+  "created_at": "2026-10-07T15:18:01+00:00",
   "seed": 101,
-  "assembled_sha256": "d94f1e90717082b822efd84be8e8313286b2fb6268c93220736d8532bc7e1f88",
+  "assembled_sha256": "8f653fd5363b07bd85279823b47780dbb7445424993b6a8d6ca83372b785cd9f",
   "rater": "researcher_1",
   "items": {
     "item_001": {
-      "pair_id": "run03:P4|neutral:original",
-      "bundle_id": "run03:P4",
+      "pair_id": "run03:P6|neutral:original",
+      "bundle_id": "run03:P6",
       "game_id": "run03",
-      "speaker_id": "P4",
+      "speaker_id": "P6",
       "comparison_type": "neutral:original",
       "first_condition": "neutral",
       "second_condition": "original",
-      "passage_a_condition": "original",
-      "passage_b_condition": "neutral",
-      "presentation_order": "ba"
+      "passage_a_condition": "neutral",
+      "passage_b_condition": "original",
+      "presentation_order": "ab"
     },
     "item_002": {
       "pair_id": "run03:P4|low:high",
@@ -42,34 +42,34 @@
       "presentation_order": "ba"
     },
     "item_004": {
-      "pair_id": "run02:P7|neutral:original",
-      "bundle_id": "run02:P7",
+      "pair_id": "run02:P9|neutral:original",
+      "bundle_id": "run02:P9",
       "game_id": "run02",
-      "speaker_id": "P7",
+      "speaker_id": "P9",
       "comparison_type": "neutral:original",
       "first_condition": "neutral",
       "second_condition": "original",
-      "passage_a_condition": "original",
-      "passage_b_condition": "neutral",
-      "presentation_order": "ba"
+      "passage_a_condition": "neutral",
+      "passage_b_condition": "original",
+      "presentation_order": "ab"
     },
     "item_005": {
-      "pair_id": "run02:P1|low:neutral",
-      "bundle_id": "run02:P1",
+      "pair_id": "run02:P6|low:neutral",
+      "bundle_id": "run02:P6",
       "game_id": "run02",
-      "speaker_id": "P1",
+      "speaker_id": "P6",
       "comparison_type": "low:neutral",
       "first_condition": "low",
       "second_condition": "neutral",
-      "passage_a_condition": "low",
-      "passage_b_condition": "neutral",
-      "presentation_order": "ab"
+      "passage_a_condition": "neutral",
+      "passage_b_condition": "low",
+      "presentation_order": "ba"
     },
     "item_006": {
-      "pair_id": "run01:P3|low:high",
-      "bundle_id": "run01:P3",
+      "pair_id": "run01:P1|low:high",
+      "bundle_id": "run01:P1",
       "game_id": "run01",
-      "speaker_id": "P3",
+      "speaker_id": "P1",
       "comparison_type": "low:high",
       "first_condition": "low",
       "second_condition": "high",
@@ -78,10 +78,10 @@
       "presentation_order": "ab"
     },
     "item_007": {
-      "pair_id": "run03:P1|low:neutral",
-      "bundle_id": "run03:P1",
+      "pair_id": "run03:P8|low:neutral",
+      "bundle_id": "run03:P8",
       "game_id": "run03",
-      "speaker_id": "P1",
+      "speaker_id": "P8",
       "comparison_type": "low:neutral",
       "first_condition": "low",
       "second_condition": "neutral",
@@ -90,6 +90,18 @@
       "presentation_order": "ab"
     },
     "item_008": {
+      "pair_id": "run01:P5|low:high",
+      "bundle_id": "run01:P5",
+      "game_id": "run01",
+      "speaker_id": "P5",
+      "comparison_type": "low:high",
+      "first_condition": "low",
+      "second_condition": "high",
+      "passage_a_condition": "low",
+      "passage_b_condition": "high",
+      "presentation_order": "ab"
+    },
+    "item_009": {
       "pair_id": "run01:P6|low:high",
       "bundle_id": "run01:P6",
       "game_id": "run01",
@@ -100,18 +112,6 @@
       "passage_a_condition": "high",
       "passage_b_condition": "low",
       "presentation_order": "ba"
-    },
-    "item_009": {
-      "pair_id": "run01:P7|low:high",
-      "bundle_id": "run01:P7",
-      "game_id": "run01",
-      "speaker_id": "P7",
-      "comparison_type": "low:high",
-      "first_condition": "low",
-      "second_condition": "high",
-      "passage_a_condition": "low",
-      "passage_b_condition": "high",
-      "presentation_order": "ab"
     },
     "item_010": {
       "pair_id": "run01:P2|neutral:original",
@@ -126,10 +126,10 @@
       "presentation_order": "ba"
     },
     "item_011": {
-      "pair_id": "run02:P4|neutral:original",
-      "bundle_id": "run02:P4",
+      "pair_id": "run02:P6|neutral:original",
+      "bundle_id": "run02:P6",
       "game_id": "run02",
-      "speaker_id": "P4",
+      "speaker_id": "P6",
       "comparison_type": "neutral:original",
       "first_condition": "neutral",
       "second_condition": "original",
@@ -138,9 +138,45 @@
       "presentation_order": "ab"
     },
     "item_012": {
-      "pair_id": "run02:P7|low:neutral",
-      "bundle_id": "run02:P7",
+      "pair_id": "run03:P1|low:neutral",
+      "bundle_id": "run03:P1",
+      "game_id": "run03",
+      "speaker_id": "P1",
+      "comparison_type": "low:neutral",
+      "first_condition": "low",
+      "second_condition": "neutral",
+      "passage_a_condition": "low",
+      "passage_b_condition": "neutral",
+      "presentation_order": "ab"
+    },
+    "item_013": {
+      "pair_id": "run02:P2|low:high",
+      "bundle_id": "run02:P2",
       "game_id": "run02",
+      "speaker_id": "P2",
+      "comparison_type": "low:high",
+      "first_condition": "low",
+      "second_condition": "high",
+      "passage_a_condition": "high",
+      "passage_b_condition": "low",
+      "presentation_order": "ba"
+    },
+    "item_014": {
+      "pair_id": "run03:P4|low:neutral",
+      "bundle_id": "run03:P4",
+      "game_id": "run03",
+      "speaker_id": "P4",
+      "comparison_type": "low:neutral",
+      "first_condition": "low",
+      "second_condition": "neutral",
+      "passage_a_condition": "low",
+      "passage_b_condition": "neutral",
+      "presentation_order": "ab"
+    },
+    "item_015": {
+      "pair_id": "run01:P7|low:neutral",
+      "bundle_id": "run01:P7",
+      "game_id": "run01",
       "speaker_id": "P7",
       "comparison_type": "low:neutral",
       "first_condition": "low",
@@ -148,42 +184,6 @@
       "passage_a_condition": "neutral",
       "passage_b_condition": "low",
       "presentation_order": "ba"
-    },
-    "item_013": {
-      "pair_id": "run02:P4|low:high",
-      "bundle_id": "run02:P4",
-      "game_id": "run02",
-      "speaker_id": "P4",
-      "comparison_type": "low:high",
-      "first_condition": "low",
-      "second_condition": "high",
-      "passage_a_condition": "low",
-      "passage_b_condition": "high",
-      "presentation_order": "ab"
-    },
-    "item_014": {
-      "pair_id": "run02:P8|low:neutral",
-      "bundle_id": "run02:P8",
-      "game_id": "run02",
-      "speaker_id": "P8",
-      "comparison_type": "low:neutral",
-      "first_condition": "low",
-      "second_condition": "neutral",
-      "passage_a_condition": "neutral",
-      "passage_b_condition": "low",
-      "presentation_order": "ba"
-    },
-    "item_015": {
-      "pair_id": "run01:P6|low:neutral",
-      "bundle_id": "run01:P6",
-      "game_id": "run01",
-      "speaker_id": "P6",
-      "comparison_type": "low:neutral",
-      "first_condition": "low",
-      "second_condition": "neutral",
-      "passage_a_condition": "low",
-      "passage_b_condition": "neutral",
-      "presentation_order": "ab"
     },
     "item_016": {
       "pair_id": "run01:P3|low:neutral",
@@ -198,22 +198,22 @@
       "presentation_order": "ab"
     },
     "item_017": {
-      "pair_id": "run03:P2|neutral:original",
-      "bundle_id": "run03:P2",
+      "pair_id": "run03:P5|neutral:original",
+      "bundle_id": "run03:P5",
       "game_id": "run03",
-      "speaker_id": "P2",
+      "speaker_id": "P5",
       "comparison_type": "neutral:original",
       "first_condition": "neutral",
       "second_condition": "original",
-      "passage_a_condition": "neutral",
-      "passage_b_condition": "original",
-      "presentation_order": "ab"
+      "passage_a_condition": "original",
+      "passage_b_condition": "neutral",
+      "presentation_order": "ba"
     },
     "item_018": {
-      "pair_id": "run03:P4|neutral:high",
-      "bundle_id": "run03:P4",
+      "pair_id": "run03:P5|neutral:high",
+      "bundle_id": "run03:P5",
       "game_id": "run03",
-      "speaker_id": "P4",
+      "speaker_id": "P5",
       "comparison_type": "neutral:high",
       "first_condition": "neutral",
       "second_condition": "high",
@@ -222,18 +222,6 @@
       "presentation_order": "ba"
     },
     "item_019": {
-      "pair_id": "run01:P8|neutral:original",
-      "bundle_id": "run01:P8",
-      "game_id": "run01",
-      "speaker_id": "P8",
-      "comparison_type": "neutral:original",
-      "first_condition": "neutral",
-      "second_condition": "original",
-      "passage_a_condition": "neutral",
-      "passage_b_condition": "original",
-      "presentation_order": "ab"
-    },
-    "item_020": {
       "pair_id": "run02:P1|neutral:original",
       "bundle_id": "run02:P1",
       "game_id": "run02",
@@ -245,17 +233,29 @@
       "passage_b_condition": "neutral",
       "presentation_order": "ba"
     },
-    "item_021": {
-      "pair_id": "run03:P6|neutral:original",
-      "bundle_id": "run03:P6",
-      "game_id": "run03",
-      "speaker_id": "P6",
+    "item_020": {
+      "pair_id": "run02:P5|neutral:original",
+      "bundle_id": "run02:P5",
+      "game_id": "run02",
+      "speaker_id": "P5",
       "comparison_type": "neutral:original",
       "first_condition": "neutral",
       "second_condition": "original",
-      "passage_a_condition": "neutral",
-      "passage_b_condition": "original",
-      "presentation_order": "ab"
+      "passage_a_condition": "original",
+      "passage_b_condition": "neutral",
+      "presentation_order": "ba"
+    },
+    "item_021": {
+      "pair_id": "run03:P8|neutral:original",
+      "bundle_id": "run03:P8",
+      "game_id": "run03",
+      "speaker_id": "P8",
+      "comparison_type": "neutral:original",
+      "first_condition": "neutral",
+      "second_condition": "original",
+      "passage_a_condition": "original",
+      "passage_b_condition": "neutral",
+      "presentation_order": "ba"
     },
     "item_022": {
       "pair_id": "run01:P2|neutral:high",
@@ -270,10 +270,10 @@
       "presentation_order": "ba"
     },
     "item_023": {
-      "pair_id": "run01:P8|low:neutral",
-      "bundle_id": "run01:P8",
-      "game_id": "run01",
-      "speaker_id": "P8",
+      "pair_id": "run02:P1|low:neutral",
+      "bundle_id": "run02:P1",
+      "game_id": "run02",
+      "speaker_id": "P1",
       "comparison_type": "low:neutral",
       "first_condition": "low",
       "second_condition": "neutral",
@@ -282,18 +282,6 @@
       "presentation_order": "ab"
     },
     "item_024": {
-      "pair_id": "run02:P6|low:neutral",
-      "bundle_id": "run02:P6",
-      "game_id": "run02",
-      "speaker_id": "P6",
-      "comparison_type": "low:neutral",
-      "first_condition": "low",
-      "second_condition": "neutral",
-      "passage_a_condition": "neutral",
-      "passage_b_condition": "low",
-      "presentation_order": "ba"
-    },
-    "item_025": {
       "pair_id": "run02:P9|low:neutral",
       "bundle_id": "run02:P9",
       "game_id": "run02",
@@ -305,11 +293,23 @@
       "passage_b_condition": "neutral",
       "presentation_order": "ab"
     },
-    "item_026": {
-      "pair_id": "run01:P5|low:high",
-      "bundle_id": "run01:P5",
-      "game_id": "run01",
+    "item_025": {
+      "pair_id": "run03:P5|low:neutral",
+      "bundle_id": "run03:P5",
+      "game_id": "run03",
       "speaker_id": "P5",
+      "comparison_type": "low:neutral",
+      "first_condition": "low",
+      "second_condition": "neutral",
+      "passage_a_condition": "neutral",
+      "passage_b_condition": "low",
+      "presentation_order": "ba"
+    },
+    "item_026": {
+      "pair_id": "run01:P3|low:high",
+      "bundle_id": "run01:P3",
+      "game_id": "run01",
+      "speaker_id": "P3",
       "comparison_type": "low:high",
       "first_condition": "low",
       "second_condition": "high",
@@ -318,10 +318,10 @@
       "presentation_order": "ab"
     },
     "item_027": {
-      "pair_id": "run01:P9|low:high",
-      "bundle_id": "run01:P9",
+      "pair_id": "run01:P7|low:high",
+      "bundle_id": "run01:P7",
       "game_id": "run01",
-      "speaker_id": "P9",
+      "speaker_id": "P7",
       "comparison_type": "low:high",
       "first_condition": "low",
       "second_condition": "high",
@@ -330,16 +330,16 @@
       "presentation_order": "ab"
     },
     "item_028": {
-      "pair_id": "run02:P7|neutral:high",
-      "bundle_id": "run02:P7",
+      "pair_id": "run02:P8|neutral:high",
+      "bundle_id": "run02:P8",
       "game_id": "run02",
-      "speaker_id": "P7",
+      "speaker_id": "P8",
       "comparison_type": "neutral:high",
       "first_condition": "neutral",
       "second_condition": "high",
-      "passage_a_condition": "neutral",
-      "passage_b_condition": "high",
-      "presentation_order": "ab"
+      "passage_a_condition": "high",
+      "passage_b_condition": "neutral",
+      "presentation_order": "ba"
     },
     "item_029": {
       "pair_id": "run01:P1|low:neutral",
@@ -366,28 +366,28 @@
       "presentation_order": "ba"
     },
     "item_031": {
-      "pair_id": "run02:P1|low:high",
-      "bundle_id": "run02:P1",
-      "game_id": "run02",
-      "speaker_id": "P1",
+      "pair_id": "run01:P9|low:high",
+      "bundle_id": "run01:P9",
+      "game_id": "run01",
+      "speaker_id": "P9",
       "comparison_type": "low:high",
       "first_condition": "low",
       "second_condition": "high",
-      "passage_a_condition": "high",
-      "passage_b_condition": "low",
-      "presentation_order": "ba"
+      "passage_a_condition": "low",
+      "passage_b_condition": "high",
+      "presentation_order": "ab"
     },
     "item_032": {
-      "pair_id": "run02:P4|low:neutral",
-      "bundle_id": "run02:P4",
+      "pair_id": "run02:P7|low:neutral",
+      "bundle_id": "run02:P7",
       "game_id": "run02",
-      "speaker_id": "P4",
+      "speaker_id": "P7",
       "comparison_type": "low:neutral",
       "first_condition": "low",
       "second_condition": "neutral",
-      "passage_a_condition": "low",
-      "passage_b_condition": "neutral",
-      "presentation_order": "ab"
+      "passage_a_condition": "neutral",
+      "passage_b_condition": "low",
+      "presentation_order": "ba"
     },
     "item_033": {
       "pair_id": "run01:P3|neutral:high",
@@ -402,10 +402,10 @@
       "presentation_order": "ab"
     },
     "item_034": {
-      "pair_id": "run01:P7|low:neutral",
-      "bundle_id": "run01:P7",
+      "pair_id": "run01:P9|low:neutral",
+      "bundle_id": "run01:P9",
       "game_id": "run01",
-      "speaker_id": "P7",
+      "speaker_id": "P9",
       "comparison_type": "low:neutral",
       "first_condition": "low",
       "second_condition": "neutral",
@@ -426,10 +426,10 @@
       "presentation_order": "ab"
     },
     "item_036": {
-      "pair_id": "run03:P4|low:neutral",
-      "bundle_id": "run03:P4",
+      "pair_id": "run03:P9|low:neutral",
+      "bundle_id": "run03:P9",
       "game_id": "run03",
-      "speaker_id": "P4",
+      "speaker_id": "P9",
       "comparison_type": "low:neutral",
       "first_condition": "low",
       "second_condition": "neutral",
@@ -438,22 +438,22 @@
       "presentation_order": "ab"
     },
     "item_037": {
-      "pair_id": "run01:P1|low:high",
-      "bundle_id": "run01:P1",
-      "game_id": "run01",
-      "speaker_id": "P1",
-      "comparison_type": "low:high",
-      "first_condition": "low",
+      "pair_id": "run03:P9|neutral:high",
+      "bundle_id": "run03:P9",
+      "game_id": "run03",
+      "speaker_id": "P9",
+      "comparison_type": "neutral:high",
+      "first_condition": "neutral",
       "second_condition": "high",
-      "passage_a_condition": "low",
-      "passage_b_condition": "high",
-      "presentation_order": "ab"
+      "passage_a_condition": "high",
+      "passage_b_condition": "neutral",
+      "presentation_order": "ba"
     },
     "item_038": {
-      "pair_id": "run01:P6|neutral:high",
-      "bundle_id": "run01:P6",
+      "pair_id": "run01:P7|neutral:high",
+      "bundle_id": "run01:P7",
       "game_id": "run01",
-      "speaker_id": "P6",
+      "speaker_id": "P7",
       "comparison_type": "neutral:high",
       "first_condition": "neutral",
       "second_condition": "high",
@@ -462,16 +462,16 @@
       "presentation_order": "ba"
     },
     "item_039": {
-      "pair_id": "run01:P6|neutral:original",
-      "bundle_id": "run01:P6",
+      "pair_id": "run01:P7|neutral:original",
+      "bundle_id": "run01:P7",
       "game_id": "run01",
-      "speaker_id": "P6",
+      "speaker_id": "P7",
       "comparison_type": "neutral:original",
       "first_condition": "neutral",
       "second_condition": "original",
-      "passage_a_condition": "original",
-      "passage_b_condition": "neutral",
-      "presentation_order": "ba"
+      "passage_a_condition": "neutral",
+      "passage_b_condition": "original",
+      "presentation_order": "ab"
     },
     "item_040": {
       "pair_id": "run02:P8|low:high",
@@ -498,10 +498,10 @@
       "presentation_order": "ab"
     },
     "item_042": {
-      "pair_id": "run02:P2|low:high",
-      "bundle_id": "run02:P2",
+      "pair_id": "run02:P1|low:high",
+      "bundle_id": "run02:P1",
       "game_id": "run02",
-      "speaker_id": "P2",
+      "speaker_id": "P1",
       "comparison_type": "low:high",
       "first_condition": "low",
       "second_condition": "high",
@@ -510,10 +510,10 @@
       "presentation_order": "ba"
     },
     "item_043": {
-      "pair_id": "run02:P5|neutral:original",
-      "bundle_id": "run02:P5",
+      "pair_id": "run02:P7|neutral:original",
+      "bundle_id": "run02:P7",
       "game_id": "run02",
-      "speaker_id": "P5",
+      "speaker_id": "P7",
       "comparison_type": "neutral:original",
       "first_condition": "neutral",
       "second_condition": "original",
@@ -522,22 +522,22 @@
       "presentation_order": "ba"
     },
     "item_044": {
-      "pair_id": "run01:P9|low:neutral",
-      "bundle_id": "run01:P9",
-      "game_id": "run01",
-      "speaker_id": "P9",
+      "pair_id": "run02:P5|low:neutral",
+      "bundle_id": "run02:P5",
+      "game_id": "run02",
+      "speaker_id": "P5",
       "comparison_type": "low:neutral",
       "first_condition": "low",
       "second_condition": "neutral",
-      "passage_a_condition": "neutral",
-      "passage_b_condition": "low",
-      "presentation_order": "ba"
+      "passage_a_condition": "low",
+      "passage_b_condition": "neutral",
+      "presentation_order": "ab"
     },
     "item_045": {
-      "pair_id": "run02:P9|neutral:original",
-      "bundle_id": "run02:P9",
-      "game_id": "run02",
-      "speaker_id": "P9",
+      "pair_id": "run03:P2|neutral:original",
+      "bundle_id": "run03:P2",
+      "game_id": "run03",
+      "speaker_id": "P2",
       "comparison_type": "neutral:original",
       "first_condition": "neutral",
       "second_condition": "original",
@@ -546,16 +546,16 @@
       "presentation_order": "ab"
     },
     "item_046": {
-      "pair_id": "run02:P8|neutral:original",
-      "bundle_id": "run02:P8",
-      "game_id": "run02",
-      "speaker_id": "P8",
+      "pair_id": "run03:P1|neutral:original",
+      "bundle_id": "run03:P1",
+      "game_id": "run03",
+      "speaker_id": "P1",
       "comparison_type": "neutral:original",
       "first_condition": "neutral",
       "second_condition": "original",
-      "passage_a_condition": "neutral",
-      "passage_b_condition": "original",
-      "presentation_order": "ab"
+      "passage_a_condition": "original",
+      "passage_b_condition": "neutral",
+      "presentation_order": "ba"
     },
     "item_047": {
       "pair_id": "run01:P1|neutral:high",
@@ -570,10 +570,10 @@
       "presentation_order": "ab"
     },
     "item_048": {
-      "pair_id": "run03:P1|neutral:original",
-      "bundle_id": "run03:P1",
+      "pair_id": "run03:P4|neutral:original",
+      "bundle_id": "run03:P4",
       "game_id": "run03",
-      "speaker_id": "P1",
+      "speaker_id": "P4",
       "comparison_type": "neutral:original",
       "first_condition": "neutral",
       "second_condition": "original",
@@ -582,10 +582,10 @@
       "presentation_order": "ba"
     },
     "item_049": {
-      "pair_id": "run01:P9|neutral:high",
-      "bundle_id": "run01:P9",
-      "game_id": "run01",
-      "speaker_id": "P9",
+      "pair_id": "run02:P1|neutral:high",
+      "bundle_id": "run02:P1",
+      "game_id": "run02",
+      "speaker_id": "P1",
       "comparison_type": "neutral:high",
       "first_condition": "neutral",
       "second_condition": "high",
@@ -594,16 +594,16 @@
       "presentation_order": "ab"
     },
     "item_050": {
-      "pair_id": "run03:P1|neutral:high",
-      "bundle_id": "run03:P1",
+      "pair_id": "run03:P4|neutral:high",
+      "bundle_id": "run03:P4",
       "game_id": "run03",
-      "speaker_id": "P1",
+      "speaker_id": "P4",
       "comparison_type": "neutral:high",
       "first_condition": "neutral",
       "second_condition": "high",
-      "passage_a_condition": "neutral",
-      "passage_b_condition": "high",
-      "presentation_order": "ab"
+      "passage_a_condition": "high",
+      "passage_b_condition": "neutral",
+      "presentation_order": "ba"
     },
     "item_051": {
       "pair_id": "run03:P9|low:high",
@@ -630,6 +630,18 @@
       "presentation_order": "ab"
     },
     "item_053": {
+      "pair_id": "run02:P4|neutral:original",
+      "bundle_id": "run02:P4",
+      "game_id": "run02",
+      "speaker_id": "P4",
+      "comparison_type": "neutral:original",
+      "first_condition": "neutral",
+      "second_condition": "original",
+      "passage_a_condition": "neutral",
+      "passage_b_condition": "original",
+      "presentation_order": "ab"
+    },
+    "item_054": {
       "pair_id": "run01:P9|neutral:original",
       "bundle_id": "run01:P9",
       "game_id": "run01",
@@ -641,23 +653,11 @@
       "passage_b_condition": "neutral",
       "presentation_order": "ba"
     },
-    "item_054": {
-      "pair_id": "run01:P7|neutral:original",
-      "bundle_id": "run01:P7",
-      "game_id": "run01",
-      "speaker_id": "P7",
-      "comparison_type": "neutral:original",
-      "first_condition": "neutral",
-      "second_condition": "original",
-      "passage_a_condition": "neutral",
-      "passage_b_condition": "original",
-      "presentation_order": "ab"
-    },
     "item_055": {
-      "pair_id": "run02:P4|neutral:high",
-      "bundle_id": "run02:P4",
+      "pair_id": "run02:P7|neutral:high",
+      "bundle_id": "run02:P7",
       "game_id": "run02",
-      "speaker_id": "P4",
+      "speaker_id": "P7",
       "comparison_type": "neutral:high",
       "first_condition": "neutral",
       "second_condition": "high",
@@ -678,57 +678,9 @@
       "presentation_order": "ba"
     },
     "item_057": {
-      "pair_id": "run02:P8|neutral:high",
-      "bundle_id": "run02:P8",
-      "game_id": "run02",
-      "speaker_id": "P8",
-      "comparison_type": "neutral:high",
-      "first_condition": "neutral",
-      "second_condition": "high",
-      "passage_a_condition": "high",
-      "passage_b_condition": "neutral",
-      "presentation_order": "ba"
-    },
-    "item_058": {
-      "pair_id": "run02:P5|low:neutral",
-      "bundle_id": "run02:P5",
-      "game_id": "run02",
-      "speaker_id": "P5",
-      "comparison_type": "low:neutral",
-      "first_condition": "low",
-      "second_condition": "neutral",
-      "passage_a_condition": "low",
-      "passage_b_condition": "neutral",
-      "presentation_order": "ab"
-    },
-    "item_059": {
-      "pair_id": "run01:P7|neutral:high",
-      "bundle_id": "run01:P7",
-      "game_id": "run01",
-      "speaker_id": "P7",
-      "comparison_type": "neutral:high",
-      "first_condition": "neutral",
-      "second_condition": "high",
-      "passage_a_condition": "high",
-      "passage_b_condition": "neutral",
-      "presentation_order": "ba"
-    },
-    "item_060": {
-      "pair_id": "run03:P8|neutral:original",
-      "bundle_id": "run03:P8",
+      "pair_id": "run03:P1|neutral:high",
+      "bundle_id": "run03:P1",
       "game_id": "run03",
-      "speaker_id": "P8",
-      "comparison_type": "neutral:original",
-      "first_condition": "neutral",
-      "second_condition": "original",
-      "passage_a_condition": "original",
-      "passage_b_condition": "neutral",
-      "presentation_order": "ba"
-    },
-    "item_061": {
-      "pair_id": "run02:P1|neutral:high",
-      "bundle_id": "run02:P1",
-      "game_id": "run02",
       "speaker_id": "P1",
       "comparison_type": "neutral:high",
       "first_condition": "neutral",
@@ -737,11 +689,59 @@
       "passage_b_condition": "high",
       "presentation_order": "ab"
     },
-    "item_062": {
-      "pair_id": "run02:P6|neutral:original",
-      "bundle_id": "run02:P6",
+    "item_058": {
+      "pair_id": "run02:P8|low:neutral",
+      "bundle_id": "run02:P8",
       "game_id": "run02",
-      "speaker_id": "P6",
+      "speaker_id": "P8",
+      "comparison_type": "low:neutral",
+      "first_condition": "low",
+      "second_condition": "neutral",
+      "passage_a_condition": "neutral",
+      "passage_b_condition": "low",
+      "presentation_order": "ba"
+    },
+    "item_059": {
+      "pair_id": "run01:P9|neutral:high",
+      "bundle_id": "run01:P9",
+      "game_id": "run01",
+      "speaker_id": "P9",
+      "comparison_type": "neutral:high",
+      "first_condition": "neutral",
+      "second_condition": "high",
+      "passage_a_condition": "neutral",
+      "passage_b_condition": "high",
+      "presentation_order": "ab"
+    },
+    "item_060": {
+      "pair_id": "run03:P9|neutral:original",
+      "bundle_id": "run03:P9",
+      "game_id": "run03",
+      "speaker_id": "P9",
+      "comparison_type": "neutral:original",
+      "first_condition": "neutral",
+      "second_condition": "original",
+      "passage_a_condition": "original",
+      "passage_b_condition": "neutral",
+      "presentation_order": "ba"
+    },
+    "item_061": {
+      "pair_id": "run02:P4|neutral:high",
+      "bundle_id": "run02:P4",
+      "game_id": "run02",
+      "speaker_id": "P4",
+      "comparison_type": "neutral:high",
+      "first_condition": "neutral",
+      "second_condition": "high",
+      "passage_a_condition": "neutral",
+      "passage_b_condition": "high",
+      "presentation_order": "ab"
+    },
+    "item_062": {
+      "pair_id": "run02:P8|neutral:original",
+      "bundle_id": "run02:P8",
+      "game_id": "run02",
+      "speaker_id": "P8",
       "comparison_type": "neutral:original",
       "first_condition": "neutral",
       "second_condition": "original",

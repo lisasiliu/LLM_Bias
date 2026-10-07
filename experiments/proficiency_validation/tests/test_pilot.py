@@ -17,6 +17,9 @@ from experiments.proficiency_validation.tests.test_offline import source, FakeCl
 from experiments.proficiency_validation.tests.test_protocol import design
 
 
+def _constant_frequency(text):
+    return 0.0
+
 class PassageTests(unittest.TestCase):
     def records(self):
         return [replace(source(text=" ".join(["word"] * 20)), source_id=f"g:s{i}", speech_id=f"s{i}",
@@ -87,7 +90,9 @@ class DecisionTests(unittest.TestCase):
         neutral = "P7 is a werewolf since he pushed the vote onto P2 without giving his own read."
         client = FakeClient([json.dumps([neutral])])
         rw = LanguageProficiencyRewriter(llm_client=client, condition="neutral")
-        result = generate_with_gate(rw, SemanticGate(require_parser=False, require_validator=False),
+        plain = SemanticGate(require_parser=False, require_validator=False)
+        plain.neutral_frequency = _constant_frequency
+        result = generate_with_gate(rw, plain,
                                     build_context(src), src)
         self.assertEqual((result.status, result.text), ("ok", neutral))
         self.assertEqual(len(client.calls), 1)

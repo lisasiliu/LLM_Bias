@@ -24,6 +24,9 @@ from experiments.proficiency_validation.tests.test_offline import source
 from experiments.proficiency_validation.tests.test_protocol import design
 
 
+def _constant_frequency(text):
+    return 0.0
+
 class SourceReportTests(unittest.TestCase):
     def test_report_uses_untreated_games_and_reproduces_the_committed_document(self):
         result = report.summarize(DATA_DIR, RUNS_DIR / "pilot_qwen35_27b")
@@ -235,6 +238,7 @@ class CheckpointTests(unittest.TestCase):
         previous = {"source_id": src.source_id, "condition": "low", "status": "ok", "attempts": [],
                     "rewritten_text": "P7 is a werewolf. He pushed the vote onto P2. He gave no read."}
         gate = SemanticGate(require_parser=False, require_validator=False)
+        gate.neutral_frequency = _constant_frequency
         rows = generate([src], conditions=["low", "neutral", "high"], generator=model, gate=gate,
                         completed_rows=[previous], log=lambda *a: None)
         self.assertEqual(model.calls, 2)
@@ -310,6 +314,7 @@ class ExportTests(unittest.TestCase):
             listeners = [{**base, "listener": "complete", "order": order, "signed": 1} for order in ("ab", "ba")]
             listeners += [{**base, "listener": "incomplete", "order": "ab", "signed": -1},
                           {**base, "listener": "incomplete", "order": "ba", "signed": -1, "ok": False}]
+
             write_jsonl(root / "range_listener.jsonl", listeners)
             row, = _rows(root, "test")
             self.assertEqual({r: v["band"] for r, v in row["cefr_auxiliary_ratings"].items()}, {"r1": "A", "r2": "C"})

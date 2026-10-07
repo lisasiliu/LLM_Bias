@@ -16,6 +16,9 @@ from experiments.proficiency_validation.tests.test_offline import source
 from experiments.proficiency_validation.tests.test_protocol import design
 
 
+def _constant_frequency(text):
+    return 0.0
+
 class Model:
     def __init__(self, result):
         self.result = result
@@ -103,6 +106,7 @@ class SurfacePolicyTests(unittest.TestCase):
         src = source("recommend_action(D1, P3, P2, vote_execute, P7)", "P2, vote to execute P7.")
         validator = SimpleNamespace(validate=lambda *a, **k: CheckResult(ok=True))
         gate = SemanticGate(validator=validator, require_parser=False)
+        gate.neutral_frequency = _constant_frequency
         result = gate.evaluate(src, "P2, please vote to execute P7.", "low")
         self.assertFalse(result.ok)
         self.assertTrue(any("courtesy_marker_changed" in r for r in result.reasons))
@@ -115,6 +119,7 @@ class SurfacePolicyTests(unittest.TestCase):
         self.assertTrue(surface.ok)
         self.assertTrue(surface.details["requires_semantic_adjudication"])
         gate = SemanticGate(require_parser=False, require_validator=False)
+        gate.neutral_frequency = _constant_frequency
         self.assertIsNone(gate.evaluate(src, text, "low").ok)
         gate.validator = EnglishFidelityValidator(Model(judgment(src.original_nl, text)))
         self.assertTrue(gate.evaluate(src, text, "low").ok)
@@ -156,6 +161,7 @@ class ParserBaselineTests(unittest.TestCase):
         rewritten = "P2 is wrong. P2 is a wolf."
         parser = self.parser()
         gate = SemanticGate(parser, require_validator=False)
+        gate.neutral_frequency = _constant_frequency
         result = gate.evaluate(src, rewritten, "low")
         self.assertIsNone(result.ok)
         self.assertEqual(result.parser["comparison_basis"], "original_parse")
@@ -176,6 +182,7 @@ class ParserBaselineTests(unittest.TestCase):
         parser.parse = parse
         candidate = "P2 is wrong. P7 is a wolf."
         gate = SemanticGate(parser, EnglishFidelityValidator(Model(judgment(src.original_nl, candidate))))
+        gate.neutral_frequency = _constant_frequency
         self.assertFalse(gate.evaluate(src, candidate, "low").ok)
 
     def test_missing_recoverability_is_not_a_parser_pass(self):
@@ -188,6 +195,7 @@ class ParserBaselineTests(unittest.TestCase):
             return result
         parser.parse = parse
         gate = SemanticGate(parser, require_validator=False)
+        gate.neutral_frequency = _constant_frequency
         self.assertIsNone(gate.evaluate(src, "P2 is a werewolf.", "low").ok)
 
 
@@ -244,6 +252,7 @@ class CalibrationTests(unittest.TestCase):
     def test_calibration_resume_reuses_finished_items(self):
         item = next(r for r in build_challenge_set([source()]) if r["challenge_type"] == "positive_identity")
         gate = SemanticGate(require_parser=False, require_validator=False)
+        gate.neutral_frequency = _constant_frequency
         first = run_challenge([item], gate)
         self.assertEqual(run_challenge([item], None, completed_rows=first), first)
 
@@ -293,7 +302,7 @@ class JudgeFormatRobustnessTests(unittest.TestCase):
     def test_validator_prompt_requires_repeated_excerpts_for_merged_clauses(self):
         system, _ = EnglishFidelityValidator(Model({})).build_prompts(source(), "candidate")
         self.assertIn("repeat that excerpt in each alignment", system)
-        self.assertIn("english_fidelity_v7", __import__("experiments.proficiency_validation.rewrite.fidelity", fromlist=["x"]).SEMANTIC_RUBRIC_VERSION)
+        self.assertIn("english_fidelity", __import__("experiments.proficiency_validation.rewrite.fidelity", fromlist=["x"]).SEMANTIC_RUBRIC_VERSION)
 
     def test_inventory_evidence_lifted_from_history_earns_one_repair(self):
         from experiments.proficiency_validation.rewrite.fidelity import extract_inventory
@@ -333,6 +342,7 @@ class ParserAbstentionTests(unittest.TestCase):
     def test_deferred_abstention_is_decided_and_recorded_by_the_judge(self):
         src, candidate = source(), "P7 is a wolf. He pushed the vote onto P2 and never gave his own read."
         gate = SemanticGate(self.AbstainingParser(), EnglishFidelityValidator(Model(judgment(src.original_nl, candidate))))
+        gate.neutral_frequency = _constant_frequency
         self.assertEqual(gate.parser_abstention, "defer")
         result = gate.evaluate(src, candidate, "low")
         self.assertTrue(result.ok); self.assertIn("parser_abstained", result.skipped)
@@ -343,9 +353,11 @@ class ParserAbstentionTests(unittest.TestCase):
         src, candidate = source(), "P7 is a wolf."
         rejected = judgment(src.original_nl, candidate, content_preserved=False)
         gate = SemanticGate(self.AbstainingParser(), EnglishFidelityValidator(Model(rejected)))
+        gate.neutral_frequency = _constant_frequency
         self.assertIs(gate.evaluate(src, candidate, "low").ok, False)
         incomplete = {key: True for key in DIMENSIONS}            # no alignments: the judge has no verdict
         gate = SemanticGate(self.AbstainingParser(), EnglishFidelityValidator(Model(incomplete)))
+        gate.neutral_frequency = _constant_frequency
         result = gate.evaluate(src, candidate, "low")
         self.assertIsNone(result.ok); self.assertIn("semantic_adjudication_required", result.reasons)
 
@@ -354,6 +366,7 @@ class ParserAbstentionTests(unittest.TestCase):
         src, candidate = source(), "P7 is a wolf. He pushed the vote onto P2 and never gave his own read."
         gate = SemanticGate(self.AbstainingParser(), EnglishFidelityValidator(Model(judgment(src.original_nl, candidate))),
                             parser_abstention="no_verdict")
+        gate.neutral_frequency = _constant_frequency
         result = gate.evaluate(src, candidate, "low")
         self.assertIsNone(result.ok); self.assertIn("parser_no_verdict:predicate_not_recoverable", result.reasons)
         with self.assertRaises(ValueError):
@@ -387,7 +400,9 @@ class SecondOpinionTests(unittest.TestCase):
         if opinion is not None:
             opinion.model.spec = SimpleNamespace(handle="second", family="other")
             opinion.model.identity_record = {"handle": "second", "family": "other"}
-        return SemanticGate(P.AbstainingParser(), validator, second_opinion=opinion, **kwargs)
+        gate = SemanticGate(P.AbstainingParser(), validator, second_opinion=opinion, **kwargs)
+        gate.neutral_frequency = _constant_frequency
+        return gate
 
     def test_statuses_and_second_opinion_outcomes(self):
         src, candidate = source(), "P7 is a wolf. He pushed the vote onto P2 and never gave his own read."
@@ -575,6 +590,7 @@ class PowerPlanningTests(unittest.TestCase):
         report = {"analysis": {"range": {"low_vs_neutral": {"metrics": {"mattr": {"n_games": 3, "estimate": -.02, "sd_diff": .01, "cohens_dz": -2}}},
                                          "neutral_vs_original": {"metrics": {"mattr": {"n_games": 3, "estimate": 0., "sd_diff": .005}}}},
                                "listener": {"low:neutral": {"listeners": {"all_models": {"n_games": 3, "signed_preference": .9, "sd_games": .1}}}}}}
+
         result = power.plan(report, equivalence_margins={"mattr": .01}, listener_margin=.2)
         self.assertEqual(result["scope"], "per_measure")
         kinds = {r["quantity"]: r for r in result["rows"]}

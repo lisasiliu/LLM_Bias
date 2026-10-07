@@ -1,5 +1,5 @@
 {
-  "format": "proficiency_artifacts_v1",
+  "format": "proficiency_artifacts",
   "artifacts": {
     "sources.jsonl": {
       "provenance": {
