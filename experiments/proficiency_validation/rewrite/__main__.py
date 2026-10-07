@@ -69,6 +69,8 @@ def word_frequency_scorer(subtlex_path, spacy_model="en_core_web_sm"):
     from components.metrics.lexical import SubtlexNorms
     from experiments.proficiency_validation.validation.measurements import load_nlp_or_none, text_features
     norms, nlp = SubtlexNorms(Path(subtlex_path)), load_nlp_or_none(spacy_model)
+    if nlp is None:
+        raise ValueError(f"Neutral word-frequency selection requires spaCy model {spacy_model}")
 
     def score(text):
         return text_features(text, nlp=nlp, norms=norms).get("subtlex_mean")

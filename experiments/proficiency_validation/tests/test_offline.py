@@ -1,6 +1,7 @@
 import json
 import random
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from components.helpers import SourceRecord, build_context
@@ -571,7 +572,8 @@ class ReviewFixTests(unittest.TestCase):
         again = Rewriter.from_config(cfg, llm_client=client)
         self.assertEqual(again.to_config(), cfg)
         # the engine's own construction path: cls(**params, llm_client=client)
-        shorthand = GatedRewriter(base="neutral", gate="deepseek-chat", llm_client=client)
+        with patch("experiments.proficiency_validation.rewrite.__main__.word_frequency_scorer", return_value=_constant_frequency):
+            shorthand = GatedRewriter(base="neutral", gate="deepseek-chat", llm_client=client, subtlex_path="fixture.tsv")
         self.assertEqual(shorthand.base.condition, "neutral")
         with self.assertRaises(ValueError):                    # no silent default judge
             GatedRewriter(base="low", gate={"judge_handle": None}, llm_client=client)
@@ -881,15 +883,17 @@ class FifthReviewFixTests(unittest.TestCase):
         gate.neutral_exposure_floor, gate.parser_context_words = .15, 1200
         gate.parser.max_tokens, gate.validator.max_tokens = 900, 1800
         gate.second_opinion = EnglishFidelityValidator(ValidationModel.resolve("deepseek-chat"), max_tokens=2400)
-        rewriter = GatedRewriter(base="neutral", gate=gate, llm_client=FakeClient([]))
-        config = rewriter.to_config()
-        restored = Rewriter.from_config(config, llm_client=FakeClient([]))
+        with patch("experiments.proficiency_validation.rewrite.__main__.word_frequency_scorer", return_value=_constant_frequency):
+            rewriter = GatedRewriter(base="neutral", gate=gate, llm_client=FakeClient([]), subtlex_path="fixture.tsv")
+            config = rewriter.to_config()
+            restored = Rewriter.from_config(config, llm_client=FakeClient([]))
         self.assertEqual(restored.to_config(), config)
         self.assertEqual((restored.gate.parser_abstention, restored.gate.neutral_exposure_floor,
                           restored.gate.parser_context_words), ("no_verdict", .15, 1200))
         config["params"]["gate"]["second_opinion"]["identity"] = {"revision": "changed"}
-        with self.assertRaisesRegex(ValueError, "identity changed"):
-            Rewriter.from_config(config, llm_client=FakeClient([]))
+        with patch("experiments.proficiency_validation.rewrite.__main__.word_frequency_scorer", return_value=_constant_frequency):
+            with self.assertRaisesRegex(ValueError, "identity changed"):
+                Rewriter.from_config(config, llm_client=FakeClient([]))
 
     def test_parse_candidates_ignores_trailing_commentary(self):
         self.assertEqual(parse_candidates('["a", "b"] Note: [see] above'), ["a", "b"])

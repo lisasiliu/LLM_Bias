@@ -9,6 +9,7 @@ from components.metrics.lexical import SubtlexNorms, lexical_profile
 from components.metrics.text_normalization import split_sentences, tokenize, word_count
 from experiments.proficiency_validation.validation.sources import assemble_condition_texts
 from experiments.proficiency_validation.rewrite.runtime import CONDITIONS, now_iso
+from experiments.proficiency_validation.rewrite.runtime import assert_unique, read_metadata
 from experiments.proficiency_validation.rewrite.runtime import artifact_provenance, record_artifact, verify_artifact
 from experiments.proficiency_validation.validation.protocol import cohort, sha256_file
 
@@ -161,6 +162,27 @@ LT_METRIC_KEYS = ("grammar_errors_per_100_words", "usage_errors_per_100_words",
                   "all_errors_per_100_words", "n_words", "lt_grammar", "lt_usage", "lt_spelling",
                   "lt_punctuation", "lt_style", "lt_other")
 COLA_METRIC_KEYS = ("cola_mean", "cola_median", "cola_p10", "cola_min")
+
+
+def verify_guardrail_materials(path: Path, assembled_path: Path) -> None:
+    """Check guardrail file hashes and the passage identities used by both instruments."""
+    if not path.is_file() or not assembled_path.is_file():
+        raise ValueError("guardrails require an existing measurement file and assembled passages")
+    metadata = read_metadata(path)
+    assembled_metadata = read_metadata(assembled_path)
+    assembled_sha = sha256_file(assembled_path)
+    if (metadata.get("output_sha256") != sha256_file(path)
+            or metadata.get("input_sha256", {}).get("assembled") != assembled_sha
+            or assembled_metadata.get("output_sha256") != assembled_sha):
+        raise ValueError(f"{path}: guardrail provenance does not match the measurement file or assembled passages")
+    guardrails, assembled = read_jsonl(path), read_jsonl(assembled_path)
+    keys = ("bundle_id", "condition")
+    assert_unique(guardrails, keys)
+    assert_unique(assembled, keys)
+    identity = lambda rows: {(r["bundle_id"], r["condition"]):
+                            (r.get("game_id"), r.get("speaker"), r.get("complete")) for r in rows}
+    if identity(guardrails) != identity(assembled):
+        raise ValueError(f"{path}: guardrail passage identities differ from assembled passages")
 
 
 def run_grammar(assembled: Sequence[dict], *, languagetool=None, cola=None, nlp=None,

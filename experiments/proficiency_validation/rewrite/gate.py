@@ -1,6 +1,7 @@
 """Semantic gate (structural, treatment, parser and fidelity checks with corrective retries), GatedRewriter and generation QC."""
 from __future__ import annotations
 import hashlib
+import os
 from collections import Counter
 import re
 from dataclasses import dataclass, field
@@ -158,6 +159,7 @@ class SemanticGate:
         # Word-frequency scorer (text -> mean SUBTLEX Lg10CD) that ranks the gate-passing Neutral candidates.
         self.neutral_frequency = None
         self.subtlex_path = None
+        self.neutral_spacy_model = "en_core_web_sm"
         # Prior-history budget for the parser and the act inventory (words). Referenced speech first,
         # then the current phase, then the most recent remaining entries; speech order is restored.
         self.parser_context_words = 6000
@@ -180,6 +182,7 @@ class SemanticGate:
         from experiments.proficiency_validation.rewrite.__main__ import word_frequency_scorer
         self.subtlex_path = str(subtlex_path)
         self.neutral_frequency = word_frequency_scorer(subtlex_path, spacy_model)
+        self.neutral_spacy_model = spacy_model
 
     @classmethod
     def from_handle(cls, handle: str = "deepseek-chat", *, ledger: Optional[UsageLedger] = None,
@@ -204,6 +207,7 @@ class SemanticGate:
         return {"judge_handle": self.judge_handle, "semantic_rubric_version": SEMANTIC_RUBRIC_VERSION,
                 "parser_abstention": self.parser_abstention, "neutral_exposure_floor": self.neutral_exposure_floor,
                 "subtlex_path": self.subtlex_path,
+                "neutral_spacy_model": self.neutral_spacy_model,
                 "parser_context_words": self.parser_context_words, "require_parser": self.require_parser,
                 "require_validator": self.require_validator, "parser_enabled": self.parser is not None,
                 "validator_enabled": self.validator is not None,
@@ -230,7 +234,7 @@ class SemanticGate:
                 getattr(gate, name).max_tokens = int(config[f"{name}_max_tokens"])
         gate.neutral_exposure_floor = float(config.get("neutral_exposure_floor", .05))
         if config.get("subtlex_path"):
-            gate.set_neutral_frequency(config["subtlex_path"])
+            gate.set_neutral_frequency(config["subtlex_path"], config.get("neutral_spacy_model", "en_core_web_sm"))
         gate.parser_context_words = int(config.get("parser_context_words", 6000))
         secondary = config.get("second_opinion")
         if secondary:
@@ -521,6 +525,8 @@ def generate_with_gate(rewriter: LanguageProficiencyRewriter, gate: SemanticGate
     neutral_verdicts: Dict[str, GateResult] = {}
     neutral_history: List[str] = []
     condition = rewriter.condition
+    if condition == "neutral" and not callable(getattr(gate, "neutral_frequency", None)):
+        raise ValueError("Neutral requires a SUBTLEX word-frequency scorer before generation")
     saw_real_failure = False
     for index in range(1 + max_corrective_retries):
         prior_reasons = list((feedback or {}).get("reasons", []))
@@ -720,20 +726,12 @@ def _engine_defaults() -> dict:
 
 @register
 class GatedRewriter(Rewriter):
-    """Runtime wrapper: base rewriter + gate + retry/fallback policy + log.
+    """Generate, validate and record each rewritten utterance during a game.
 
-    Registered under ``gated_proficiency`` so the engine's configuration paths
-    (``--rewriter gated_proficiency --rewriter-params '{...}'``, YAML
-    ``rewriter: GatedRewriter``, ``Rewriter.from_config``) build the GATED
-    rewriter, never the bare one by accident. ``base`` may be a rewriter or its
-    config/params dict; ``gate`` may be a ``SemanticGate``, a judge handle or a
-    dict with ``judge_handle``. ``llm_client`` is forwarded to the base rewriter.
-
-    The default policy FAILS CLOSED (``on_unavailable="raise"``): untreated text
-    is never returned under a treatment label unless the operator explicitly
-    asks for ``"original"``, and then only with a ``log_path`` so that every
-    fallback is written to disk as it happens -- the engine itself records only
-    the returned string.
+    ``base`` accepts a rewriter, condition or configuration. ``gate`` accepts a
+    SemanticGate, judge handle or configuration. ``on_unavailable`` selects an
+    exception or a logged return of the original utterance after failed attempts.
+    Neutral loads its word-frequency scorer from ``subtlex_path`` or ``SUBTLEX``.
     """
 
     name = "gated_proficiency"
@@ -741,6 +739,7 @@ class GatedRewriter(Rewriter):
     def __init__(self, base=None, gate="deepseek-chat", *, llm_client=None,
                  max_corrective_retries: int = 2, on_unavailable: str = "raise",
                  log_path: Optional[str] = None,
+                 subtlex_path: Optional[str] = None, spacy_model: str = "en_core_web_sm",
                  frozen_path: Optional[str] = None, generator_handle: Optional[str] = None,
                  game_id: Optional[str] = None, branch_id: Optional[str] = None,
                  source_builder: Callable[[RewriteContext], SourceRecord] = source_from_context,
@@ -764,7 +763,7 @@ class GatedRewriter(Rewriter):
             gate = SemanticGate.from_handle(frozen["models"]["judge"], max_tokens=frozen["judge_max_tokens"],
                                             parser_abstention=frozen.get("parser_abstention_policy", "no_verdict"))
             gate.neutral_exposure_floor = frozen["neutral_exposure_floor"]
-            gate.set_neutral_frequency(frozen["instruments"]["subtlex_path"])
+            gate.set_neutral_frequency(frozen["instruments"]["subtlex_path"], frozen["instruments"]["spacy_model"])
             gate.parser_context_words = frozen["parser_context_words"]
             max_corrective_retries = frozen["max_corrective_retries"]
             params = dict(base.to_config()["params"] if isinstance(base, LanguageProficiencyRewriter)
@@ -806,6 +805,13 @@ class GatedRewriter(Rewriter):
             gate = SemanticGate.from_config(gate)
         else:
             gate = SemanticGate.from_handle(str(gate))
+        if base.condition == "neutral" and not callable(gate.neutral_frequency):
+            path = subtlex_path or os.getenv("SUBTLEX")
+            if not path:
+                raise ValueError("Neutral requires subtlex_path or the SUBTLEX environment variable")
+            gate.set_neutral_frequency(path, spacy_model)
+            if not callable(gate.neutral_frequency):
+                raise ValueError("Neutral requires a SUBTLEX word-frequency scorer")
         self.base = base
         self.gate = gate
         self.log_path = log_path

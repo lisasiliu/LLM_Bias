@@ -1,0 +1,16 @@
+{
+  "format": "proficiency_artifacts",
+  "artifacts": {
+    "manual_validation.jsonl": {
+      "summary": {
+        "created_at": "2026-10-07T19:38:04+00:00",
+        "raters": [
+          "researcher_1",
+          "researcher_2"
+        ],
+        "n_rows": 124,
+        "unresolved_pairs": 11
+      }
+    }
+  }
+}

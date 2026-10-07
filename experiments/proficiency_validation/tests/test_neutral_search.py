@@ -2,7 +2,11 @@
 rule that never reads an edit-distance target. Edit distance is recorded as exposure only."""
 import copy
 import json
+import os
+import tempfile
 import unittest
+from pathlib import Path
+from unittest.mock import patch
 from collections import Counter
 
 from components.helpers import build_context
@@ -198,6 +202,46 @@ class ExposureFloorTests(unittest.TestCase):
 
 
 class FrequencySelectionTests(unittest.TestCase):
+    def test_missing_frequency_fails_before_generation_even_with_original_fallback(self):
+        from experiments.proficiency_validation.rewrite.gate import GatedRewriter, SemanticGate
+        client = FakeClient([])
+        with patch.dict(os.environ, {}, clear=True), tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(ValueError, "SUBTLEX"):
+                GatedRewriter(base="neutral", gate=SemanticGate(), llm_client=client,
+                              on_unavailable="original", log_path=str(Path(tmp) / "rewrites.jsonl"))
+            rw = LanguageProficiencyRewriter(condition="neutral", llm_client=client)
+            src = source()
+            with self.assertRaisesRegex(ValueError, "before generation"):
+                generate_with_gate(rw, RecordedGate(), build_context(src), src)
+            self.assertEqual(client.calls, [])
+            self.assertFalse((Path(tmp) / "rewrites.jsonl").exists())
+
+    def test_environment_frequency_runs_neutral_and_configuration_round_trips(self):
+        from experiments.proficiency_validation.rewrite.gate import GatedRewriter, SemanticGate
+        from lurkingwolf.rewriter import Rewriter
+        src = source()
+        candidate = "P7 is a werewolf because he pressed the vote onto P2 without once offering his own read."
+        client = FakeClient([json.dumps([candidate])])
+        gate = SemanticGate(judge_handle="deepseek-chat")
+        with patch.dict(os.environ, {"SUBTLEX": "fixture.tsv"}), \
+             patch("experiments.proficiency_validation.rewrite.__main__.word_frequency_scorer", return_value=_constant_frequency) as loader:
+            rw = GatedRewriter(base="neutral", gate=gate, llm_client=client, spacy_model="fixture_spacy")
+            loader.assert_called_once_with("fixture.tsv", "fixture_spacy")
+            with patch.object(gate, "evaluate", return_value=GateResult(True)):
+                self.assertEqual(rw.rewrite(build_context(src)), candidate)
+            restored = Rewriter.from_config(rw.to_config(), llm_client=FakeClient([]))
+            self.assertEqual(restored.to_config(), rw.to_config())
+            self.assertEqual(restored.gate.neutral_spacy_model, "fixture_spacy")
+        self.assertEqual(rw.log[-1]["status"], "ok")
+        self.assertFalse(rw.log[-1].get("fallback_to_original", False))
+
+    def test_missing_spacy_stops_frequency_initialization(self):
+        from experiments.proficiency_validation.rewrite.__main__ import word_frequency_scorer
+        with patch("components.metrics.lexical.SubtlexNorms"), \
+             patch("experiments.proficiency_validation.validation.measurements.load_nlp_or_none", return_value=None):
+            with self.assertRaisesRegex(ValueError, "spaCy"):
+                word_frequency_scorer("fixture.tsv")
+
     def test_selection_prefers_the_candidate_closest_in_word_frequency(self):
         from components.rewriters.language_rewriter import select_candidate, NEUTRAL_SELECTION_RULE
         original = "P5 is lying about the seer check, so vote P5 out today."

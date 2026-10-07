@@ -18,7 +18,7 @@ from experiments.proficiency_validation.rewrite.gate import generation_qc, failu
 from components.helpers import write_jsonl, treatment_evidence
 from experiments.proficiency_validation.validation.sources import load_sources, audit
 from experiments.proficiency_validation.rewrite.runtime import DATA_DIR, EXPERIMENT_DIR, dump_json, now_iso
-from experiments.proficiency_validation.validation.measurements import compute_features, load_nlp_or_none
+from experiments.proficiency_validation.validation.measurements import compute_features, load_nlp_or_none, verify_guardrail_materials
 
 
 def listener_files(measured, stem):
@@ -65,6 +65,10 @@ def measured_sampling(data_dir, pilot_dir, rewrites, errors):
 def summarize_pilot(data_dir, pilot_dir):
     from components import stats as stats_module
     data_dir, pilot_dir = Path(data_dir), Path(pilot_dir)
+    for measured in (pilot_dir / "validation", pilot_dir / "validation/whole_game"):
+        guardrails = measured / "grammar_guardrails.jsonl"
+        if guardrails.exists():
+            verify_guardrail_materials(guardrails, measured / "linguistic_features_assembled.jsonl")
     sources = [SourceRecord.from_dict(r) for r in read_jsonl(data_dir / "sources.jsonl")]
     source_map = {s.source_id: s for s in sources}
     rows = read_jsonl(pilot_dir / "rewrite/rewrites.jsonl")
@@ -135,7 +139,7 @@ def summarize_pilot(data_dir, pilot_dir):
     provenance_errors.extend(generation_errors)
     measured_dir = pilot_dir / "validation"
     listener_paths = listener_files(measured_dir, "range_listener") + listener_files(measured_dir, "perceived_proficiency_listener")
-    optional = [n for n in ("cefr_auxiliary.jsonl",) if (measured_dir / n).exists()]
+    optional = [n for n in ("cefr_auxiliary.jsonl", "grammar_guardrails.jsonl") if (measured_dir / n).exists()]
     checked = [pilot_dir / "rewrite/rewrites.jsonl", measured_dir / "linguistic_features.jsonl", pilot_dir / "manifest.json"] \
         + listener_paths + [measured_dir / n for n in optional]
     for path in checked:

@@ -8,7 +8,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from components.helpers import read_jsonl, write_jsonl, parse_history_entry
+from components.helpers import read_jsonl, write_jsonl, parse_history_entry, write_back_record
 from components.judges.judge_model import Completion
 from components.stats import tost_equivalence
 import experiments.proficiency_validation.validation.__main__ as cli
@@ -16,6 +16,9 @@ import experiments.proficiency_validation.validation.report as report
 from experiments.proficiency_validation.validation.analysis import listener_analysis
 from experiments.proficiency_validation.rewrite.runtime import Checkpoint, configure_run
 from experiments.proficiency_validation.rewrite.runtime import DATA_DIR, RUNS_DIR, EXPERIMENT_DIR, read_metadata, update_metadata
+from experiments.proficiency_validation.rewrite.runtime import artifact_provenance, record_artifact
+from experiments.proficiency_validation.validation.measurements import verify_guardrail_materials
+from experiments.proficiency_validation.validation.export import _rows as export_rows
 from experiments.proficiency_validation.validation.protocol import main_freeze
 from experiments.proficiency_validation.validation.protocol import enforce_frozen
 from experiments.proficiency_validation.rewrite.__main__ import generate
@@ -70,6 +73,104 @@ class SourceReportTests(unittest.TestCase):
         self.assertNotIn("--human-qc-key", options)
         self.assertFalse((DATA_DIR / "judge_benchmark_human.json").exists())
         self.assertFalse((DATA_DIR / "challenge_set.jsonl").exists())
+
+
+class GuardrailProvenanceTests(unittest.TestCase):
+    def materials(self, measured):
+        assembled = measured / "linguistic_features_assembled.jsonl"
+        guardrails = measured / "grammar_guardrails.jsonl"
+        rows = [{"bundle_id": "g:P3", "game_id": "g", "speaker": "P3", "condition": c,
+                 "complete": True, "text": "P7 is a werewolf."} for c in ("original", "low", "neutral")]
+        write_jsonl(assembled, rows)
+        record_artifact(assembled, artifact_provenance(None, "pilot"))
+        write_jsonl(guardrails, [{k: v for k, v in r.items() if k != "text"} |
+                                {"grammar_errors_per_100_words": 0., "cola_mean": .9} for r in rows])
+        record_artifact(guardrails, artifact_provenance(None, "pilot", inputs={"assembled": assembled}))
+        write_jsonl(measured / "linguistic_features.jsonl", rows)
+        return assembled, guardrails
+
+    def test_valid_materials_are_verified_and_exported(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            measured = Path(tmp) / "validation"
+            assembled, guardrails = self.materials(measured)
+            verify_guardrail_materials(guardrails, assembled)
+            rows = export_rows(measured, "primary")
+            self.assertEqual(len(rows), 3)
+            self.assertTrue(all(r["grammar_errors_per_100_words"] == 0. and r["cola_mean"] == .9 for r in rows))
+
+    def test_tampered_guardrails_stop_both_report_cohorts_and_exports(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            for cohort in ("validation", "validation/whole_game"):
+                with self.subTest(cohort=cohort):
+                    root = Path(tmp) / cohort.replace("/", "_")
+                    measured = root / cohort
+                    _, guardrails = self.materials(measured)
+                    rows = read_jsonl(guardrails)
+                    rows[0]["grammar_errors_per_100_words"] = 99.
+                    write_jsonl(guardrails, rows)
+                    with self.assertRaisesRegex(ValueError, "guardrail provenance"):
+                        report.summarize_pilot(root / "sources", root)
+                    with self.assertRaisesRegex(ValueError, "guardrail provenance"):
+                        export_rows(measured, cohort)
+
+    def test_missing_and_changed_passage_provenance_are_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            measured = Path(tmp) / "validation"
+            for change in ("missing_guardrail_metadata", "missing_passage_metadata", "changed_passage", "new_passage_hash"):
+                with self.subTest(change=change):
+                    assembled, guardrails = self.materials(measured)
+                    if change == "missing_guardrail_metadata":
+                        update_metadata(guardrails, "provenance", {})
+                    elif change == "missing_passage_metadata":
+                        update_metadata(assembled, "provenance", {})
+                    else:
+                        rows = read_jsonl(assembled)
+                        rows[0]["text"] = "P7 is a villager."
+                        write_jsonl(assembled, rows)
+                        if change == "new_passage_hash":
+                            record_artifact(assembled, artifact_provenance(None, "pilot"))
+                    with self.assertRaisesRegex(ValueError, "guardrail provenance"):
+                        verify_guardrail_materials(guardrails, assembled)
+
+    def test_passage_identity_and_coverage_must_match_even_with_valid_hashes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            measured = Path(tmp) / "validation"
+            for change in ("speaker", "game_id", "complete", "missing", "duplicate"):
+                with self.subTest(change=change):
+                    assembled, guardrails = self.materials(measured)
+                    rows = read_jsonl(guardrails)
+                    if change == "missing":
+                        rows.pop()
+                    elif change == "duplicate":
+                        rows.append(dict(rows[0]))
+                    else:
+                        rows[0][change] = False if change == "complete" else "other"
+                    write_jsonl(guardrails, rows)
+                    record_artifact(guardrails, artifact_provenance(None, "pilot", inputs={"assembled": assembled}))
+                    with self.assertRaisesRegex(ValueError, "identities|duplicate"):
+                        verify_guardrail_materials(guardrails, assembled)
+
+
+class WriteBackTests(unittest.TestCase):
+    def test_engine_round_trip_preserves_predicate_reference_and_treatment(self):
+        src = source("agree(D1, P3, s3)", "I agree with P1 that P7 is a werewolf.")
+        src.referenced_speech = {"speech_id": "s3", "speaker": "P1",
+                                 "predicate": "estimate(D1, P1, P7, werewolf)", "text": "P7 is a werewolf."}
+        text = "P1 is right. P7 is a werewolf."
+        record = {"validated": True, "source_id": src.source_id, "strategy": "low",
+                  "predicate_text": src.predicate_text, "rewritten_nl": text}
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            result = write_back_record(record, src, root, treatment_kind="proficiency")
+            self.assertTrue(result.ok, result.reasons)
+            self.assertEqual(result.speech_id, "s4")
+            self.assertEqual(result.predicate_after, src.predicate_text)
+            self.assertEqual(result.args_after, src.predicate_args)
+            self.assertEqual(result.text_after, text)
+            history = json.loads((root / "public_history.json").read_text())["phases"][src.phase]
+            self.assertTrue(any(entry.startswith("[s3|P1]") for entry in history))
+            turn = json.loads((root / "game_nl.json").read_text())[0]
+            self.assertEqual(turn["treatment"], {"kind": "proficiency", "strategy": "low", "source_id": src.source_id})
 
 
 class MissingEvidenceTests(unittest.TestCase):

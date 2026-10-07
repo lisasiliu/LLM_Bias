@@ -38,20 +38,74 @@ class OutcomeTests(unittest.TestCase):
                            ("flip_self", "neutral", "P1"): neutral_p1, ("flip_others", "low", "P1"): others_low_p1},
                "expected": {}, "gate": {}}
         d = fa.paired_differences([rec])
-        self.assertEqual(d["speaker"][("low", "identity")]["votes_received"]["201"], [2])
-        self.assertEqual(d["speaker"][("low", "identity")]["executed"]["201"], [1])
-        self.assertEqual(d["speaker"][("low", "identity")]["trust_in_speaker"]["201"], [-2])
-        self.assertEqual(d["speaker"][("low", "neutral")]["votes_received"]["201"], [2])
-        self.assertEqual(d["by_role"][("low", "identity")]["village"]["votes_received"]["201"], [2])
-        self.assertEqual(d["own"]["low_vs_identity"]["changed_vote"]["201"], [1])
-        self.assertEqual(d["own"]["low_vs_identity"]["trust_toward_others"]["201"], [-3])
+        self.assertEqual(d["speaker"][("low", "identity")]["votes_received"]["201"]["P1"], [2])
+        self.assertEqual(d["speaker"][("low", "identity")]["executed"]["201"]["P1"], [1])
+        self.assertEqual(d["speaker"][("low", "identity")]["trust_in_speaker"]["201"]["P1"], [-2])
+        self.assertEqual(d["speaker"][("low", "neutral")]["votes_received"]["201"]["P1"], [2])
+        self.assertEqual(d["by_role"][("low", "identity")]["village"]["votes_received"]["201"]["P1"], [2])
+        self.assertEqual(d["own"]["low_vs_identity"]["changed_vote"]["201"]["P1"], [1])
+        self.assertEqual(d["own"]["low_vs_identity"]["trust_toward_others"]["201"]["P1"], [-3])
         self.assertEqual(d["n_pairs"][("flip_self", "low", "identity")], 1)
 
     def test_game_weighted_summary_is_exact_for_few_games(self):
-        e = fa.game_weighted({"a": [1.0, 3.0], "b": [2.0], "c": [2.0]})
+        e = fa.game_weighted({"a": {"P1": [1.0], "P2": [3.0]}, "b": {"P1": [2.0]}, "c": {"P1": [2.0]}})
         self.assertEqual((e["n_pairs"], e["n_games"], e["estimate"]), (4, 3, 2.0))
         self.assertEqual(e["p_sign_flip"], 0.25)
         self.assertEqual(fa.game_weighted({})["n_pairs"], 0)
+
+    def test_day_counts_do_not_change_speaker_weights(self):
+        records = []
+        for day, alive in ((1, ["P1", "P2"]), (2, ["P1"])):
+            identity = phase({p: 0 for p in alive}, alive=alive)
+            replays = {("nl", None, None): identity}
+            for speaker in alive:
+                replays[("flip_self", "neutral", speaker)] = identity
+                replays[("flip_self", "low", speaker)] = phase(
+                    {speaker: 2 if speaker == "P2" else 0}, alive=alive)
+            records.append({"seed": "201", "day": day, "baseline": {**identity,
+                            "role_dist": {"P1": "villager", "P2": "villager"}},
+                            "replays": replays, "expected": {}, "gate": {}})
+        result = fa.summarize(records)
+        effect = result["flip_self"]["low_vs_neutral"]["votes_received"]
+        self.assertEqual(effect["estimate"], 1.0)
+        self.assertEqual((effect["n_pairs"], effect["n_speakers"]), (3, 2))
+        self.assertAlmostEqual(effect["pooled_mean"], 2 / 3)
+        self.assertEqual(result["flip_self_per_protocol"]["low_vs_neutral"]["votes_received"]["n_pairs"], 0)
+
+    def test_missing_empty_partial_and_failed_logs_are_not_complete_exposure(self):
+        key = ("flip_self", "low", "P1")
+        meta = {"mode": "flip_self", "condition": "low", "self": "P1"}
+        result = {"speeches": [{"speaker": "P1", "nl": [{"text": "first"}, {"text": "second"}]}]}
+        good = [{"speaker": "P1", "condition": "low", "status": "ok", "rewritten_text": text}
+                for text in ("first", "second")]
+        self.assertFalse(fa.clean_exposure({}, key))
+        for rows in ([], good[:1], good + good[:1],
+                     [{**r, "status": "infrastructure_unavailable"} for r in good],
+                     [{**r, "condition": "neutral"} for r in good],
+                     [{**r, "rewritten_text": "different"} for r in good]):
+            with self.subTest(rows=rows):
+                exposure = fa.exposure_summary(rows, result, meta)
+                self.assertFalse(fa.clean_exposure({"exposure": {key: exposure}}, key))
+        valid = fa.exposure_summary(good, result, meta)
+        self.assertTrue(fa.clean_exposure({"exposure": {key: valid}}, key))
+        fallback = [{**r, "status": "treatment_unavailable", "fallback_to_original": True,
+                     "original_text": r["rewritten_text"]} for r in good]
+        exposure = fa.exposure_summary(fallback, result, meta)
+        self.assertTrue(exposure["verified"])
+        self.assertFalse(fa.clean_exposure({"exposure": {key: exposure}}, key))
+
+    def test_surrounding_exposure_matches_other_speakers_and_counts_unknown_logs(self):
+        meta = {"mode": "flip_others", "condition": "neutral", "self": "P1"}
+        result = {"speeches": [{"speaker": p, "nl": [{"text": p}]} for p in ("P1", "P2", "P3")]}
+        rows = [{"speaker": p, "condition": "neutral", "status": "ok", "rewritten_text": p} for p in ("P2", "P3")]
+        key = ("flip_others", "neutral", "P1")
+        exposure = fa.exposure_summary(rows, result, meta)
+        rec = {"replays": {key: result}, "gate": {}, "expected": {}, "exposure": {key: exposure}}
+        self.assertTrue(fa.clean_exposure(rec, key))
+        self.assertEqual(fa.availability([rec])["exposure"]["flip_others:neutral"]["clean_replays"], 1)
+        rec["exposure"] = {}
+        summary = fa.availability([rec])["exposure"]["flip_others:neutral"]
+        self.assertEqual((summary["clean_replays"], summary["unverified_replays"]), (0, 1))
 
     def test_render_handles_empty_blocks(self):
         s = fa.summarize([])

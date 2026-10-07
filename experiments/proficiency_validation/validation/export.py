@@ -11,6 +11,7 @@ from components.helpers import read_jsonl, write_jsonl
 from experiments.proficiency_validation.rewrite.runtime import DATA_DIR, assert_unique, condition_label, dump_json, git_commit, now_iso, read_metadata, sha256_file
 from experiments.proficiency_validation.validation.analysis import complete_listener_rows, signed_value
 from experiments.proficiency_validation.rewrite.fidelity import audit_accepted_alignments
+from experiments.proficiency_validation.validation.measurements import verify_guardrail_materials
 
 FILES = {"features": "linguistic_features.jsonl", "assembled": "linguistic_features_assembled.jsonl",
          "guardrails": "grammar_guardrails.jsonl", "range_listener": "range_listener.jsonl",
@@ -24,6 +25,8 @@ MEASURE_KEYS = ("word_count", "n_sentences", "mean_sentence_length", "subtlex_me
 def _rows(measured: Path, cohort: str, *, alignment_issues=()) -> List[dict]:
     if not (measured / FILES["features"]).exists():
         return []
+    if (measured / FILES["guardrails"]).exists():
+        verify_guardrail_materials(measured / FILES["guardrails"], measured / FILES["assembled"])
     def indexed(key, fields):
         path = measured / FILES[key]
         rows = read_jsonl(path) if path.exists() else []

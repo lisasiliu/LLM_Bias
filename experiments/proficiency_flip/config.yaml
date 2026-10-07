@@ -10,8 +10,8 @@
 # Conditions: Low (treatment) and Neutral (independent paraphrase control at the original range).
 # Every rewrite passes the semantic gate; a rewrite that still fails after its retries falls back
 # to the untouched original utterance, is logged with fallback_to_original=true, and the assigned
-# replay continues. The primary analysis follows the assignment (intention-to-treat); replays
-# without any fallback form the per-protocol sensitivity analysis.
+# replay continues. The primary analysis follows the assignment. Per-protocol analysis uses
+# complete rewrite logs matching the treated utterances, with every rewrite successful.
 #
 # Pilot: Qwen3.5-27B plays, generates, judges. Formal runs need the independent model
 # families in experiments/proficiency_validation/README.md.

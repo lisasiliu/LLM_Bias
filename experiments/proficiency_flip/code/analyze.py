@@ -8,9 +8,8 @@ replays for Low and Neutral. For a treated speaker S the outcomes are the votes 
 received, whether S was executed, whether the wolves or the seer targeted S that night,
 and the mean reliability other players assign to S. Contrasts are paired on the same
 checkpoint (seed, day) and speaker against the identity replay. Games (seeds) are the
-independent units: speakers and days receive equal weight within a game, games equal
-weight across games; intervals are game bootstraps and p-values exact sign-flip tests.
-Nothing here calls a model.
+independent units. Differences are averaged over days within each speaker, speakers
+within each game, and games. Intervals resample games; p-values use sign-flip tests.
 """
 
 from __future__ import annotations
@@ -39,6 +38,9 @@ CONTRASTS = (("low", "identity"), ("neutral", "identity"), ("low", "neutral"))
 # Prespecified co-primary behavioural family (Low vs Neutral), Holm-corrected; the rest is secondary/exploratory.
 CO_PRIMARY = ("trust_in_speaker", "votes_received")
 N_BOOT, SEED = 2000, 101
+GameDifferences = Dict[str, Dict[str, List[float]]]
+
+
 def parse_run_id(run_id: str) -> Optional[dict]:
     """``<mode>[__<condition>__<param values...>][__pN]__dD`` as the runner names replays."""
     tokens = run_id.split("__")
@@ -77,6 +79,30 @@ def own_behaviour(result: dict, speaker: str, reference: dict, role: Optional[st
             "trust_toward_others": mean(outward), "changed_role_target": changed}
 
 
+def exposure_summary(rows: List[dict], result: Optional[dict], meta: dict) -> dict:
+    """Match the rewrite log to the treated utterances in the replay result."""
+    expected = Counter((speech["speaker"], item["text"].strip())
+                       for speech in (result or {}).get("speeches", [])
+                       if ((speech["speaker"] == meta["self"]) == (meta["mode"] == "flip_self"))
+                       for item in speech.get("nl", []) if item.get("text", "").strip())
+    observed = Counter()
+    counts = Counter(rewritten=0, fallback=0, unavailable=0)
+    for row in rows:
+        if row.get("fallback_to_original") is True:
+            counts["fallback"] += 1
+            text = row.get("original_text") or row.get("original_nl") or ""
+        elif row.get("status") == "ok" and row.get("rewritten_text"):
+            counts["rewritten"] += 1
+            text = row["rewritten_text"]
+        else:
+            counts["unavailable"] += 1
+            text = ""
+        observed[(row.get("speaker"), text.strip())] += 1
+    return {**counts, "recorded": len(rows), "expected": sum(expected.values()),
+            "verified": bool(expected) and expected == observed
+            and all(row.get("condition") == meta["condition"] for row in rows)}
+
+
 def load_tree(games_dir: Path) -> List[dict]:
     """One record per (seed, day): baseline, identity replay and flip replays, plus bookkeeping."""
     from lurkingwolf.eval.replay import extract_baseline_phase
@@ -111,8 +137,7 @@ def load_tree(games_dir: Path) -> List[dict]:
                     rows = read_jsonl(log)
                     for row in rows:
                         gate[(meta["mode"], meta["condition"], row.get("status"))] += 1
-                    exposure[key] = {"rewritten": sum(1 for r in rows if not r.get("fallback_to_original")),
-                                     "fallback": sum(1 for r in rows if r.get("fallback_to_original"))}
+                    exposure[key] = exposure_summary(rows, result, meta)
             records.append({"seed": seed, "day": day, "baseline": baseline, "replays": replays,
                             "expected": {k: v for k, v in expected.items() if k.endswith(f"__d{day}")},
                             "gate": gate, "exposure": exposure, "root": str(root)})
@@ -120,17 +145,20 @@ def load_tree(games_dir: Path) -> List[dict]:
 
 
 def clean_exposure(rec: dict, key) -> bool:
-    """True when the replay under ``key`` never fell back to an original utterance (per-protocol)."""
-    return rec.get("exposure", {}).get(key, {}).get("fallback", 0) == 0
+    """A complete matching log with every treated utterance successfully rewritten."""
+    exposure = rec.get("exposure", {}).get(key, {})
+    return (exposure.get("verified") is True and exposure.get("rewritten", 0) > 0
+            and exposure.get("fallback") == 0 and exposure.get("unavailable") == 0)
 
 
 def paired_differences(records: List[dict], *, per_protocol: bool = False) -> dict:
     """Per-(seed, day, speaker) differences, grouped for the game-weighted analysis. With
     ``per_protocol`` only replays with complete treatment exposure (no fallback) enter."""
-    speaker_diffs: Dict[Tuple[str, str], Dict[str, Dict[str, List[float]]]] = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
-    role_diffs: Dict[Tuple[str, str], Dict[str, Dict[str, Dict[str, List[float]]]]] = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(list))))
-    own_diffs: Dict[str, Dict[str, Dict[str, List[float]]]] = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
-    noise: Dict[str, Dict[str, List[float]]] = defaultdict(lambda: defaultdict(list))
+    games = lambda: defaultdict(lambda: defaultdict(list))
+    speaker_diffs: Dict[Tuple[str, str], Dict[str, GameDifferences]] = defaultdict(lambda: defaultdict(games))
+    role_diffs: Dict[Tuple[str, str], Dict[str, Dict[str, GameDifferences]]] = defaultdict(lambda: defaultdict(lambda: defaultdict(games)))
+    own_diffs: Dict[str, Dict[str, GameDifferences]] = defaultdict(lambda: defaultdict(games))
+    noise: Dict[str, GameDifferences] = defaultdict(games)
     n_pairs = Counter()
     for rec in records:
         identity = rec["replays"].get(("nl", None, None))
@@ -144,7 +172,7 @@ def paired_differences(records: List[dict], *, per_protocol: bool = False) -> di
             for k, v in speaker_outcomes(identity, speaker).items():
                 b = speaker_outcomes(baseline, speaker)[k]
                 if v is not None and b is not None:
-                    noise[k][seed].append(v - b)
+                    noise[k][seed][speaker].append(v - b)
             flips = {c: rec["replays"].get(("flip_self", c, speaker)) for c in CONDITIONS
                      if not per_protocol or clean_exposure(rec, ("flip_self", c, speaker))}
             outcomes = {"identity": speaker_outcomes(identity, speaker)}
@@ -155,9 +183,9 @@ def paired_differences(records: List[dict], *, per_protocol: bool = False) -> di
                     for k in SPEAKER_OUTCOMES:
                         a, b = outcomes[treatment][k], outcomes[control][k]
                         if a is not None and b is not None:
-                            speaker_diffs[(treatment, control)][k][seed].append(a - b)
+                            speaker_diffs[(treatment, control)][k][seed][speaker].append(a - b)
                             side = "werewolf" if roles.get(speaker) == "werewolf" else "village"
-                            role_diffs[(treatment, control)][side][k][seed].append(a - b)
+                            role_diffs[(treatment, control)][side][k][seed][speaker].append(a - b)
             others = {c: rec["replays"].get(("flip_others", c, speaker)) for c in CONDITIONS
                       if not per_protocol or clean_exposure(rec, ("flip_others", c, speaker))}
             own = {"identity": own_behaviour(identity, speaker, identity, roles.get(speaker))}
@@ -168,24 +196,28 @@ def paired_differences(records: List[dict], *, per_protocol: bool = False) -> di
                     for k in OWN_OUTCOMES:
                         a, b = own[treatment][k], own[control][k]
                         if a is not None and b is not None:
-                            own_diffs[f"{treatment}_vs_{control}"][k][seed].append(a - b)
+                            own_diffs[f"{treatment}_vs_{control}"][k][seed][speaker].append(a - b)
     return {"speaker": speaker_diffs, "by_role": role_diffs, "own": own_diffs, "noise": noise, "n_pairs": n_pairs}
 
 
-def game_weighted(diffs: Dict[str, List[float]]) -> dict:
-    """Equal speaker weight within a game, equal game weight; games are the clusters."""
-    game_means = {g: mean(v) for g, v in diffs.items() if v}
+def game_weighted(diffs: GameDifferences) -> dict:
+    """Average days within speakers, speakers within games, then games."""
+    speaker_means = {g: [mean(days) for days in speakers.values() if days]
+                     for g, speakers in diffs.items()}
+    game_means = {g: mean(values) for g, values in speaker_means.items() if values}
     if not game_means:
-        return {"n_pairs": 0, "n_games": 0, "estimate": None}
+        return {"n_pairs": 0, "n_speakers": 0, "n_games": 0, "estimate": None}
     clusters = {g: [m] for g, m in game_means.items()}
     boot = cluster_bootstrap(clusters, n_boot=N_BOOT, seed=SEED)
     boot.pop("draws", None)
     test = cluster_sign_flip_test(clusters, seed=SEED)
-    return {"n_pairs": sum(len(v) for v in diffs.values()), "n_games": len(game_means),
+    pooled = [v for speakers in diffs.values() for days in speakers.values() for v in days]
+    return {"n_pairs": len(pooled), "n_speakers": sum(len(v) for v in speaker_means.values()),
+            "n_games": len(game_means),
             "estimate": boot["estimate"], "ci_low": boot["ci_low"], "ci_high": boot["ci_high"],
             "cohens_dz": paired_cohens_dz(list(game_means.values())),
             "p_sign_flip": test["p_value"], "minimum_two_sided_p": test.get("minimum_two_sided_p"),
-            "pooled_mean": mean([x for v in diffs.values() for x in v])}
+            "pooled_mean": mean(pooled)}
 
 
 def availability(records: List[dict]) -> dict:
@@ -206,13 +238,18 @@ def availability(records: List[dict]) -> dict:
     for rec in records:
         for (mode, cond, status), n in rec["gate"].items():
             gate[f"{mode}:{cond}"][status or "unknown"] += n
-        for (mode, cond, _), e in rec.get("exposure", {}).items():
-            exposure[f"{mode}:{cond}"]["rewritten"] += e["rewritten"]
-            exposure[f"{mode}:{cond}"]["fallback"] += e["fallback"]
+        for key in rec["replays"]:
+            mode, cond, _ = key
+            if mode not in ("flip_self", "flip_others"):
+                continue
+            e = rec.get("exposure", {}).get(key, {})
+            for field in ("rewritten", "fallback", "unavailable"):
+                exposure[f"{mode}:{cond}"][field] += e.get(field, 0)
             exposure[f"{mode}:{cond}"]["replays"] += 1
-            exposure[f"{mode}:{cond}"]["clean_replays"] += int(e["fallback"] == 0)
+            exposure[f"{mode}:{cond}"]["unverified_replays"] += int(e.get("verified") is not True)
+            exposure[f"{mode}:{cond}"]["clean_replays"] += int(clean_exposure(rec, key))
     for label, e in exposure.items():
-        total = e["rewritten"] + e["fallback"]
+        total = e["rewritten"] + e["fallback"] + e["unavailable"]
         e["exposure_rate"] = e["rewritten"] / total if total else None
     return {"replays": {k: dict(v) for k, v in sorted(out.items())}, "gate_outcomes": {k: dict(v) for k, v in sorted(gate.items())},
             "exposure": {k: dict(v) for k, v in sorted(exposure.items())}}
@@ -250,7 +287,8 @@ def summarize(records: List[dict]) -> dict:
             "availability": availability(records), "flip_self": effects, "co_primary_low_vs_neutral": co_primary,
             "flip_self_per_protocol": per_protocol, "flip_self_by_role": by_role,
             "flip_others": own, "identity_vs_baseline": noise, "estimand": "equal_game_weight",
-            "analysis_policy": "intention-to-treat on the assigned branch; replays without any fallback as per-protocol sensitivity",
+            "analysis_policy": "assignment-based analysis of completed replays; per-protocol analysis requires complete logs matching every treated utterance, with all rewrites successful",
+            "aggregation": "days within speaker, speakers within game, then games; equal weights at each step",
             "n_boot": N_BOOT, "seed": SEED, "status": "Pilot"}
 
 
@@ -286,11 +324,11 @@ def render(s: dict) -> str:
     if s["availability"].get("exposure"):
         lines += ["", "Treatment exposure (a rewrite that fails the gate after its retries falls back to the original "
                   "utterance; the branch keeps its assignment and the fallback is logged):", "",
-                  "| replay | rewritten utterances | fallbacks to original | exposure rate | replays | replays without fallback |",
-                  "|---|--:|--:|--:|--:|--:|"]
+                  "| replay | rewritten utterances | fallbacks to original | logged rewrite share | replays | unverified logs | complete exposure |",
+                  "|---|--:|--:|--:|--:|--:|--:|"]
         for label, e in s["availability"]["exposure"].items():
-            lines.append(f"| {label} | {e['rewritten']} | {e['fallback']} | {fmt(e['exposure_rate'], 3)} | {e['replays']} | {e['clean_replays']} |")
-    lines += ["", f"Analysis policy: {s['analysis_policy']}.", "",
+            lines.append(f"| {label} | {e['rewritten']} | {e['fallback']} | {fmt(e['exposure_rate'], 3)} | {e['replays']} | {e['unverified_replays']} | {e['clean_replays']} |")
+    lines += ["", f"Analysis policy: {s['analysis_policy']}.", "", f"Aggregation: {s['aggregation']}.", "",
               "## Co-primary outcomes (Low minus Neutral, `flip_self`, Holm-corrected)", "",
               "| outcome | pairs | games | game-weighted Δ [95% CI] | d_z | p (exact sign-flip) | p (Holm) | reject at 0.05 |",
               "|---|--:|--:|--:|--:|--:|--:|--:|"]
@@ -330,8 +368,8 @@ def render(s: dict) -> str:
               "## Scope", "",
               "- With three games the smallest attainable two-sided p is 0.25; the pilot reports direction and size.",
               "- Each replay covers one day. Whole-game persistence of the cue is a separate design.",
-              "- A rewrite that fails the gate falls back to the original utterance and is logged; exposure rates are reported above and the per-protocol table excludes replays with any fallback.",
-              "- Neutral is an independent paraphrase control (same range as the original); it is not matched to Low.", "",
+              "- The per-protocol table uses replays whose logs match all treated utterances and record a successful rewrite for each.",
+              "- Neutral is an independently generated paraphrase at the original's linguistic range.", "",
               "## Files", "", "| file | contents |", "|---|---|",
               "| `data/flip_summary.json` | every number above, with intervals and tests |",
               "| `games/` (ignored) | baselines, replays, `subprocess.log` and `rewrites.jsonl` per replay |",
