@@ -1,25 +1,55 @@
-# Politeness Validation
+# Politeness validation
 
-Does a controlled rewrite realize the requested Brown & Levinson strategy, and
-does it preserve the game-relevant meaning? Every number here is recomputed from
-`data/` by `python -m experiments.politeness_validation.code.validation analyze`.
+We rewrite natural Werewolf utterances into four politeness strategies and check
+that each rewrite (1) realizes the requested strategy and (2) keeps the game
+meaning. Every number below is recomputed from `data/` by
+`python -m experiments.politeness_validation.code.validation analyze`.
 
-## Setup
+## Method
 
-- 12 untreated source utterances from natural game play, across the 4 speech-act
-  types that occur naturally (`estimate`, `disagree`, `question`,
-  `recommend_action`)
-- each source rewritten into all 4 politeness strategies — bald on-record,
-  positive politeness, negative politeness, off-record — holding the underlying
-  structured predicate fixed
-- **48 matched rewrites** generated from the same underlying source content
-  under four politeness conditions
-- both researchers annotated the same 48 independently
-- the requested strategy and every automatic judgement were hidden from both
+**Strategies.** Brown & Levinson (1987): bald on-record, positive politeness,
+negative politeness, off-record. Positive and negative politeness both state the
+act and soften it (for solidarity or for the listener's autonomy). Off-record
+leaves the act itself for the listener to infer.
 
-## Manipulation check
+**Source utterances.** Untreated speech from LURK games in which every player is
+`deepseek-chat` (DeepSeek's non-reasoning alias of `deepseek-flash`) and no
+rewriter is applied. The validation items use 12 utterances, three each of
+`estimate`, `disagree`, `question` and `recommend_action`, taken from two
+9-player games.
 
-| Requested strategy | n | Rater 1 | Rater 2 |
+**Rewriter.** `deepseek-chat`, temperature 0. One short prompt per strategy,
+written for this study from Brown & Levinson's definitions. All prompts forbid
+changing the speaker, target, polarity or reason. Positive politeness may add
+rapport but not invented praise or evidence; negative politeness softens the act,
+not the truth claim; off-record keeps the target and proposition recoverable. A
+failed or empty rewrite is an error, never the source text.
+
+**Meaning checks.** Deterministic checks (players, referenced statements, action,
+polarity), an inverse parser that reconstructs the predicate from the rewrite
+without seeing it, and a semantic validator over dimensions such as commitment,
+act force and evidence. Disagreement between them goes to a human.
+
+**Human annotation.** Two researchers independently labelled all 48 rewrites (12
+sources x 4 strategies). They did not see the requested strategy or any
+automatic output. They saw the predicate, the original utterance and the rewrite,
+and judged the dominant strategy and whether the meaning was preserved.
+
+**LLM politeness judge.** `gpt-5.6-luna` (OpenAI; no dated version is published).
+The prompt has two steps: say what the speaker is doing, then decide how that act
+is realized. Stated bluntly is bald; stated with solidarity is positive; stated
+with deference or reduced imposition is negative; left for the listener to infer
+is off-record. The judge sees only the utterance, speaker and phase, as a
+listening player would, and is never told the requested strategy. The model
+cannot be run at temperature 0, so each item is judged three times and the label
+at least two passes agree on is kept; if all three differ the item counts as a
+miss. All 549 passes are in `data/classifier_passes.jsonl`.
+
+## Results
+
+### Human manipulation check
+
+| Requested strategy | n | Researcher 1 | Researcher 2 |
 | --- | ---: | ---: | ---: |
 | Bald on-record | 12 | 12/12 | 12/12 |
 | Positive politeness | 12 | 12/12 | 12/12 |
@@ -27,68 +57,72 @@ does it preserve the game-relevant meaning? Every number here is recomputed from
 | Off-record | 12 | 12/12 | 12/12 |
 | **Overall** | **48** | **48/48** | **48/48** |
 
-Inter-rater strategy agreement: **48/48 (100%)**, Cohen's κ = **1.000**
-(unweighted; the labels are nominal).
+The researchers agree on all 48 labels (Cohen's kappa = 1.0). Neither used
+`ambiguous` or `failed`.
 
-Neither annotator used `ambiguous_or_mixed` or `failed_manipulation` for any
-item.
+### Meaning preservation
 
-## Meaning preservation
-
-| Rater | Yes | No | Unsure |
+| | Yes | No | Unsure |
 | --- | ---: | ---: | ---: |
-| Rater 1 | 43 | 3 | 2 |
-| Rater 2 | 41 | 5 | 2 |
+| Researcher 1 | 43 | 3 | 2 |
+| Researcher 2 | 41 | 5 | 2 |
 
-Exact agreement: **46/48 (95.8%)**, Cohen's κ = **0.816**. `unsure` is kept as
-its own category and is never folded into either side.
+Agreement is 46/48 (kappa = 0.816). Every judgement of lost meaning is on a
+`recommend_action` rewrite.
 
-The two disagreements are both `recommend_action` rewrites, where rater 2 was
-the stricter reader:
+### LLM politeness judge against the human labels
 
-| item | Rater 1 | Rater 2 | requested |
-| --- | --- | --- | --- |
-| `item_001` | yes | no | bald on-record |
-| `item_028` | yes | no | off-record |
+Agreement with the annotators, averaged over the two: **88/96 (91.7%)**.
 
-Across both raters, every judgement of lost meaning falls on
-`recommend_action`, suggesting that action directives are especially sensitive
-to rewriting. Not adjudicated.
+| Human label | n | judge agrees |
+| --- | ---: | ---: |
+| Bald on-record | 12 | 12 |
+| Positive politeness | 12 | 12 |
+| Negative politeness | 12 | 12 |
+| Off-record | 12 | 8 |
 
-## Semantic quality control
+The four misses are off-record rewrites that turn a direct challenge into a
+statement ("I'm still trying to line up two things you've said..."); the judge
+labelled them negative or positive politeness.
 
-Stimulus construction runs each rewrite through deterministic structural checks,
-an inverse predicate parser that reconstructs the predicate without being shown
-it, and a dimensional semantic validator; anything the parser and the validator
-do not both clear goes to human review. The validation result above comes from
-the two independent human judgements, not from these automatic checks, whose
-per-item outputs are retained in `data/manual_validation.jsonl`.
+### LLM politeness judge on Zhao & Hawkins (non-Werewolf)
 
-## Automatic politeness classifier
+As an external check we ran the judge on 135 held-out items from Zhao & Hawkins
+(2025), short feedback messages labelled with Brown & Levinson strategies. Their
+labels are per politeness marker, made by an LLM and verified by hand, and each
+scenario has a hidden 0-3 rating of how much the speaker liked the performance.
 
-Agreement with the human annotations was 34/48 against each rater. Recall was
-substantially lower than the annotators' for positive-politeness and off-record
-realizations, so the classifier is used **only diagnostically and never as an
-acceptance criterion**. Its per-item predictions are retained in the JSONL.
+Four-way agreement is **70.4% (95/135)**.
 
-## External construct check
+| Published label | n | judge agrees |
+| --- | ---: | ---: |
+| Bald on-record | 31 | 31 |
+| Positive politeness | 45 | 32 |
+| Negative politeness | 45 | 31 |
+| Off-record | 14 | 1 |
 
-Brown & Levinson supplies the theoretical strategy definitions. Zhao & Hawkins
-(2025) provides an external construct check, with the caveat that their
-annotation unit is the marker span while ours is the whole utterance. Of the 90
-items their annotation assigns to positive or negative politeness, our
-classifier placed 44 in the same pair; within those 44 it agreed with the
-published family on **95.5%**. This is **conditional** construct evidence for
-the positive/negative distinction, not a general classifier accuracy.
+Of the 90 positive or negative items, the judge placed 64 in that pair and
+labelled 63 of them the same way as the published label.
 
-## Methodological decision
+| Text | Published | Judge |
+| --- | --- | --- |
+| "It wasn't bad! You looked so good up there!" | positive | positive |
+| "It was not good." (hidden rating 0) | off-record | bald |
+| "I've seen you performing better." (hidden rating 0) | off-record | off-record |
 
-The four-way manipulation is supported by two independent blind annotations that
-agree completely. Meaning preservation is quantified by both raters and is high,
-with the few losses concentrated in `recommend_action`.
-Automatic politeness labels are diagnostic only. The politeness manipulation is
-therefore validated. Downstream experiments use only rewrites that pass semantic
-quality control or subsequent human adjudication.
+Their off-record items are mostly plain evaluations from low-rated scenarios, so
+the indirectness comes from a hidden opinion a listener cannot see. We read
+"It was not good." as a stated evaluation, so this set does not test
+off-record; it supports the bald, positive and negative categories.
 
-**Limitation.** One annotator was an author of the study; the second annotator
-labeled the items independently and blind to treatment.
+## Limitations
+
+- 12 source utterances from two games, played with 9 players, so the 48 rewrites
+  are 12 matched sets rather than 48 independent items.
+- Both annotators are authors of the study. They saw the predicate and original
+  when labelling strategy, which a listening player would not; a rewrite-only
+  re-annotation has not been done.
+- The judge misses a third of off-record rewrites (8/12 on Werewolf, 1/14 on
+  Zhao & Hawkins), and the Werewolf set was also used to choose the judge model.
+- The inverse parser and semantic validator run on `deepseek-chat`, the model
+  that wrote the rewrites.

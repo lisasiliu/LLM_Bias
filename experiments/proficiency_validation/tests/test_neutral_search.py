@@ -205,7 +205,8 @@ class FrequencySelectionTests(unittest.TestCase):
     def test_missing_frequency_fails_before_generation_even_with_original_fallback(self):
         from experiments.proficiency_validation.rewrite.gate import GatedRewriter, SemanticGate
         client = FakeClient([])
-        with patch.dict(os.environ, {}, clear=True), tempfile.TemporaryDirectory() as tmp:
+        with patch.dict(os.environ, {}, clear=True), tempfile.TemporaryDirectory() as tmp, \
+             patch("components.judges.judge_model._dotenv_values", return_value={}):
             with self.assertRaisesRegex(ValueError, "SUBTLEX"):
                 GatedRewriter(base="neutral", gate=SemanticGate(), llm_client=client,
                               on_unavailable="original", log_path=str(Path(tmp) / "rewrites.jsonl"))

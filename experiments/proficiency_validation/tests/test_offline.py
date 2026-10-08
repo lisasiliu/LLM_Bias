@@ -963,3 +963,21 @@ class SyntaxTests(unittest.TestCase):
         self.assertGreater(complex_["subordinate_clauses_per_sentence"], simple["subordinate_clauses_per_sentence"])
         self.assertGreater(complex_["mean_dependency_distance"], simple["mean_dependency_distance"])
         self.assertTrue(all(len(t) == 3 for t in simple["tokens"]))
+
+
+class LiveHistoryTests(unittest.TestCase):
+    def test_vote_tally_dicts_in_the_engine_history_are_dropped_before_judging(self):
+        from lurkingwolf.rewriter import RewriteContext
+        from experiments.proficiency_validation.rewrite.gate import source_from_context
+        from experiments.proficiency_validation.rewrite.runtime import history_before
+        from components.helpers import parse_history_entry
+        history = ["[s1|P2] claim_role(D1, P2, seer): I am the Seer.", "voted(D1, P3, P2)", {"P2": ["P3", "P4"]},
+                   "[s2|P3] disagree(D1, P3, s1): P2 is lying."]
+        ctx = RewriteContext(predicate="question(D1, P4, P3, s2)", speaker_id="P4", phase="day_1_discussion",
+                             original_nl="P3, why do you say P2 is lying?", speaker_role_claimed=None, public_history=history)
+        src = source_from_context(ctx)
+        self.assertTrue(all(isinstance(e, str) for e in src.public_history))
+        self.assertEqual(len(src.public_history), 3)
+        self.assertEqual(src.referenced_speech["speech_id"], "s2")
+        self.assertTrue(all(isinstance(e, str) for e in history_before(src)))
+        self.assertEqual(parse_history_entry({"P2": ["P3"]}), {})

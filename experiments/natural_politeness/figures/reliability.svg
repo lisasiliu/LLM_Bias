@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="f" viewBox="0 0 664 524" width="664" role="img" aria-label="Non-bald strategies by the speaker's reliability score for the listener">
+<style>
+.f{font-family:system-ui,-apple-system,Segoe UI,sans-serif}
+:root{--bg:#fcfcfb;--ink:#0b0b0b;--ink2:#52514e;--grid:#e6e5e1;--s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a}
+@media (prefers-color-scheme:dark){:root{--bg:#1a1a19;--ink:#fff;--ink2:#c3c2b7;--grid:#34332f;--s1:#3987e5;--s2:#d95926;--s3:#199e70}}
+.bg{fill:var(--bg)}.t{fill:var(--ink)}.t2{fill:var(--ink2)}.g{stroke:var(--grid);stroke-width:1}
+.s1{fill:var(--s1)}.s2{fill:var(--s2)}.s3{fill:var(--s3)}
+</style>
+<rect class="bg" width="664" height="524"/>
+<text class="t" x="16" y="24" font-size="15" font-weight="600">Non-bald strategies by the speaker's reliability score for the listener</text>
+<text class="t2" x="16" y="43" font-size="12">Reliability 1-10, rated before that day's discussion. For villagers high means 'on my side'; for</text>
+<text class="t2" x="16" y="58" font-size="12">werewolves it is confidence in a guessed identity and is always 10 for a teammate.</text>
+<rect class="s1" x="16" y="83" width="10" height="10" rx="2"/><text class="t2" x="31" y="92" font-size="12">Positive politeness</text>
+<rect class="s2" x="182" y="83" width="10" height="10" rx="2"/><text class="t2" x="197" y="92" font-size="12">Negative politeness</text>
+<rect class="s3" x="348" y="83" width="10" height="10" rx="2"/><text class="t2" x="363" y="92" font-size="12">Off-record</text>
+<text class="t" x="56" y="119" font-size="13" font-weight="600">Village-side speakers</text>
+<line class="g" x1="56" x2="640" y1="251.0" y2="251.0"/><text class="t2" x="50" y="255.0" font-size="11" text-anchor="end">0%</text>
+<line class="g" x1="56" x2="640" y1="216.7" y2="216.7"/><text class="t2" x="50" y="220.7" font-size="11" text-anchor="end">10%</text>
+<line class="g" x1="56" x2="640" y1="182.4" y2="182.4"/><text class="t2" x="50" y="186.4" font-size="11" text-anchor="end">20%</text>
+<line class="g" x1="56" x2="640" y1="148.1" y2="148.1"/><text class="t2" x="50" y="152.1" font-size="11" text-anchor="end">30%</text>
+<text class="t2" x="153.3" y="266" font-size="11" text-anchor="middle">low (1-3)</text><text class="t2" x="153.3" y="280" font-size="10" text-anchor="middle">n=44</text>
+<rect class="s1" x="141.3" y="243.2" width="24.0" height="7.8"><title>Village-side speakers, low (1-3): Positive politeness 2.3% (1 of 44)</title></rect>
+<path class="s3" d="M141.3,241.2 V239.4 Q141.3,235.4 145.3,235.4 H161.3 Q165.3,235.4 165.3,239.4 V241.2 Z"><title>Village-side speakers, low (1-3): Off-record 2.3% (1 of 44)</title></path>
+<text class="t" x="153.3" y="230.4" font-size="11" text-anchor="middle">5%</text>
+<text class="t2" x="348.0" y="266" font-size="11" text-anchor="middle">mid (4-7)</text><text class="t2" x="348.0" y="280" font-size="10" text-anchor="middle">n=481</text>
+<rect class="s1" x="336.0" y="222.5" width="24.0" height="28.5"><title>Village-side speakers, mid (4-7): Positive politeness 8.3% (40 of 481)</title></rect>
+<rect class="s2" x="336.0" y="216.8" width="24.0" height="3.7"><title>Village-side speakers, mid (4-7): Negative politeness 1.7% (8 of 481)</title></rect>
+<rect class="s3" x="336.0" y="213.9" width="24.0" height="1.0"><title>Village-side speakers, mid (4-7): Off-record 0.8% (4 of 481)</title></rect>
+<text class="t" x="348.0" y="208.9" font-size="11" text-anchor="middle">11%</text>
+<text class="t2" x="542.7" y="266" font-size="11" text-anchor="middle">high (8-10)</text><text class="t2" x="542.7" y="280" font-size="10" text-anchor="middle">n=12</text>
+<path class="s1" d="M530.7,251.0 V140.7 Q530.7,136.7 534.7,136.7 H550.7 Q554.7,136.7 554.7,140.7 V251.0 Z"><title>Village-side speakers, high (8-10): Positive politeness 33.3% (4 of 12)</title></path>
+<text class="t" x="542.7" y="131.7" font-size="11" text-anchor="middle">33%</text>
+<line class="g" x1="56" x2="640" y1="251" y2="251"/>
+<text class="t" x="56" y="309" font-size="13" font-weight="600">Werewolf speakers (teammate, or village player by score)</text>
+<line class="g" x1="56" x2="640" y1="441.0" y2="441.0"/><text class="t2" x="50" y="445.0" font-size="11" text-anchor="end">0%</text>
+<line class="g" x1="56" x2="640" y1="406.7" y2="406.7"/><text class="t2" x="50" y="410.7" font-size="11" text-anchor="end">10%</text>
+<line class="g" x1="56" x2="640" y1="372.4" y2="372.4"/><text class="t2" x="50" y="376.4" font-size="11" text-anchor="end">20%</text>
+<line class="g" x1="56" x2="640" y1="338.1" y2="338.1"/><text class="t2" x="50" y="342.1" font-size="11" text-anchor="end">30%</text>
+<text class="t2" x="129.0" y="456" font-size="11" text-anchor="middle">teammate (10)</text><text class="t2" x="129.0" y="470" font-size="10" text-anchor="middle">n=26</text>
+<path class="s1" d="M117.0,441.0 V418.6 Q117.0,414.6 121.0,414.6 H137.0 Q141.0,414.6 141.0,418.6 V441.0 Z"><title>Werewolf speakers (teammate, or village player by score), teammate (10): Positive politeness 7.7% (2 of 26)</title></path>
+<text class="t" x="129.0" y="409.6" font-size="11" text-anchor="middle">8%</text>
+<text class="t2" x="275.0" y="456" font-size="11" text-anchor="middle">village player low (1-3)</text><text class="t2" x="275.0" y="470" font-size="10" text-anchor="middle">n=0</text>
+<text class="t2" x="421.0" y="456" font-size="11" text-anchor="middle">village player mid (4-7)</text><text class="t2" x="421.0" y="470" font-size="10" text-anchor="middle">n=299</text>
+<rect class="s1" x="409.0" y="400.9" width="24.0" height="40.1"><title>Werewolf speakers (teammate, or village player by score), village player mid (4-7): Positive politeness 11.7% (35 of 299)</title></rect>
+<path class="s2" d="M409.0,398.9 V396.8 Q409.0,392.8 413.0,392.8 H429.0 Q433.0,392.8 433.0,396.8 V398.9 Z"><title>Werewolf speakers (teammate, or village player by score), village player mid (4-7): Negative politeness 2.3% (7 of 299)</title></path>
+<text class="t" x="421.0" y="387.8" font-size="11" text-anchor="middle">14%</text>
+<text class="t2" x="567.0" y="456" font-size="11" text-anchor="middle">village player high (8-10)</text><text class="t2" x="567.0" y="470" font-size="10" text-anchor="middle">n=19</text>
+<text class="t" x="567.0" y="436.0" font-size="11" text-anchor="middle">0%</text>
+<line class="g" x1="56" x2="640" y1="441" y2="441"/>
+<text class="t2" x="16" y="499" font-size="11">Bars with few utterances are noisy. Hover a segment for its count.</text>
+</svg>

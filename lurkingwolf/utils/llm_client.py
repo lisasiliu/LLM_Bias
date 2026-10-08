@@ -61,7 +61,7 @@ class _Completions:
             f"{self._base_url}/v1/chat/completions",
             headers=headers,
             json=payload,
-            timeout=300,
+            timeout=int(os.getenv("LLM_TIMEOUT", "300")),   # seconds; raise it when many replays share one server
         )
         resp.raise_for_status()
         data = resp.json()

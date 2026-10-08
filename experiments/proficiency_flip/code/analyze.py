@@ -31,10 +31,10 @@ GAMES_DIR = EXPERIMENT_DIR / "games"
 COMPARISON = "nl_vs_proficiency"
 SUMMARY_JSON = EXPERIMENT_DIR / "data" / "flip_summary.json"
 SUMMARY_MD = EXPERIMENT_DIR / "summary.md"
-CONDITIONS = ("low", "neutral")
+CONDITIONS = ("low", "neutral", "high")
 SPEAKER_OUTCOMES = ("votes_received", "executed", "wolf_target", "seer_target", "trust_in_speaker")
 OWN_OUTCOMES = ("changed_vote", "trust_toward_others", "changed_role_target")
-CONTRASTS = (("low", "identity"), ("neutral", "identity"), ("low", "neutral"))
+CONTRASTS = (("low", "identity"), ("neutral", "identity"), ("high", "identity"), ("low", "neutral"), ("high", "neutral"))
 # Prespecified co-primary behavioural family (Low vs Neutral), Holm-corrected; the rest is secondary/exploratory.
 CO_PRIMARY = ("trust_in_speaker", "votes_received")
 N_BOOT, SEED = 2000, 101
@@ -79,28 +79,50 @@ def own_behaviour(result: dict, speaker: str, reference: dict, role: Optional[st
             "trust_toward_others": mean(outward), "changed_role_target": changed}
 
 
+def _logged_text(row: dict) -> Tuple[str, str]:
+    """(exposure category, text the listeners heard) for one rewrite-log row."""
+    if row.get("fallback_to_original") is True:
+        return "fallback", (row.get("original_text") or row.get("original_nl") or "").strip()
+    if row.get("status") == "ok" and row.get("rewritten_text"):
+        return "rewritten", row["rewritten_text"].strip()
+    return "unavailable", ""
+
+
+def _discussion_counter(rows: List[dict]) -> Counter:
+    return Counter((row.get("speaker"), _logged_text(row)[1]) for row in rows
+                   if row.get("phase", "day_speech") == "day_speech")
+
+
 def exposure_summary(rows: List[dict], result: Optional[dict], meta: dict) -> dict:
-    """Match the rewrite log to the treated utterances in the replay result."""
+    """Match the rewrite log to the treated utterances in the replay result.
+
+    The replay result records the discussion speeches; the rewriter also logs the
+    executed player's last words (``phase == "last_speech"``), which are counted
+    as exposure but have no recorded speech to match against. A replay that the
+    runner restarted after an interrupted attempt carries that attempt's rows ahead
+    of the completed attempt's rows (the gate appended to the same log before the
+    fix in ``GatedRewriter``); the completed attempt is the shortest suffix whose
+    discussion rows match the recorded speeches.
+    """
     expected = Counter((speech["speaker"], item["text"].strip())
                        for speech in (result or {}).get("speeches", [])
                        if ((speech["speaker"] == meta["self"]) == (meta["mode"] == "flip_self"))
                        for item in speech.get("nl", []) if item.get("text", "").strip())
-    observed = Counter()
-    counts = Counter(rewritten=0, fallback=0, unavailable=0)
-    for row in rows:
-        if row.get("fallback_to_original") is True:
-            counts["fallback"] += 1
-            text = row.get("original_text") or row.get("original_nl") or ""
-        elif row.get("status") == "ok" and row.get("rewritten_text"):
-            counts["rewritten"] += 1
-            text = row["rewritten_text"]
-        else:
-            counts["unavailable"] += 1
-            text = ""
-        observed[(row.get("speaker"), text.strip())] += 1
-    return {**counts, "recorded": len(rows), "expected": sum(expected.values()),
-            "verified": bool(expected) and expected == observed
-            and all(row.get("condition") == meta["condition"] for row in rows)}
+    kept, interrupted = rows, 0
+    if result is not None:
+        for k in range(len(rows) + 1):
+            if _discussion_counter(rows[k:]) == expected:
+                kept, interrupted = rows[k:], k
+                break
+    counts = Counter(rewritten=0, fallback=0, unavailable=0, last_words=0)
+    for row in kept:
+        counts[_logged_text(row)[0]] += 1
+        if row.get("phase", "day_speech") != "day_speech":
+            counts["last_words"] += 1
+    return {**counts, "recorded": len(rows), "interrupted_rows": interrupted,
+            "expected": sum(expected.values()),
+            "verified": bool(expected) and _discussion_counter(kept) == expected
+            and all(row.get("condition") == meta["condition"] for row in kept)}
 
 
 def load_tree(games_dir: Path) -> List[dict]:
@@ -135,9 +157,9 @@ def load_tree(games_dir: Path) -> List[dict]:
                 log = run_dir / "rewrites.jsonl"
                 if log.exists():
                     rows = read_jsonl(log)
-                    for row in rows:
-                        gate[(meta["mode"], meta["condition"], row.get("status"))] += 1
                     exposure[key] = exposure_summary(rows, result, meta)
+                    for row in rows[exposure[key]["interrupted_rows"]:]:
+                        gate[(meta["mode"], meta["condition"], row.get("status"))] += 1
             records.append({"seed": seed, "day": day, "baseline": baseline, "replays": replays,
                             "expected": {k: v for k, v in expected.items() if k.endswith(f"__d{day}")},
                             "gate": gate, "exposure": exposure, "root": str(root)})
@@ -243,7 +265,7 @@ def availability(records: List[dict]) -> dict:
             if mode not in ("flip_self", "flip_others"):
                 continue
             e = rec.get("exposure", {}).get(key, {})
-            for field in ("rewritten", "fallback", "unavailable"):
+            for field in ("rewritten", "fallback", "unavailable", "last_words", "interrupted_rows"):
                 exposure[f"{mode}:{cond}"][field] += e.get(field, 0)
             exposure[f"{mode}:{cond}"]["replays"] += 1
             exposure[f"{mode}:{cond}"]["unverified_replays"] += int(e.get("verified") is not True)
@@ -289,7 +311,7 @@ def summarize(records: List[dict]) -> dict:
             "flip_others": own, "identity_vs_baseline": noise, "estimand": "equal_game_weight",
             "analysis_policy": "assignment-based analysis of completed replays; per-protocol analysis requires complete logs matching every treated utterance, with all rewrites successful",
             "aggregation": "days within speaker, speakers within game, then games; equal weights at each step",
-            "n_boot": N_BOOT, "seed": SEED, "status": "Pilot"}
+            "n_boot": N_BOOT, "seed": SEED}
 
 
 def _row(label: str, e: dict) -> str:
@@ -303,8 +325,8 @@ def _row(label: str, e: dict) -> str:
 def render(s: dict) -> str:
     head = "| outcome | pairs | games | game-weighted Δ [95% CI] | d_z | p (exact sign-flip) | pooled Δ |"
     sep = "|---|--:|--:|--:|--:|--:|--:|"
-    lines = ["# Proficiency flip replays: pilot result", "",
-             f"**{s['status']}.** {len(s['games'])} baseline games ({', '.join(s['games'])}), "
+    lines = ["# Proficiency flip replays", "",
+             f"{len(s['games'])} baseline games ({', '.join(s['games'])}), "
              f"{s['n_checkpoints']} day checkpoints. Every replay repeats one day from its checkpoint; in `flip_self` "
              "one speaker's utterances are rewritten to the assigned level for that day, in `flip_others` everyone "
              "else's are. Differences are paired on the same checkpoint and speaker against the identity replay "
@@ -324,10 +346,10 @@ def render(s: dict) -> str:
     if s["availability"].get("exposure"):
         lines += ["", "Treatment exposure (a rewrite that fails the gate after its retries falls back to the original "
                   "utterance; the branch keeps its assignment and the fallback is logged):", "",
-                  "| replay | rewritten utterances | fallbacks to original | logged rewrite share | replays | unverified logs | complete exposure |",
-                  "|---|--:|--:|--:|--:|--:|--:|"]
+                  "| replay | rewritten utterances | fallbacks to original | logged rewrite share | last-words rows | rows of interrupted attempts | replays | unverified logs | complete exposure |",
+                  "|---|--:|--:|--:|--:|--:|--:|--:|--:|"]
         for label, e in s["availability"]["exposure"].items():
-            lines.append(f"| {label} | {e['rewritten']} | {e['fallback']} | {fmt(e['exposure_rate'], 3)} | {e['replays']} | {e['unverified_replays']} | {e['clean_replays']} |")
+            lines.append(f"| {label} | {e['rewritten']} | {e['fallback']} | {fmt(e['exposure_rate'], 3)} | {e.get('last_words', 0)} | {e.get('interrupted_rows', 0)} | {e['replays']} | {e['unverified_replays']} | {e['clean_replays']} |")
     lines += ["", f"Analysis policy: {s['analysis_policy']}.", "", f"Aggregation: {s['aggregation']}.", "",
               "## Co-primary outcomes (Low minus Neutral, `flip_self`, Holm-corrected)", "",
               "| outcome | pairs | games | game-weighted Δ [95% CI] | d_z | p (exact sign-flip) | p (Holm) | reject at 0.05 |",
@@ -365,11 +387,7 @@ def render(s: dict) -> str:
     lines += ["`changed_vote` is 1 when the speaker voted for a different target than in the control replay; "
               "`trust_toward_others` is the speaker's mean reliability score for the others; `changed_role_target` "
               "applies to wolves and the seer only.", "",
-              "## Scope", "",
-              "- With three games the smallest attainable two-sided p is 0.25; the pilot reports direction and size.",
-              "- Each replay covers one day. Whole-game persistence of the cue is a separate design.",
-              "- The per-protocol table uses replays whose logs match all treated utterances and record a successful rewrite for each.",
-              "- Neutral is an independently generated paraphrase at the original's linguistic range.", "",
+              "The per-protocol table uses replays whose logs match all treated utterances and record a successful rewrite for each.", "",
               "## Files", "", "| file | contents |", "|---|---|",
               "| `data/flip_summary.json` | every number above, with intervals and tests |",
               "| `games/` (ignored) | baselines, replays, `subprocess.log` and `rewrites.jsonl` per replay |",

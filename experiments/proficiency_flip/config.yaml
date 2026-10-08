@@ -1,23 +1,24 @@
-# Behavioral pilot (RQ1): a speaker-level proficiency cue in LURK flip replays.
+# RQ1: a speaker-level linguistic-range cue in LURK flip replays.
 #
-# For every seed the runner plays one untreated 9-player NL baseline with day-start
+# For every seed the runner plays one untreated 7-player NL baseline with day-start
 # checkpoints, then replays each day from its checkpoint:
 #   nl           identity control: same checkpoint, no rewriter (the model's noise floor)
 #   flip_self    the gated proficiency rewriter on ONE player's speech for the whole day,
 #                rotated through all players (speaker-directed treatment, the primary analysis)
 #   flip_others  the rewriter on everyone except that player (secondary: how the untreated
 #                player behaves when everyone around them speaks at the treated level)
-# Conditions: Low (treatment) and Neutral (independent paraphrase control at the original range).
+# Conditions: A (restricted range), B (paraphrase control at the original range) and C (expanded range);
+# internal ids low, neutral, high.
 # Every rewrite passes the semantic gate; a rewrite that still fails after its retries falls back
 # to the untouched original utterance, is logged with fallback_to_original=true, and the assigned
 # replay continues. The primary analysis follows the assignment. Per-protocol analysis uses
 # complete rewrite logs matching the treated utterances, with every rewrite successful.
 #
-# Pilot: Qwen3.5-27B plays, generates, judges. Formal runs need the independent model
-# families in experiments/proficiency_validation/README.md.
+# Qwen3.5-27B plays, generates and judges; the confirmatory protocol in
+# experiments/proficiency_validation/README.md names the independent model families.
 name: proficiency_flip
-n_players: 9
-seeds: [201, 202, 203]
+n_players: 7
+seeds: [201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230]
 model: Qwen/Qwen3.5-27B
 temperature: 0.0
 max_tokens: 300
@@ -37,6 +38,10 @@ comparisons:
         rewriter: gated_proficiency
         rewriter_params: {base: neutral, gate: judge, generator_handle: generator, on_unavailable: original}
         inject_at: day_start
+      - mode: flip_self
+        rewriter: gated_proficiency
+        rewriter_params: {base: high, gate: judge, generator_handle: generator, on_unavailable: original}
+        inject_at: day_start
       - mode: flip_others
         rewriter: gated_proficiency
         rewriter_params: {base: low, gate: judge, generator_handle: generator, on_unavailable: original}
@@ -44,6 +49,10 @@ comparisons:
       - mode: flip_others
         rewriter: gated_proficiency
         rewriter_params: {base: neutral, gate: judge, generator_handle: generator, on_unavailable: original}
+        inject_at: day_start
+      - mode: flip_others
+        rewriter: gated_proficiency
+        rewriter_params: {base: high, gate: judge, generator_handle: generator, on_unavailable: original}
         inject_at: day_start
 
 metrics: [skill, vote, reliability, fairness]

@@ -1,0 +1,1715 @@
+{
+  "created_at": "2026-10-08T11:24:11+00:00",
+  "games": [
+    "201",
+    "202",
+    "203"
+  ],
+  "n_checkpoints": 9,
+  "days_per_game": {
+    "201": 3,
+    "202": 3,
+    "203": 3
+  },
+  "n_pairs": {
+    "flip_self:low_vs_identity": 47,
+    "flip_self:neutral_vs_identity": 47,
+    "flip_self:high_vs_identity": 47,
+    "flip_self:low_vs_neutral": 47,
+    "flip_self:high_vs_neutral": 47,
+    "flip_others:low_vs_identity": 47,
+    "flip_others:neutral_vs_identity": 47,
+    "flip_others:high_vs_identity": 47,
+    "flip_others:low_vs_neutral": 47,
+    "flip_others:high_vs_neutral": 47
+  },
+  "availability": {
+    "replays": {
+      "flip_others:high": {
+        "present": 47,
+        "missing_result": 0,
+        "expected": 47,
+        "failed_rc": 0
+      },
+      "flip_others:low": {
+        "present": 47,
+        "missing_result": 0,
+        "expected": 47,
+        "failed_rc": 0
+      },
+      "flip_others:neutral": {
+        "present": 47,
+        "missing_result": 0,
+        "expected": 47,
+        "failed_rc": 0
+      },
+      "flip_self:high": {
+        "present": 47,
+        "missing_result": 0,
+        "expected": 47,
+        "failed_rc": 0
+      },
+      "flip_self:low": {
+        "present": 47,
+        "missing_result": 0,
+        "expected": 47,
+        "failed_rc": 0
+      },
+      "flip_self:neutral": {
+        "present": 47,
+        "missing_result": 0,
+        "expected": 47,
+        "failed_rc": 0
+      },
+      "nl": {
+        "present": 9,
+        "missing_result": 0,
+        "expected": 9,
+        "failed_rc": 0
+      }
+    },
+    "gate_outcomes": {
+      "flip_others:high": {
+        "ok": 930,
+        "treatment_unavailable": 26,
+        "infrastructure_unavailable": 5
+      },
+      "flip_others:low": {
+        "ok": 910,
+        "treatment_unavailable": 57
+      },
+      "flip_others:neutral": {
+        "ok": 933,
+        "treatment_unavailable": 19
+      },
+      "flip_self:high": {
+        "ok": 197,
+        "infrastructure_unavailable": 3,
+        "treatment_unavailable": 9
+      },
+      "flip_self:low": {
+        "ok": 205,
+        "treatment_unavailable": 9
+      },
+      "flip_self:neutral": {
+        "ok": 200,
+        "treatment_unavailable": 3
+      }
+    },
+    "exposure": {
+      "flip_others:high": {
+        "rewritten": 930,
+        "fallback": 31,
+        "unavailable": 0,
+        "last_words": 100,
+        "interrupted_rows": 0,
+        "replays": 47,
+        "unverified_replays": 0,
+        "clean_replays": 30,
+        "exposure_rate": 0.967741935483871
+      },
+      "flip_others:low": {
+        "rewritten": 910,
+        "fallback": 57,
+        "unavailable": 0,
+        "last_words": 102,
+        "interrupted_rows": 25,
+        "replays": 47,
+        "unverified_replays": 0,
+        "clean_replays": 15,
+        "exposure_rate": 0.9410548086866598
+      },
+      "flip_others:neutral": {
+        "rewritten": 933,
+        "fallback": 19,
+        "unavailable": 0,
+        "last_words": 100,
+        "interrupted_rows": 7,
+        "replays": 47,
+        "unverified_replays": 0,
+        "clean_replays": 33,
+        "exposure_rate": 0.9800420168067226
+      },
+      "flip_self:high": {
+        "rewritten": 197,
+        "fallback": 12,
+        "unavailable": 0,
+        "last_words": 23,
+        "interrupted_rows": 10,
+        "replays": 47,
+        "unverified_replays": 0,
+        "clean_replays": 39,
+        "exposure_rate": 0.9425837320574163
+      },
+      "flip_self:low": {
+        "rewritten": 205,
+        "fallback": 9,
+        "unavailable": 0,
+        "last_words": 32,
+        "interrupted_rows": 7,
+        "replays": 47,
+        "unverified_replays": 0,
+        "clean_replays": 38,
+        "exposure_rate": 0.9579439252336449
+      },
+      "flip_self:neutral": {
+        "rewritten": 200,
+        "fallback": 3,
+        "unavailable": 0,
+        "last_words": 19,
+        "interrupted_rows": 6,
+        "replays": 47,
+        "unverified_replays": 0,
+        "clean_replays": 44,
+        "exposure_rate": 0.9852216748768473
+      }
+    }
+  },
+  "flip_self": {
+    "low_vs_identity": {
+      "votes_received": {
+        "n_pairs": 47,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": 0.21031746031746032,
+        "ci_low": -0.08333333333333333,
+        "ci_high": 0.5714285714285714,
+        "cohens_dz": 0.6324330179090392,
+        "p_sign_flip": 0.5,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.19148936170212766
+      },
+      "executed": {
+        "n_pairs": 47,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": 0.06746031746031746,
+        "ci_low": 0.0,
+        "ci_high": 0.11904761904761903,
+        "cohens_dz": 1.1042686641847725,
+        "p_sign_flip": 0.5,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.06382978723404255
+      },
+      "wolf_target": {
+        "n_pairs": 47,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": 0.0066137566137566125,
+        "ci_low": -0.02777777777777778,
+        "ci_high": 0.047619047619047616,
+        "cohens_dz": 0.17344807828399003,
+        "p_sign_flip": 1.0,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.02127659574468085
+      },
+      "seer_target": {
+        "n_pairs": 47,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": -0.018518518518518517,
+        "ci_low": -0.05555555555555555,
+        "ci_high": 0.0,
+        "cohens_dz": -0.5773502691896258,
+        "p_sign_flip": 1.0,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": -0.02127659574468085
+      },
+      "trust_in_speaker": {
+        "n_pairs": 47,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": -0.019576719576719623,
+        "ci_low": -0.12222222222222219,
+        "ci_high": 0.0634920634920634,
+        "cohens_dz": -0.20739766951472058,
+        "p_sign_flip": 1.0,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": -0.009929078014184457
+      }
+    },
+    "neutral_vs_identity": {
+      "votes_received": {
+        "n_pairs": 47,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": -0.23677248677248677,
+        "ci_low": -0.9761904761904762,
+        "ci_high": 0.19444444444444442,
+        "cohens_dz": -0.3680580675355924,
+        "p_sign_flip": 1.0,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": -0.14893617021276595
+      },
+      "executed": {
+        "n_pairs": 47,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": -0.07142857142857142,
+        "ci_low": -0.21428571428571427,
+        "ci_high": 0.0,
+        "cohens_dz": -0.5773502691896257,
+        "p_sign_flip": 1.0,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": -0.0425531914893617
+      },
+      "wolf_target": {
+        "n_pairs": 47,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.0,
+        "cohens_dz": null,
+        "p_sign_flip": 1.0,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.0
+      },
+      "seer_target": {
+        "n_pairs": 47,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": 0.042328042328042326,
+        "ci_low": 0.0,
+        "ci_high": 0.07142857142857142,
+        "cohens_dz": 1.128552985373757,
+        "p_sign_flip": 0.5,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.0425531914893617
+      },
+      "trust_in_speaker": {
+        "n_pairs": 47,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": 0.0941798941798941,
+        "ci_low": 0.05555555555555549,
+        "ci_high": 0.15476190476190466,
+        "cohens_dz": 1.7728564839238472,
+        "p_sign_flip": 0.25,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.09219858156028361
+      }
+    },
+    "high_vs_identity": {
+      "votes_received": {
+        "n_pairs": 47,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": -0.10185185185185186,
+        "ci_low": -0.4761904761904762,
+        "ci_high": 0.14285714285714285,
+        "cohens_dz": -0.3093417408924487,
+        "p_sign_flip": 1.0,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.0
+      },
+      "executed": {
+        "n_pairs": 47,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": -0.03174603174603175,
+        "ci_low": -0.09523809523809525,
+        "ci_high": 0.0,
+        "cohens_dz": -0.5773502691896258,
+        "p_sign_flip": 1.0,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.0
+      },
+      "wolf_target": {
+        "n_pairs": 47,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": -0.007936507936507936,
+        "ci_low": -0.07142857142857142,
+        "ci_high": 0.047619047619047616,
+        "cohens_dz": -0.13245323570650439,
+        "p_sign_flip": 1.0,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.0
+      },
+      "seer_target": {
+        "n_pairs": 47,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.0,
+        "cohens_dz": null,
+        "p_sign_flip": 1.0,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.0
+      },
+      "trust_in_speaker": {
+        "n_pairs": 47,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": 0.04365079365079355,
+        "ci_low": -1.249000902703301e-16,
+        "ci_high": 0.1309523809523808,
+        "cohens_dz": 0.5773502691896248,
+        "p_sign_flip": 1.0,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.06028368794326231
+      }
+    },
+    "low_vs_neutral": {
+      "votes_received": {
+        "n_pairs": 47,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": 0.44708994708994715,
+        "ci_low": -0.27777777777777773,
+        "ci_high": 1.5476190476190477,
+        "cohens_dz": 0.4614180755312812,
+        "p_sign_flip": 0.75,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.3404255319148936
+      },
+      "executed": {
+        "n_pairs": 47,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": 0.1388888888888889,
+        "ci_low": 0.0,
+        "ci_high": 0.3333333333333333,
+        "cohens_dz": 0.8006407690254357,
+        "p_sign_flip": 0.5,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.10638297872340426
+      },
+      "wolf_target": {
+        "n_pairs": 47,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": 0.0066137566137566125,
+        "ci_low": -0.02777777777777778,
+        "ci_high": 0.047619047619047616,
+        "cohens_dz": 0.17344807828399003,
+        "p_sign_flip": 1.0,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.02127659574468085
+      },
+      "seer_target": {
+        "n_pairs": 47,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": -0.06084656084656084,
+        "ci_low": -0.1111111111111111,
+        "ci_high": 0.0,
+        "cohens_dz": -1.080634267190361,
+        "p_sign_flip": 0.5,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": -0.06382978723404255
+      },
+      "trust_in_speaker": {
+        "n_pairs": 47,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": -0.11375661375661374,
+        "ci_low": -0.1944444444444444,
+        "ci_high": -0.05555555555555557,
+        "cohens_dz": -1.5772516726519215,
+        "p_sign_flip": 0.25,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": -0.10212765957446807
+      }
+    },
+    "high_vs_neutral": {
+      "votes_received": {
+        "n_pairs": 47,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": 0.1349206349206349,
+        "ci_low": -0.16666666666666666,
+        "ci_high": 0.5,
+        "cohens_dz": 0.3993648378746987,
+        "p_sign_flip": 0.75,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.14893617021276595
+      },
+      "executed": {
+        "n_pairs": 47,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": 0.03968253968253968,
+        "ci_low": 0.0,
+        "ci_high": 0.11904761904761903,
+        "cohens_dz": 0.5773502691896257,
+        "p_sign_flip": 1.0,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.0425531914893617
+      },
+      "wolf_target": {
+        "n_pairs": 47,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": -0.007936507936507936,
+        "ci_low": -0.07142857142857142,
+        "ci_high": 0.047619047619047616,
+        "cohens_dz": -0.13245323570650439,
+        "p_sign_flip": 1.0,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.0
+      },
+      "seer_target": {
+        "n_pairs": 47,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": -0.042328042328042326,
+        "ci_low": -0.07142857142857142,
+        "ci_high": 0.0,
+        "cohens_dz": -1.128552985373757,
+        "p_sign_flip": 0.5,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": -0.0425531914893617
+      },
+      "trust_in_speaker": {
+        "n_pairs": 47,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": -0.05052910052910054,
+        "ci_low": -0.07222222222222216,
+        "ci_high": -0.023809523809523846,
+        "cohens_dz": -2.054476181968214,
+        "p_sign_flip": 0.25,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": -0.031914893617021295
+      }
+    }
+  },
+  "co_primary_low_vs_neutral": {
+    "trust_in_speaker": {
+      "n_pairs": 47,
+      "n_speakers": 20,
+      "n_games": 3,
+      "estimate": -0.11375661375661374,
+      "ci_low": -0.1944444444444444,
+      "ci_high": -0.05555555555555557,
+      "cohens_dz": -1.5772516726519215,
+      "p_sign_flip": 0.25,
+      "minimum_two_sided_p": 0.25,
+      "pooled_mean": -0.10212765957446807,
+      "p": 0.25,
+      "p_holm": 0.5,
+      "reject_05": false
+    },
+    "votes_received": {
+      "n_pairs": 47,
+      "n_speakers": 20,
+      "n_games": 3,
+      "estimate": 0.44708994708994715,
+      "ci_low": -0.27777777777777773,
+      "ci_high": 1.5476190476190477,
+      "cohens_dz": 0.4614180755312812,
+      "p_sign_flip": 0.75,
+      "minimum_two_sided_p": 0.25,
+      "pooled_mean": 0.3404255319148936,
+      "p": 0.75,
+      "p_holm": 0.75,
+      "reject_05": false
+    }
+  },
+  "flip_self_per_protocol": {
+    "low_vs_identity": {
+      "votes_received": {
+        "n_pairs": 38,
+        "n_speakers": 18,
+        "n_games": 3,
+        "estimate": 0.342063492063492,
+        "ci_low": -0.08333333333333333,
+        "ci_high": 0.9666666666666665,
+        "cohens_dz": 0.6189865096842214,
+        "p_sign_flip": 0.5,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.23684210526315788
+      },
+      "executed": {
+        "n_pairs": 38,
+        "n_speakers": 18,
+        "n_games": 3,
+        "estimate": 0.09444444444444444,
+        "ci_low": 0.0,
+        "ci_high": 0.20000000000000004,
+        "cohens_dz": 0.9401021481358627,
+        "p_sign_flip": 0.5,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.07894736842105263
+      },
+      "wolf_target": {
+        "n_pairs": 38,
+        "n_speakers": 18,
+        "n_games": 3,
+        "estimate": -0.00925925925925926,
+        "ci_low": -0.02777777777777778,
+        "ci_high": 0.0,
+        "cohens_dz": -0.5773502691896257,
+        "p_sign_flip": 1.0,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.0
+      },
+      "seer_target": {
+        "n_pairs": 38,
+        "n_speakers": 18,
+        "n_games": 3,
+        "estimate": -0.018518518518518517,
+        "ci_low": -0.05555555555555555,
+        "ci_high": 0.0,
+        "cohens_dz": -0.5773502691896258,
+        "p_sign_flip": 1.0,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": -0.02631578947368421
+      },
+      "trust_in_speaker": {
+        "n_pairs": 38,
+        "n_speakers": 18,
+        "n_games": 3,
+        "estimate": 0.023809523809523756,
+        "ci_low": -0.12222222222222219,
+        "ci_high": 0.17777777777777767,
+        "cohens_dz": 0.15856378533398927,
+        "p_sign_flip": 0.75,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.0008771929824560905
+      }
+    },
+    "neutral_vs_identity": {
+      "votes_received": {
+        "n_pairs": 44,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": -0.2605820105820106,
+        "ci_low": -0.9761904761904762,
+        "ci_high": 0.19444444444444442,
+        "cohens_dz": -0.41539278307157185,
+        "p_sign_flip": 1.0,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": -0.1590909090909091
+      },
+      "executed": {
+        "n_pairs": 44,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": -0.07142857142857142,
+        "ci_low": -0.21428571428571427,
+        "ci_high": 0.0,
+        "cohens_dz": -0.5773502691896257,
+        "p_sign_flip": 1.0,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": -0.045454545454545456
+      },
+      "wolf_target": {
+        "n_pairs": 44,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.0,
+        "cohens_dz": null,
+        "p_sign_flip": 1.0,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.0
+      },
+      "seer_target": {
+        "n_pairs": 44,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": 0.023809523809523808,
+        "ci_low": 0.0,
+        "ci_high": 0.07142857142857142,
+        "cohens_dz": 0.5773502691896257,
+        "p_sign_flip": 1.0,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.022727272727272728
+      },
+      "trust_in_speaker": {
+        "n_pairs": 44,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": 0.08730158730158723,
+        "ci_low": 0.051587301587301536,
+        "ci_high": 0.15476190476190466,
+        "cohens_dz": 1.4934573132646871,
+        "p_sign_flip": 0.25,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.09393939393939386
+      }
+    },
+    "high_vs_identity": {
+      "votes_received": {
+        "n_pairs": 39,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": -0.0753968253968254,
+        "ci_low": -0.4523809523809524,
+        "ci_high": 0.14285714285714285,
+        "cohens_dz": -0.22998646241414494,
+        "p_sign_flip": 1.0,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.0
+      },
+      "executed": {
+        "n_pairs": 39,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": -0.047619047619047616,
+        "ci_low": -0.14285714285714285,
+        "ci_high": 0.0,
+        "cohens_dz": -0.5773502691896257,
+        "p_sign_flip": 1.0,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": -0.02564102564102564
+      },
+      "wolf_target": {
+        "n_pairs": 39,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": -0.031746031746031744,
+        "ci_low": -0.14285714285714285,
+        "ci_high": 0.047619047619047616,
+        "cohens_dz": -0.32025630761017426,
+        "p_sign_flip": 1.0,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.0
+      },
+      "seer_target": {
+        "n_pairs": 39,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.0,
+        "cohens_dz": null,
+        "p_sign_flip": 1.0,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.0
+      },
+      "trust_in_speaker": {
+        "n_pairs": 39,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": -0.006349206349206427,
+        "ci_low": -0.01190476190476203,
+        "ci_high": 0.003968253968253869,
+        "cohens_dz": -0.709885207532901,
+        "p_sign_flip": 0.5,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": -0.005128205128205224
+      }
+    },
+    "low_vs_neutral": {
+      "votes_received": {
+        "n_pairs": 35,
+        "n_speakers": 18,
+        "n_games": 3,
+        "estimate": 0.40925925925925927,
+        "ci_low": -0.3055555555555555,
+        "ci_high": 1.5333333333333334,
+        "cohens_dz": 0.4153262291763406,
+        "p_sign_flip": 1.0,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.34285714285714286
+      },
+      "executed": {
+        "n_pairs": 35,
+        "n_speakers": 18,
+        "n_games": 3,
+        "estimate": 0.12777777777777777,
+        "ci_low": 0.0,
+        "ci_high": 0.3,
+        "cohens_dz": 0.8251204038343015,
+        "p_sign_flip": 0.5,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.11428571428571428
+      },
+      "wolf_target": {
+        "n_pairs": 35,
+        "n_speakers": 18,
+        "n_games": 3,
+        "estimate": -0.00925925925925926,
+        "ci_low": -0.02777777777777778,
+        "ci_high": 0.0,
+        "cohens_dz": -0.5773502691896257,
+        "p_sign_flip": 1.0,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.0
+      },
+      "seer_target": {
+        "n_pairs": 35,
+        "n_speakers": 18,
+        "n_games": 3,
+        "estimate": -0.05185185185185185,
+        "ci_low": -0.10000000000000002,
+        "ci_high": 0.0,
+        "cohens_dz": -1.034909779336402,
+        "p_sign_flip": 0.5,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": -0.05714285714285714
+      },
+      "trust_in_speaker": {
+        "n_pairs": 35,
+        "n_speakers": 18,
+        "n_games": 3,
+        "estimate": -0.09708994708994707,
+        "ci_low": -0.17222222222222217,
+        "ci_high": -0.03571428571428571,
+        "cohens_dz": -1.4012942216696067,
+        "p_sign_flip": 0.25,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": -0.10761904761904761
+      }
+    },
+    "high_vs_neutral": {
+      "votes_received": {
+        "n_pairs": 36,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": 0.09523809523809525,
+        "ci_low": -0.16666666666666666,
+        "ci_high": 0.4047619047619048,
+        "cohens_dz": 0.32991443953692906,
+        "p_sign_flip": 0.75,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.1388888888888889
+      },
+      "executed": {
+        "n_pairs": 36,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": 0.023809523809523808,
+        "ci_low": 0.0,
+        "ci_high": 0.07142857142857142,
+        "cohens_dz": 0.5773502691896257,
+        "p_sign_flip": 1.0,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.027777777777777776
+      },
+      "wolf_target": {
+        "n_pairs": 36,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": -0.031746031746031744,
+        "ci_low": -0.14285714285714285,
+        "ci_high": 0.047619047619047616,
+        "cohens_dz": -0.32025630761017426,
+        "p_sign_flip": 1.0,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.0
+      },
+      "seer_target": {
+        "n_pairs": 36,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": -0.023809523809523808,
+        "ci_low": -0.07142857142857142,
+        "ci_high": 0.0,
+        "cohens_dz": -0.5773502691896257,
+        "p_sign_flip": 1.0,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": -0.027777777777777776
+      },
+      "trust_in_speaker": {
+        "n_pairs": 36,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": -0.058730158730158744,
+        "ci_low": -0.08888888888888889,
+        "ci_high": -0.03174603174603174,
+        "cohens_dz": -2.046104675354525,
+        "p_sign_flip": 0.25,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": -0.05185185185185189
+      }
+    }
+  },
+  "flip_self_by_role": {
+    "low_vs_identity": {
+      "werewolf": {
+        "votes_received": {
+          "n_pairs": 13,
+          "n_speakers": 6,
+          "n_games": 3,
+          "estimate": -0.2777777777777778,
+          "ci_low": -0.5,
+          "ci_high": 0.0,
+          "cohens_dz": -1.0910894511799618,
+          "p_sign_flip": 0.5,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": -0.15384615384615385
+        },
+        "executed": {
+          "n_pairs": 13,
+          "n_speakers": 6,
+          "n_games": 3,
+          "estimate": 0.0,
+          "ci_low": 0.0,
+          "ci_high": 0.0,
+          "cohens_dz": null,
+          "p_sign_flip": 1.0,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": 0.0
+        },
+        "wolf_target": {
+          "n_pairs": 13,
+          "n_speakers": 6,
+          "n_games": 3,
+          "estimate": 0.0,
+          "ci_low": 0.0,
+          "ci_high": 0.0,
+          "cohens_dz": null,
+          "p_sign_flip": 1.0,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": 0.0
+        },
+        "seer_target": {
+          "n_pairs": 13,
+          "n_speakers": 6,
+          "n_games": 3,
+          "estimate": 0.0,
+          "ci_low": 0.0,
+          "ci_high": 0.0,
+          "cohens_dz": null,
+          "p_sign_flip": 1.0,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": 0.0
+        },
+        "trust_in_speaker": {
+          "n_pairs": 13,
+          "n_speakers": 6,
+          "n_games": 3,
+          "estimate": 0.016666666666666705,
+          "ci_low": -0.03333333333333336,
+          "ci_high": 0.08333333333333333,
+          "cohens_dz": 0.27735009811261524,
+          "p_sign_flip": 1.0,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": 0.02307692307692313
+        }
+      },
+      "village": {
+        "votes_received": {
+          "n_pairs": 34,
+          "n_speakers": 14,
+          "n_games": 3,
+          "estimate": 0.4138888888888889,
+          "ci_low": 0.041666666666666664,
+          "ci_high": 0.8000000000000002,
+          "cohens_dz": 1.0910262690059962,
+          "p_sign_flip": 0.25,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": 0.3235294117647059
+        },
+        "executed": {
+          "n_pairs": 34,
+          "n_speakers": 14,
+          "n_games": 3,
+          "estimate": 0.09722222222222221,
+          "ci_low": 0.0,
+          "ci_high": 0.16666666666666666,
+          "cohens_dz": 1.12089707663561,
+          "p_sign_flip": 0.5,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": 0.08823529411764706
+        },
+        "wolf_target": {
+          "n_pairs": 34,
+          "n_speakers": 14,
+          "n_games": 3,
+          "estimate": 0.008333333333333331,
+          "ci_low": -0.041666666666666664,
+          "ci_high": 0.06666666666666667,
+          "cohens_dz": 0.15249857033260464,
+          "p_sign_flip": 1.0,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": 0.029411764705882353
+        },
+        "seer_target": {
+          "n_pairs": 34,
+          "n_speakers": 14,
+          "n_games": 3,
+          "estimate": -0.027777777777777776,
+          "ci_low": -0.08333333333333333,
+          "ci_high": 0.0,
+          "cohens_dz": -0.5773502691896258,
+          "p_sign_flip": 1.0,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": -0.029411764705882353
+        },
+        "trust_in_speaker": {
+          "n_pairs": 34,
+          "n_speakers": 14,
+          "n_games": 3,
+          "estimate": -0.03703703703703712,
+          "ci_low": -0.16666666666666663,
+          "ci_high": 0.05555555555555545,
+          "cohens_dz": -0.3202563076101752,
+          "p_sign_flip": 1.0,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": -0.02254901960784324
+        }
+      }
+    },
+    "neutral_vs_identity": {
+      "werewolf": {
+        "votes_received": {
+          "n_pairs": 13,
+          "n_speakers": 6,
+          "n_games": 3,
+          "estimate": -0.75,
+          "ci_low": -2.0,
+          "ci_high": 0.0,
+          "cohens_dz": -0.6882472016116852,
+          "p_sign_flip": 0.5,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": -0.38461538461538464
+        },
+        "executed": {
+          "n_pairs": 13,
+          "n_speakers": 6,
+          "n_games": 3,
+          "estimate": -0.16666666666666666,
+          "ci_low": -0.5,
+          "ci_high": 0.0,
+          "cohens_dz": -0.5773502691896257,
+          "p_sign_flip": 1.0,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": -0.07692307692307693
+        },
+        "wolf_target": {
+          "n_pairs": 13,
+          "n_speakers": 6,
+          "n_games": 3,
+          "estimate": 0.0,
+          "ci_low": 0.0,
+          "ci_high": 0.0,
+          "cohens_dz": null,
+          "p_sign_flip": 1.0,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": 0.0
+        },
+        "seer_target": {
+          "n_pairs": 13,
+          "n_speakers": 6,
+          "n_games": 3,
+          "estimate": 0.0,
+          "ci_low": 0.0,
+          "ci_high": 0.0,
+          "cohens_dz": null,
+          "p_sign_flip": 1.0,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": 0.0
+        },
+        "trust_in_speaker": {
+          "n_pairs": 13,
+          "n_speakers": 6,
+          "n_games": 3,
+          "estimate": 0.038888888888888896,
+          "ci_low": -0.02777777777777768,
+          "ci_high": 0.11111111111111101,
+          "cohens_dz": 0.5586608191273364,
+          "p_sign_flip": 0.5,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": 0.05384615384615386
+        }
+      },
+      "village": {
+        "votes_received": {
+          "n_pairs": 34,
+          "n_speakers": 14,
+          "n_games": 3,
+          "estimate": -0.025000000000000005,
+          "ci_low": -0.5666666666666667,
+          "ci_high": 0.29166666666666663,
+          "cohens_dz": -0.05304129693921579,
+          "p_sign_flip": 1.0,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": -0.058823529411764705
+        },
+        "executed": {
+          "n_pairs": 34,
+          "n_speakers": 14,
+          "n_games": 3,
+          "estimate": -0.03333333333333333,
+          "ci_low": -0.10000000000000002,
+          "ci_high": 0.0,
+          "cohens_dz": -0.5773502691896257,
+          "p_sign_flip": 1.0,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": -0.029411764705882353
+        },
+        "wolf_target": {
+          "n_pairs": 34,
+          "n_speakers": 14,
+          "n_games": 3,
+          "estimate": 0.0,
+          "ci_low": 0.0,
+          "ci_high": 0.0,
+          "cohens_dz": null,
+          "p_sign_flip": 1.0,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": 0.0
+        },
+        "seer_target": {
+          "n_pairs": 34,
+          "n_speakers": 14,
+          "n_games": 3,
+          "estimate": 0.061111111111111116,
+          "ci_low": 0.0,
+          "ci_high": 0.10000000000000002,
+          "cohens_dz": 1.1406468642034677,
+          "p_sign_flip": 0.5,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": 0.058823529411764705
+        },
+        "trust_in_speaker": {
+          "n_pairs": 34,
+          "n_speakers": 14,
+          "n_games": 3,
+          "estimate": 0.11759259259259247,
+          "ci_low": 0.08888888888888875,
+          "ci_high": 0.17222222222222214,
+          "cohens_dz": 2.4844714821733938,
+          "p_sign_flip": 0.25,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": 0.1068627450980391
+        }
+      }
+    },
+    "high_vs_identity": {
+      "werewolf": {
+        "votes_received": {
+          "n_pairs": 13,
+          "n_speakers": 6,
+          "n_games": 3,
+          "estimate": -0.8888888888888888,
+          "ci_low": -2.0,
+          "ci_high": -0.16666666666666666,
+          "cohens_dz": -0.9102081983817188,
+          "p_sign_flip": 0.25,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": -0.38461538461538464
+        },
+        "executed": {
+          "n_pairs": 13,
+          "n_speakers": 6,
+          "n_games": 3,
+          "estimate": -0.16666666666666666,
+          "ci_low": -0.5,
+          "ci_high": 0.0,
+          "cohens_dz": -0.5773502691896257,
+          "p_sign_flip": 1.0,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": -0.07692307692307693
+        },
+        "wolf_target": {
+          "n_pairs": 13,
+          "n_speakers": 6,
+          "n_games": 3,
+          "estimate": 0.0,
+          "ci_low": 0.0,
+          "ci_high": 0.0,
+          "cohens_dz": null,
+          "p_sign_flip": 1.0,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": 0.0
+        },
+        "seer_target": {
+          "n_pairs": 13,
+          "n_speakers": 6,
+          "n_games": 3,
+          "estimate": 0.0,
+          "ci_low": 0.0,
+          "ci_high": 0.0,
+          "cohens_dz": null,
+          "p_sign_flip": 1.0,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": 0.0
+        },
+        "trust_in_speaker": {
+          "n_pairs": 13,
+          "n_speakers": 6,
+          "n_games": 3,
+          "estimate": -0.020370370370370445,
+          "ci_low": -0.0555555555555558,
+          "ci_high": 0.02777777777777783,
+          "cohens_dz": -0.47205518296516225,
+          "p_sign_flip": 0.5,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": -0.0025641025641026235
+        }
+      },
+      "village": {
+        "votes_received": {
+          "n_pairs": 34,
+          "n_speakers": 14,
+          "n_games": 3,
+          "estimate": 0.23055555555555554,
+          "ci_low": 0.13333333333333333,
+          "ci_high": 0.29166666666666663,
+          "cohens_dz": 2.7086026326340757,
+          "p_sign_flip": 0.25,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": 0.14705882352941177
+        },
+        "executed": {
+          "n_pairs": 34,
+          "n_speakers": 14,
+          "n_games": 3,
+          "estimate": 0.022222222222222223,
+          "ci_low": 0.0,
+          "ci_high": 0.06666666666666667,
+          "cohens_dz": 0.5773502691896258,
+          "p_sign_flip": 1.0,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": 0.029411764705882353
+        },
+        "wolf_target": {
+          "n_pairs": 34,
+          "n_speakers": 14,
+          "n_games": 3,
+          "estimate": -0.011111111111111113,
+          "ci_low": -0.10000000000000002,
+          "ci_high": 0.06666666666666667,
+          "cohens_dz": -0.1324532357065044,
+          "p_sign_flip": 1.0,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": 0.0
+        },
+        "seer_target": {
+          "n_pairs": 34,
+          "n_speakers": 14,
+          "n_games": 3,
+          "estimate": 0.0,
+          "ci_low": 0.0,
+          "ci_high": 0.0,
+          "cohens_dz": null,
+          "p_sign_flip": 1.0,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": 0.0
+        },
+        "trust_in_speaker": {
+          "n_pairs": 34,
+          "n_speakers": 14,
+          "n_games": 3,
+          "estimate": 0.07037037037037026,
+          "ci_low": -0.011111111111111306,
+          "ci_high": 0.2055555555555554,
+          "cohens_dz": 0.596891363050664,
+          "p_sign_flip": 0.5,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": 0.08431372549019596
+        }
+      }
+    },
+    "low_vs_neutral": {
+      "werewolf": {
+        "votes_received": {
+          "n_pairs": 13,
+          "n_speakers": 6,
+          "n_games": 3,
+          "estimate": 0.47222222222222215,
+          "ci_low": -0.3333333333333333,
+          "ci_high": 2.0,
+          "cohens_dz": 0.35673059176846417,
+          "p_sign_flip": 1.0,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": 0.23076923076923078
+        },
+        "executed": {
+          "n_pairs": 13,
+          "n_speakers": 6,
+          "n_games": 3,
+          "estimate": 0.16666666666666666,
+          "ci_low": 0.0,
+          "ci_high": 0.5,
+          "cohens_dz": 0.5773502691896257,
+          "p_sign_flip": 1.0,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": 0.07692307692307693
+        },
+        "wolf_target": {
+          "n_pairs": 13,
+          "n_speakers": 6,
+          "n_games": 3,
+          "estimate": 0.0,
+          "ci_low": 0.0,
+          "ci_high": 0.0,
+          "cohens_dz": null,
+          "p_sign_flip": 1.0,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": 0.0
+        },
+        "seer_target": {
+          "n_pairs": 13,
+          "n_speakers": 6,
+          "n_games": 3,
+          "estimate": 0.0,
+          "ci_low": 0.0,
+          "ci_high": 0.0,
+          "cohens_dz": null,
+          "p_sign_flip": 1.0,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": 0.0
+        },
+        "trust_in_speaker": {
+          "n_pairs": 13,
+          "n_speakers": 6,
+          "n_games": 3,
+          "estimate": -0.02222222222222219,
+          "ci_low": -0.06666666666666672,
+          "ci_high": 0.02777777777777783,
+          "cohens_dz": -0.4681645887845211,
+          "p_sign_flip": 0.75,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": -0.03076923076923073
+        }
+      },
+      "village": {
+        "votes_received": {
+          "n_pairs": 34,
+          "n_speakers": 14,
+          "n_games": 3,
+          "estimate": 0.4388888888888889,
+          "ci_low": -0.25,
+          "ci_high": 1.3666666666666665,
+          "cohens_dz": 0.5260008203967279,
+          "p_sign_flip": 0.75,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": 0.38235294117647056
+        },
+        "executed": {
+          "n_pairs": 34,
+          "n_speakers": 14,
+          "n_games": 3,
+          "estimate": 0.13055555555555556,
+          "ci_low": 0.0,
+          "ci_high": 0.26666666666666666,
+          "cohens_dz": 0.978529810230729,
+          "p_sign_flip": 0.5,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": 0.11764705882352941
+        },
+        "wolf_target": {
+          "n_pairs": 34,
+          "n_speakers": 14,
+          "n_games": 3,
+          "estimate": 0.008333333333333331,
+          "ci_low": -0.041666666666666664,
+          "ci_high": 0.06666666666666667,
+          "cohens_dz": 0.15249857033260464,
+          "p_sign_flip": 1.0,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": 0.029411764705882353
+        },
+        "seer_target": {
+          "n_pairs": 34,
+          "n_speakers": 14,
+          "n_games": 3,
+          "estimate": -0.08888888888888889,
+          "ci_low": -0.16666666666666666,
+          "ci_high": 0.0,
+          "cohens_dz": -1.059625885652035,
+          "p_sign_flip": 0.5,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": -0.08823529411764706
+        },
+        "trust_in_speaker": {
+          "n_pairs": 34,
+          "n_speakers": 14,
+          "n_games": 3,
+          "estimate": -0.1546296296296296,
+          "ci_low": -0.2583333333333332,
+          "ci_high": -0.08888888888888895,
+          "cohens_dz": -1.7015146433066344,
+          "p_sign_flip": 0.25,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": -0.12941176470588234
+        }
+      }
+    },
+    "high_vs_neutral": {
+      "werewolf": {
+        "votes_received": {
+          "n_pairs": 13,
+          "n_speakers": 6,
+          "n_games": 3,
+          "estimate": -0.1388888888888889,
+          "ci_low": -0.5,
+          "ci_high": 0.08333333333333331,
+          "cohens_dz": -0.440225453162812,
+          "p_sign_flip": 1.0,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": 0.0
+        },
+        "executed": {
+          "n_pairs": 13,
+          "n_speakers": 6,
+          "n_games": 3,
+          "estimate": 0.0,
+          "ci_low": 0.0,
+          "ci_high": 0.0,
+          "cohens_dz": null,
+          "p_sign_flip": 1.0,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": 0.0
+        },
+        "wolf_target": {
+          "n_pairs": 13,
+          "n_speakers": 6,
+          "n_games": 3,
+          "estimate": 0.0,
+          "ci_low": 0.0,
+          "ci_high": 0.0,
+          "cohens_dz": null,
+          "p_sign_flip": 1.0,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": 0.0
+        },
+        "seer_target": {
+          "n_pairs": 13,
+          "n_speakers": 6,
+          "n_games": 3,
+          "estimate": 0.0,
+          "ci_low": 0.0,
+          "ci_high": 0.0,
+          "cohens_dz": null,
+          "p_sign_flip": 1.0,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": 0.0
+        },
+        "trust_in_speaker": {
+          "n_pairs": 13,
+          "n_speakers": 6,
+          "n_games": 3,
+          "estimate": -0.05925925925925934,
+          "ci_low": -0.16666666666666682,
+          "ci_high": 0.055555555555555504,
+          "cohens_dz": -0.532446660511778,
+          "p_sign_flip": 0.5,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": -0.05641025641025648
+        }
+      },
+      "village": {
+        "votes_received": {
+          "n_pairs": 34,
+          "n_speakers": 14,
+          "n_games": 3,
+          "estimate": 0.25555555555555554,
+          "ci_low": 0.0,
+          "ci_high": 0.6999999999999998,
+          "cohens_dz": 0.6614769048245084,
+          "p_sign_flip": 0.5,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": 0.20588235294117646
+        },
+        "executed": {
+          "n_pairs": 34,
+          "n_speakers": 14,
+          "n_games": 3,
+          "estimate": 0.05555555555555555,
+          "ci_low": 0.0,
+          "ci_high": 0.16666666666666666,
+          "cohens_dz": 0.5773502691896258,
+          "p_sign_flip": 1.0,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": 0.058823529411764705
+        },
+        "wolf_target": {
+          "n_pairs": 34,
+          "n_speakers": 14,
+          "n_games": 3,
+          "estimate": -0.011111111111111113,
+          "ci_low": -0.10000000000000002,
+          "ci_high": 0.06666666666666667,
+          "cohens_dz": -0.1324532357065044,
+          "p_sign_flip": 1.0,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": 0.0
+        },
+        "seer_target": {
+          "n_pairs": 34,
+          "n_speakers": 14,
+          "n_games": 3,
+          "estimate": -0.061111111111111116,
+          "ci_low": -0.10000000000000002,
+          "ci_high": 0.0,
+          "cohens_dz": -1.1406468642034677,
+          "p_sign_flip": 0.5,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": -0.058823529411764705
+        },
+        "trust_in_speaker": {
+          "n_pairs": 34,
+          "n_speakers": 14,
+          "n_games": 3,
+          "estimate": -0.0472222222222222,
+          "ci_low": -0.10000000000000005,
+          "ci_high": 0.03333333333333334,
+          "cohens_dz": -0.666282531419177,
+          "p_sign_flip": 0.5,
+          "minimum_two_sided_p": 0.25,
+          "pooled_mean": -0.022549019607843137
+        }
+      }
+    }
+  },
+  "flip_others": {
+    "low_vs_identity": {
+      "changed_vote": {
+        "n_pairs": 47,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": 0.26587301587301587,
+        "ci_low": 0.09523809523809523,
+        "ci_high": 0.4523809523809524,
+        "cohens_dz": 1.484496876698248,
+        "p_sign_flip": 0.25,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.2553191489361702
+      },
+      "trust_toward_others": {
+        "n_pairs": 47,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": 0.04395943562610228,
+        "ci_low": 0.02870370370370375,
+        "ci_high": 0.0674603174603175,
+        "cohens_dz": 2.1285787078410947,
+        "p_sign_flip": 0.25,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.05390070921985815
+      },
+      "changed_role_target": {
+        "n_pairs": 18,
+        "n_speakers": 9,
+        "n_games": 3,
+        "estimate": 0.14814814814814814,
+        "ci_low": 0.0,
+        "ci_high": 0.27777777777777773,
+        "cohens_dz": 1.059625885652035,
+        "p_sign_flip": 0.5,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.16666666666666666
+      }
+    },
+    "neutral_vs_identity": {
+      "changed_vote": {
+        "n_pairs": 47,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": 0.3214285714285714,
+        "ci_low": 0.09523809523809523,
+        "ci_high": 0.619047619047619,
+        "cohens_dz": 1.194409679050284,
+        "p_sign_flip": 0.25,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.2765957446808511
+      },
+      "trust_toward_others": {
+        "n_pairs": 47,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": 0.07425044091710764,
+        "ci_low": -0.03518518518518516,
+        "ci_high": 0.2142857142857145,
+        "cohens_dz": 0.5822680028618934,
+        "p_sign_flip": 0.5,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.05035460992907808
+      },
+      "changed_role_target": {
+        "n_pairs": 18,
+        "n_speakers": 9,
+        "n_games": 3,
+        "estimate": 0.05555555555555555,
+        "ci_low": 0.0,
+        "ci_high": 0.16666666666666666,
+        "cohens_dz": 0.5773502691896258,
+        "p_sign_flip": 1.0,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.05555555555555555
+      }
+    },
+    "high_vs_identity": {
+      "changed_vote": {
+        "n_pairs": 47,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": 0.25793650793650796,
+        "ci_low": 0.08333333333333333,
+        "ci_high": 0.5952380952380952,
+        "cohens_dz": 0.8828230280191832,
+        "p_sign_flip": 0.25,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.2553191489361702
+      },
+      "trust_toward_others": {
+        "n_pairs": 47,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": 0.09268077601410936,
+        "ci_low": 0.01984126984126979,
+        "ci_high": 0.23412698412698427,
+        "cohens_dz": 0.7564895103672586,
+        "p_sign_flip": 0.25,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.0695035460992908
+      },
+      "changed_role_target": {
+        "n_pairs": 18,
+        "n_speakers": 9,
+        "n_games": 3,
+        "estimate": 0.16666666666666666,
+        "ci_low": 0.0,
+        "ci_high": 0.3333333333333333,
+        "cohens_dz": 1.0,
+        "p_sign_flip": 0.5,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.1111111111111111
+      }
+    },
+    "low_vs_neutral": {
+      "changed_vote": {
+        "n_pairs": 47,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": -0.05555555555555556,
+        "ci_low": -0.16666666666666666,
+        "ci_high": 0.0,
+        "cohens_dz": -0.5773502691896257,
+        "p_sign_flip": 1.0,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": -0.02127659574468085
+      },
+      "trust_toward_others": {
+        "n_pairs": 47,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": -0.03029100529100537,
+        "ci_low": -0.146825396825397,
+        "ci_high": 0.06388888888888891,
+        "cohens_dz": -0.28277359261700413,
+        "p_sign_flip": 0.75,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.0035460992907800724
+      },
+      "changed_role_target": {
+        "n_pairs": 18,
+        "n_speakers": 9,
+        "n_games": 3,
+        "estimate": 0.09259259259259257,
+        "ci_low": 0.0,
+        "ci_high": 0.27777777777777773,
+        "cohens_dz": 0.5773502691896257,
+        "p_sign_flip": 1.0,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.1111111111111111
+      }
+    },
+    "high_vs_neutral": {
+      "changed_vote": {
+        "n_pairs": 47,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": -0.06349206349206349,
+        "ci_low": -0.16666666666666666,
+        "ci_high": 0.0,
+        "cohens_dz": -0.7043607250604991,
+        "p_sign_flip": 0.5,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": -0.02127659574468085
+      },
+      "trust_toward_others": {
+        "n_pairs": 47,
+        "n_speakers": 20,
+        "n_games": 3,
+        "estimate": 0.01843033509700173,
+        "ci_low": -0.023809523809523808,
+        "ci_high": 0.0592592592592592,
+        "cohens_dz": 0.44354483123213295,
+        "p_sign_flip": 0.75,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.019148936170212717
+      },
+      "changed_role_target": {
+        "n_pairs": 18,
+        "n_speakers": 9,
+        "n_games": 3,
+        "estimate": 0.1111111111111111,
+        "ci_low": 0.0,
+        "ci_high": 0.3333333333333333,
+        "cohens_dz": 0.5773502691896258,
+        "p_sign_flip": 1.0,
+        "minimum_two_sided_p": 0.25,
+        "pooled_mean": 0.05555555555555555
+      }
+    }
+  },
+  "identity_vs_baseline": {
+    "votes_received": {
+      "n_pairs": 47,
+      "n_speakers": 20,
+      "n_games": 3,
+      "estimate": -0.007936507936507934,
+      "ci_low": -0.023809523809523805,
+      "ci_high": 0.0,
+      "cohens_dz": -0.5773502691896257,
+      "p_sign_flip": 1.0,
+      "minimum_two_sided_p": 0.25,
+      "pooled_mean": 0.0
+    },
+    "executed": {
+      "n_pairs": 47,
+      "n_speakers": 20,
+      "n_games": 3,
+      "estimate": 0.0,
+      "ci_low": 0.0,
+      "ci_high": 0.0,
+      "cohens_dz": null,
+      "p_sign_flip": 1.0,
+      "minimum_two_sided_p": 0.25,
+      "pooled_mean": 0.0
+    },
+    "wolf_target": {
+      "n_pairs": 47,
+      "n_speakers": 20,
+      "n_games": 3,
+      "estimate": 0.0,
+      "ci_low": 0.0,
+      "ci_high": 0.0,
+      "cohens_dz": null,
+      "p_sign_flip": 1.0,
+      "minimum_two_sided_p": 0.25,
+      "pooled_mean": 0.0
+    },
+    "seer_target": {
+      "n_pairs": 47,
+      "n_speakers": 20,
+      "n_games": 3,
+      "estimate": 0.0,
+      "ci_low": 0.0,
+      "ci_high": 0.0,
+      "cohens_dz": null,
+      "p_sign_flip": 1.0,
+      "minimum_two_sided_p": 0.25,
+      "pooled_mean": 0.0
+    },
+    "trust_in_speaker": {
+      "n_pairs": 44,
+      "n_speakers": 18,
+      "n_games": 3,
+      "estimate": -0.3925573192239858,
+      "ci_low": -0.5595238095238093,
+      "ci_high": -0.22000000000000006,
+      "cohens_dz": -2.3114594136200677,
+      "p_sign_flip": 0.25,
+      "minimum_two_sided_p": 0.25,
+      "pooled_mean": -0.4715909090909091
+    }
+  },
+  "estimand": "equal_game_weight",
+  "analysis_policy": "assignment-based analysis of completed replays; per-protocol analysis requires complete logs matching every treated utterance, with all rewrites successful",
+  "aggregation": "days within speaker, speakers within game, then games; equal weights at each step",
+  "n_boot": 2000,
+  "seed": 101
+}

@@ -25,7 +25,7 @@ temperature 0 still yields distinct candidates). It is generated independently
 of Low: the gate keeps the candidates whose range the judge rates "same" as the
 original, a small exposure floor removes near-copies, and the survivor whose
 surface profile (sentence and word count) stays closest to the original is kept.
-Neutral is validated by its equivalence to Original, never by matching Low.
+Neutral is validated by its equivalence to Original.
 """
 
 from __future__ import annotations
@@ -176,8 +176,7 @@ def _feedback_block(feedback: Optional[dict], condition: str) -> str:
 
 
 def _history_block(feedback: Optional[dict]) -> str:
-    """Retry context for the Neutral candidate prompt: wording already tried. Neutral carries
-    no edit-distance target; its generation never reads anything about Low."""
+    """Retry context for the Neutral candidate prompt: the wording already tried."""
     history = (feedback or {}).get("previous_candidates") or []
     if not history:
         return ""

@@ -79,7 +79,7 @@ class OutcomeTests(unittest.TestCase):
         good = [{"speaker": "P1", "condition": "low", "status": "ok", "rewritten_text": text}
                 for text in ("first", "second")]
         self.assertFalse(fa.clean_exposure({}, key))
-        for rows in ([], good[:1], good + good[:1],
+        for rows in ([], good[:1], good[:1] + good[:1], good + [{**good[0], "speaker": "P2"}],
                      [{**r, "status": "infrastructure_unavailable"} for r in good],
                      [{**r, "condition": "neutral"} for r in good],
                      [{**r, "rewritten_text": "different"} for r in good]):
@@ -93,6 +93,38 @@ class OutcomeTests(unittest.TestCase):
         exposure = fa.exposure_summary(fallback, result, meta)
         self.assertTrue(exposure["verified"])
         self.assertFalse(fa.clean_exposure({"exposure": {key: exposure}}, key))
+
+    def test_last_words_rows_count_as_exposure_without_a_recorded_speech(self):
+        key = ("flip_others", "low", "P1")
+        meta = {"mode": "flip_others", "condition": "low", "self": "P1"}
+        result = {"speeches": [{"speaker": p, "nl": [{"text": p}]} for p in ("P1", "P2", "P3")]}
+        rows = [{"speaker": p, "condition": "low", "status": "ok", "rewritten_text": p, "phase": "day_speech"}
+                for p in ("P2", "P3")]
+        rows.append({"speaker": "P3", "condition": "low", "status": "ok", "rewritten_text": "farewell",
+                     "phase": "last_speech", "speech_id": None})
+        exposure = fa.exposure_summary(rows, result, meta)
+        self.assertEqual((exposure["rewritten"], exposure["last_words"], exposure["expected"]), (3, 1, 2))
+        self.assertTrue(exposure["verified"])
+        self.assertTrue(fa.clean_exposure({"replays": {key: result}, "gate": {}, "expected": {},
+                                           "exposure": {key: exposure}}, key))
+        exposure = fa.exposure_summary(rows[:1] + rows[2:], result, meta)
+        self.assertFalse(exposure["verified"])
+
+    def test_rows_of_an_interrupted_attempt_precede_the_completed_attempt(self):
+        key = ("flip_self", "low", "P1")
+        meta = {"mode": "flip_self", "condition": "low", "self": "P1"}
+        result = {"speeches": [{"speaker": "P1", "nl": [{"text": "first"}, {"text": "second"}]}]}
+        complete = [{"speaker": "P1", "condition": "low", "status": "ok", "rewritten_text": text,
+                     "phase": "day_speech"} for text in ("first", "second")]
+        interrupted = [{**complete[0], "status": "treatment_unavailable", "fallback_to_original": True,
+                        "original_text": "first", "rewritten_text": None}]
+        exposure = fa.exposure_summary(interrupted + complete, result, meta)
+        self.assertEqual((exposure["interrupted_rows"], exposure["rewritten"], exposure["fallback"]), (1, 2, 0))
+        self.assertTrue(exposure["verified"])
+        self.assertTrue(fa.clean_exposure({"replays": {key: result}, "gate": {}, "expected": {},
+                                           "exposure": {key: exposure}}, key))
+        exposure = fa.exposure_summary(interrupted + complete, None, meta)
+        self.assertEqual((exposure["interrupted_rows"], exposure["fallback"], exposure["verified"]), (0, 1, False))
 
     def test_surrounding_exposure_matches_other_speakers_and_counts_unknown_logs(self):
         meta = {"mode": "flip_others", "condition": "neutral", "self": "P1"}
@@ -111,7 +143,7 @@ class OutcomeTests(unittest.TestCase):
         s = fa.summarize([])
         text = fa.render(s)
         self.assertIn("Replay availability", text)
-        self.assertIn("Pilot", text)
+        self.assertIn("Proficiency flip replays", text)
 
 
 if __name__ == "__main__":

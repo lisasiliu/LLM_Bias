@@ -126,7 +126,7 @@ def rating_errors(result, text):
     return errors
 
 
-CEFR_SELECTIONS = ("whole_game", "phase_stratified")   # preselected passages; never a post-hoc pick of accepted utterances
+CEFR_SELECTIONS = ("whole_game", "phase_stratified")   # preselected passage rules
 
 
 class CEFRRater:

@@ -158,10 +158,7 @@ The rewriter is `components/rewriters/language_rewriter.py`.
 
 The cluster script `hpc/pilot_qwen35_27b.slurm` runs the whole pipeline for one run directory:
 generation, features, guardrails, both listener probes, CEFR ratings, judge calibration, report,
-power and export. Pipeline changes are first exercised end to end with DeepSeek flash as
-generator, judge and rater through the same commands (a run directory outside version control,
-with `thinking` disabled in the model entry), and the Qwen run follows once the change is settled.
-The second listener runs locally against the Qwen run's passages:
+power and export. The second listener runs locally against the Qwen run's passages:
 
 ```bash
 RUN=experiments/proficiency_validation/data/runs/pilot_qwen35_27b

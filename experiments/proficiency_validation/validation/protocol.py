@@ -280,7 +280,7 @@ def pin(args, frozen: dict, mapping: Dict[str, tuple], *, log=print) -> None:
     """Set ``args.<attr>`` from the frozen config for each ``attr -> key path``.
 
     Values already equal are left alone; differing values are overwritten and
-    reported, so a command run under ``--frozen`` cannot silently deviate.
+    reported, so a command run under ``--frozen`` runs the frozen design.
     """
     for attr, keys in mapping.items():
         node = frozen

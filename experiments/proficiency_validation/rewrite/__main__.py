@@ -93,7 +93,7 @@ def generate(sources: Sequence[SourceRecord], *, conditions: Sequence[str],
         raise ValueError("checkpoint contains unexpected source/condition rows")
     for index, src in enumerate(sources, 1):
         ctx = build_context(src)
-        # Every condition is generated independently; Neutral never sees Low.
+        # Every condition is generated independently from the original.
         ordered = [c for c in ("low", "high", "neutral") if c in conditions]
         for condition in ordered:
             previous = done.get((src.source_id, condition))

@@ -40,10 +40,13 @@ def source_from_context(ctx: RewriteContext) -> SourceRecord:
     parsed = parse_predicate(ctx.predicate)
     name = str(parsed.get("name", ""))
     args = [str(a) for a in parsed.get("args", [])]
+    # The engine's public history also carries vote tallies as dicts; the corpus loader keeps the
+    # string entries only, and the judges read the same form here.
+    history = [entry for entry in (ctx.public_history or []) if isinstance(entry, str)]
     ref = None
     ref_arg = args[-1].strip() if args else ""
     if re.fullmatch(r"s\d+", ref_arg):
-        for entry in ctx.public_history or []:
+        for entry in history:
             item = parse_history_entry(entry)
             if item.get("sid") == ref_arg:
                 ref = {"speech_id": item["sid"], "speaker": item["speaker"],
@@ -56,7 +59,7 @@ def source_from_context(ctx: RewriteContext) -> SourceRecord:
         nl_hint=predicate_entry(name).get("nl_hint", ""),
         original_nl=ctx.original_nl, phase=ctx.phase, speaker_id=ctx.speaker_id,
         speaker_role_claimed=ctx.speaker_role_claimed,
-        public_history=list(ctx.public_history or []), referenced_speech=ref,
+        public_history=history, referenced_speech=ref,
         provenance="runtime_context")
 
 
@@ -154,7 +157,7 @@ class SemanticGate:
         # primary judge passed: agreement passes, disagreement or no answer leaves no verdict.
         self.second_opinion = second_opinion
         # Active-paraphrase floor for Neutral: a gate-passing candidate that changed fewer than this
-        # share of the tokens is a near-copy and is not selectable. Rejects copies, never matches Low.
+        # share of the tokens is a near-copy and is not selectable.
         self.neutral_exposure_floor = 0.05
         # Word-frequency scorer (text -> mean SUBTLEX Lg10CD) that ranks the gate-passing Neutral candidates.
         self.neutral_frequency = None
@@ -747,6 +750,7 @@ class GatedRewriter(Rewriter):
         # Inside a LURK replay or game subprocess the engine never passes these, so take
         # them from that process's own command line: the log lands next to its outputs.
         inferred = _engine_defaults()
+        engine_log = not log_path and inferred.get("log_path")
         log_path = log_path or inferred.get("log_path")
         game_id = game_id or inferred.get("game_id")
         branch_id = branch_id or inferred.get("branch_id")
@@ -806,9 +810,10 @@ class GatedRewriter(Rewriter):
         else:
             gate = SemanticGate.from_handle(str(gate))
         if base.condition == "neutral" and not callable(gate.neutral_frequency):
-            path = subtlex_path or os.getenv("SUBTLEX")
+            from components.judges.judge_model import _dotenv_values
+            path = subtlex_path or os.getenv("SUBTLEX") or _dotenv_values().get("SUBTLEX")
             if not path:
-                raise ValueError("Neutral requires subtlex_path or the SUBTLEX environment variable")
+                raise ValueError("Neutral requires subtlex_path, or SUBTLEX in the environment or .env")
             gate.set_neutral_frequency(path, spacy_model)
             if not callable(gate.neutral_frequency):
                 raise ValueError("Neutral requires a SUBTLEX word-frequency scorer")
@@ -819,6 +824,10 @@ class GatedRewriter(Rewriter):
         self.on_unavailable = on_unavailable
         self.source_builder = source_builder
         self.log: List[dict] = log if log is not None else []
+        if engine_log and Path(log_path).exists():
+            # The engine restarts an interrupted replay from its checkpoint, so the log of
+            # this subprocess holds this attempt only.
+            Path(log_path).unlink()
         self.sequence = sum(1 for _ in Path(log_path).open()) if log_path and Path(log_path).exists() else 0
         self.frozen = frozen
 

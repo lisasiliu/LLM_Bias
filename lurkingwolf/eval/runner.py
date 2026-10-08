@@ -132,6 +132,29 @@ class _RunSpec:
     run_id: str
 
 
+def _alive_at_day_start(baseline_dir: Path, day: int) -> Optional[set]:
+    """Players alive when the day-start checkpoint was taken; None when the checkpoint cannot be read."""
+    import pickle
+    path = baseline_dir / "checkpoints" / f"day_{day}_start.pkl"
+    try:
+        with open(path, "rb") as f:
+            ckpt = pickle.load(f)
+        return set(ckpt.state.get_alive())
+    except Exception:
+        return None
+
+
+def _skip_dead_self_players(runs: List["_RunSpec"], baseline_dir: Path) -> List["_RunSpec"]:
+    """Drop self-dependent replays whose self player is dead at the day start: with no speech to
+    rewrite they repeat the identity replay."""
+    alive = {day: _alive_at_day_start(baseline_dir, day) for day in {r.day for r in runs}}
+    kept = [r for r in runs if r.self_player is None or alive[r.day] is None or r.self_player in alive[r.day]]
+    skipped = len(runs) - len(kept)
+    if skipped:
+        print(f"  Skipping {skipped} replays whose self player is dead at the day start")
+    return kept
+
+
 def _expand_runs(
     replays: List[ReplaySpec],
     n_players: int,
@@ -386,7 +409,7 @@ def run_experiment(
             print(f"  No replays for {comp_name}")
             continue
 
-        runs = _expand_runs(comp.replays, cfg.n_players, days)
+        runs = _skip_dead_self_players(_expand_runs(comp.replays, cfg.n_players, days), baseline_dir)
         results = _run_replays(
             runs, baseline_dir, comp_root, sub,
             rewriter_module=cfg.rewriter_module,

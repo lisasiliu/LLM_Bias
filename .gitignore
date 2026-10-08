@@ -248,8 +248,12 @@ __pycache__/
 # Resume artifacts of interrupted proficiency runs (the manifest records completed outputs)
 *.partial
 
-# Raw baselines and replays of the proficiency flip pilot; summaries live in experiments/proficiency_flip/data/
-/experiments/proficiency_flip/games/
+# Proficiency flip games: baselines, replay results, rewrite logs and agent memory are versioned;
+# raw LLM call logs, checkpoints, stdout and cluster logs stay local.
+/experiments/proficiency_flip/games/logs/
+/experiments/proficiency_flip/games/**/game_log.jsonl
+/experiments/proficiency_flip/games/**/checkpoints/
+/experiments/proficiency_flip/games/**/game.out
 
 # Judge-calibration items are repeated verbatim inside judged.jsonl
 experiments/proficiency_validation/data/runs/*/validation/calibration/items.jsonl
