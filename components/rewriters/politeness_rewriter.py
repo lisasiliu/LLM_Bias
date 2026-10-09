@@ -12,8 +12,12 @@ is read from the single source of truth, ``lurkingwolf/prompts/prompt.json``.
 
 from __future__ import annotations
 
+import json
+import os
 import re
+import sys
 from collections.abc import Mapping
+from pathlib import Path
 from functools import lru_cache
 from textwrap import dedent
 from typing import Optional, Set
@@ -180,6 +184,24 @@ def context_predicate_name(ctx: RewriteContext) -> str:
     return str(parse_predicate(raw).get("name", "")).strip()
 
 
+def _thinking_kwargs(model: str) -> dict:
+    """The engine's thinking switch for the served model (off during games)."""
+    try:
+        from lurkingwolf.utils.gen_config import thinking_extra_body
+    except ImportError:
+        return {}
+    return thinking_extra_body(model)
+
+
+def _engine_log_path() -> Optional[Path]:
+    """``rewrites.jsonl`` next to the engine subprocess's ``--output`` (replay) target."""
+    argv = sys.argv
+    if "--output" in argv:
+        target = Path(argv[argv.index("--output") + 1])
+        return (target.parent if target.suffix == ".json" else target) / "rewrites.jsonl"
+    return None
+
+
 @register
 class PolitenessRewriter(Rewriter):
     """Rewrite one focal utterance using one politeness strategy."""
@@ -198,10 +220,15 @@ class PolitenessRewriter(Rewriter):
     ):
         self.llm_client = llm_client
         self.strategy = normalize_strategy(strategy)
-        self.model = model
+        # Inside a LURK game or replay subprocess the engine's model name is the served model.
+        self.model = model if model != "default" else os.getenv("LLM_MODEL", model)
         self.temperature = float(temperature)
         self.max_tokens = int(max_tokens)
         self._applies_to = set(applies_to) if applies_to else None
+        self.log_path = _engine_log_path()
+        if self.log_path and self.log_path.exists():
+            # The engine restarts an interrupted replay from its checkpoint: one log per attempt.
+            self.log_path.unlink()
 
     @property
     def applies_to_predicates(self) -> Optional[Set[str]]:
@@ -302,6 +329,7 @@ class PolitenessRewriter(Rewriter):
             ],
             temperature=self.temperature,
             max_tokens=self.max_tokens,
+            **_thinking_kwargs(self.model),
         )
         raw = response.choices[0].message.content or ""
         # `clean_natural_text` only removes a CLOSED <think>...</think> PAIR, so it
@@ -321,7 +349,20 @@ class PolitenessRewriter(Rewriter):
             )
         if not text:
             raise RuntimeError("Politeness rewriter returned an empty response")
+        self._record(ctx, text)
         return text
+
+    def _record(self, ctx: RewriteContext, text: str) -> None:
+        """One row per rewritten utterance in the replay directory's rewrites.jsonl."""
+        if not self.log_path:
+            return
+        row = {"speaker": getattr(ctx, "speaker_id", None), "phase": getattr(ctx, "phase", None),
+               "predicate": getattr(ctx, "predicate", None), "strategy": self.strategy,
+               "condition": self.strategy, "model": self.model, "temperature": self.temperature,
+               "status": "ok", "original_text": ctx.original_nl, "rewritten_text": text}
+        self.log_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(self.log_path, "a", encoding="utf-8") as handle:
+            handle.write(json.dumps(row, ensure_ascii=False) + "\n")
 
     def to_config(self) -> dict:
         params = {

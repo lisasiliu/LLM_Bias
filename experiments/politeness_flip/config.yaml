@@ -2,7 +2,8 @@
 #
 # For every seed the runner plays one untreated 7-player NL baseline with day-start checkpoints,
 # then replays each day from its checkpoint:
-#   nl           identity control: same checkpoint, no rewriter
+#   nl           identity control: same checkpoint, no rewriter; a second identity replay
+#                (repeat_index 1) measures the model's run-to-run variation on every outcome
 #   flip_self    the politeness rewriter on ONE player's speech for the whole day, rotated through all players
 #   flip_others  the rewriter on everyone except that player
 # Conditions: the four Brown & Levinson strategies of experiments/politeness_validation.
@@ -22,6 +23,8 @@ comparisons:
     baseline: nl
     replays:
       - mode: nl
+      - mode: nl
+        repeat_index: 1
       - mode: flip_self
         rewriter: politeness
         rewriter_params: {strategy: bald_on_record}

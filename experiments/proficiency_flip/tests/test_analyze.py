@@ -19,6 +19,37 @@ class RunIdTests(unittest.TestCase):
         self.assertIsNone(fa.parse_run_id("pred_only__d1"))
 
 
+class TrustAndNoiseTests(unittest.TestCase):
+    def test_repeat_identity_run_id(self):
+        self.assertEqual(fa.parse_run_id("nl__repeat1__d2"), {"mode": "nl", "condition": "repeat1", "self": None, "day": 2})
+        self.assertEqual(fa.parse_run_id("nl__d2")["condition"], None)
+
+    def test_trust_counts_village_assessors_alive_after_the_night_only(self):
+        r = {"role_dist": {"P1": "villager", "P2": "werewolf", "P3": "seer", "P4": "villager", "P5": "villager"},
+             "alive_at_start": ["P1", "P2", "P3", "P4", "P5"], "executed": "P4", "night_killed": "P5",
+             "reliability": {"P2": {"P1": 10}, "P3": {"P1": 6}, "P4": {"P1": 2}, "P5": {"P1": 2}, "P1": {"P1": 9}}}
+        self.assertEqual(fa.assessors(r, "P1"), ["P3"])
+        self.assertEqual(fa.speaker_outcomes(r, "P1")["trust_in_speaker"], 6)
+        self.assertIsNone(fa.own_behaviour(r, "P2", r, "werewolf")["trust_toward_others"])
+        r["reliability"]["P3"] = {"P1": 6, "P2": 3, "P4": 9}
+        self.assertEqual(fa.own_behaviour(r, "P3", r, "seer")["trust_toward_others"], 4.5)
+
+    def test_holm_family_is_the_prespecified_set(self):
+        self.assertEqual(fa.holm({"trust": None, "votes": .03})["votes"]["p_holm"], .06)
+
+    def test_identity_repeat_gives_the_noise_floor(self):
+        identity = phase({"P1": 1}, wolf="P1", trust={"P2": {"P1": 7}, "P3": {"P1": 5}}, votes={"P1": "P2"})
+        repeat = phase({"P1": 0}, wolf="P3", trust={"P2": {"P1": 6}, "P3": {"P1": 5}}, votes={"P1": "P3"})
+        rec = {"seed": "201", "day": 1, "baseline": {**identity, "role_dist": {"P1": "villager", "P2": "villager", "P3": "villager"}},
+               "replays": {("nl", None, None): identity, ("nl", "repeat1", None): repeat}, "expected": {}, "gate": {}, "exposure": {}}
+        d = fa.paired_differences([rec])
+        self.assertEqual(d["repeat_noise"]["votes_received"]["201"]["P1"], [1])
+        self.assertEqual(d["repeat_noise"]["trust_in_speaker"]["201"]["P1"], [0.5])
+        self.assertEqual(d["repeat_noise"]["changed_vote"]["201"]["P1"], [1])
+        self.assertNotIn("trust_in_speaker", fa.summarize([rec])["identity_vs_baseline"])
+        self.assertIn("identity repeat", fa.render(fa.summarize([rec])))
+
+
 class OutcomeTests(unittest.TestCase):
     def test_speaker_outcomes_use_other_players_trust_only(self):
         r = phase({"P1": 2}, executed="P1", wolf="P2", seer="P1",

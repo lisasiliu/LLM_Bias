@@ -19,17 +19,20 @@ import json
 import re
 from collections import Counter, defaultdict
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 from components.helpers import read_jsonl
 from components.stats import cluster_bootstrap, mean, paired_cohens_dz
+from lurkingwolf.engine import WOLF_ROLES
 from experiments.proficiency_validation.rewrite.runtime import fmt, now_iso
 from experiments.proficiency_validation.validation.analysis import cluster_sign_flip_test
 
 EXPERIMENT_DIR = Path(__file__).resolve().parent.parent
 GAMES_DIR = EXPERIMENT_DIR / "games"
 COMPARISON = "nl_vs_proficiency"
-SUMMARY_JSON = EXPERIMENT_DIR / "data" / "flip_summary.json"
+RUN = "qwen35_27b"                      # one directory per run, as in experiments/proficiency_validation
+RUN_DIR = EXPERIMENT_DIR / "data" / "runs" / RUN
+SUMMARY_JSON = RUN_DIR / "flip_summary.json"
 SUMMARY_MD = EXPERIMENT_DIR / "summary.md"
 CONDITIONS = ("low", "neutral", "high")
 SPEAKER_OUTCOMES = ("votes_received", "executed", "wolf_target", "seer_target", "trust_in_speaker")
@@ -41,7 +44,7 @@ N_BOOT, SEED = 2000, 101
 GameDifferences = Dict[str, Dict[str, List[float]]]
 
 
-def parse_run_id(run_id: str) -> Optional[dict]:
+def parse_run_id(run_id: str, *, conditions: Sequence[str] = CONDITIONS) -> Optional[dict]:
     """``<mode>[__<condition>__<param values...>][__pN]__dD`` as the runner names replays."""
     tokens = run_id.split("__")
     if len(tokens) < 2 or not re.fullmatch(r"d\d+", tokens[-1]):
@@ -50,14 +53,30 @@ def parse_run_id(run_id: str) -> Optional[dict]:
     if mode not in ("nl", "flip_self", "flip_others"):
         return None
     self_player = tokens[-2].upper() if len(tokens) > 2 and re.fullmatch(r"p\d+", tokens[-2]) else None
-    condition = tokens[1] if len(tokens) > 2 and tokens[1] in CONDITIONS else None
+    condition = tokens[1] if len(tokens) > 2 and (tokens[1] in conditions or re.fullmatch(r"repeat\d+", tokens[1])) else None
     return {"mode": mode, "condition": condition, "self": self_player, "day": day}
+
+
+IDENTITY, REPEAT = ("nl", None, None), ("nl", "repeat1", None)
+
+
+def assessors(result: dict, speaker: str) -> List[str]:
+    """Village players other than ``speaker`` who are alive after the night, i.e. whose
+    reliability scores were refreshed by the post-day memory update. Wolves know the roles,
+    so their scores are not trust."""
+    roles = result.get("role_dist") or {}
+    scores = result.get("reliability") or {}
+    alive = set(result.get("alive_at_start") or scores)
+    dead = {result.get("executed"), result.get("night_killed"), result.get("witch_poison")} - {None}
+    return [a for a in scores if a != speaker and a in alive and a not in dead
+            and roles.get(a) not in WOLF_ROLES]
 
 
 def speaker_outcomes(result: dict, speaker: str) -> dict:
     """What happened to ``speaker`` in one day phase."""
-    trust = [scores[speaker] for assessor, scores in (result.get("reliability") or {}).items()
-             if assessor != speaker and isinstance(scores, dict) and scores.get(speaker) is not None]
+    scores = result.get("reliability") or {}
+    trust = [scores[a][speaker] for a in assessors(result, speaker)
+             if isinstance(scores.get(a), dict) and scores[a].get(speaker) is not None]
     return {"votes_received": (result.get("votes_received") or {}).get(speaker, 0),
             "executed": int(result.get("executed") == speaker),
             "wolf_target": int(result.get("wolf_target") == speaker),
@@ -68,7 +87,10 @@ def speaker_outcomes(result: dict, speaker: str) -> dict:
 def own_behaviour(result: dict, speaker: str, reference: dict, role: Optional[str]) -> dict:
     """How ``speaker`` acted in ``result`` relative to the same speaker in ``reference``."""
     own = (result.get("reliability") or {}).get(speaker) or {}
-    outward = [v for other, v in own.items() if other != speaker and v is not None]
+    dead = {result.get("executed"), result.get("night_killed"), result.get("witch_poison")} - {None}
+    alive = set(result.get("alive_at_start") or own)
+    outward = [] if role in WOLF_ROLES else [v for other, v in own.items()
+                                             if other != speaker and other in alive and other not in dead and v is not None]
     if role == "werewolf":
         changed = int(result.get("wolf_target") != reference.get("wolf_target"))
     elif role == "seer":
@@ -125,11 +147,12 @@ def exposure_summary(rows: List[dict], result: Optional[dict], meta: dict) -> di
             and all(row.get("condition") == meta["condition"] for row in kept)}
 
 
-def load_tree(games_dir: Path) -> List[dict]:
+def load_tree(games_dir: Path, *, comparison: str = COMPARISON,
+              conditions: Sequence[str] = CONDITIONS) -> List[dict]:
     """One record per (seed, day): baseline, identity replay and flip replays, plus bookkeeping."""
     from lurkingwolf.eval.replay import extract_baseline_phase
     records = []
-    for root in sorted(games_dir.glob(f"run_*/{COMPARISON}")):
+    for root in sorted(games_dir.glob(f"run_*/{comparison}")):
         seed = root.parent.name.rsplit("_", 1)[-1]
         baseline_dir = root / "baseline"
         if not (baseline_dir / "game_record.json").exists():
@@ -147,7 +170,7 @@ def load_tree(games_dir: Path) -> List[dict]:
                 baseline = {"error": f"{type(exc).__name__}: {exc}"}
             replays, gate, exposure = {}, Counter(), {}
             for run_dir in sorted(day_dir.iterdir()):
-                meta = parse_run_id(run_dir.name)
+                meta = parse_run_id(run_dir.name, conditions=conditions)
                 if meta is None or meta["day"] != day:
                     continue
                 path = run_dir / "phase_result.json"
@@ -173,7 +196,9 @@ def clean_exposure(rec: dict, key) -> bool:
             and exposure.get("fallback") == 0 and exposure.get("unavailable") == 0)
 
 
-def paired_differences(records: List[dict], *, per_protocol: bool = False) -> dict:
+def paired_differences(records: List[dict], *, per_protocol: bool = False,
+                       conditions: Sequence[str] = CONDITIONS,
+                       contrasts: Sequence[Tuple[str, str]] = CONTRASTS) -> dict:
     """Per-(seed, day, speaker) differences, grouped for the game-weighted analysis. With
     ``per_protocol`` only replays with complete treatment exposure (no fallback) enter."""
     games = lambda: defaultdict(lambda: defaultdict(list))
@@ -181,25 +206,38 @@ def paired_differences(records: List[dict], *, per_protocol: bool = False) -> di
     role_diffs: Dict[Tuple[str, str], Dict[str, Dict[str, GameDifferences]]] = defaultdict(lambda: defaultdict(lambda: defaultdict(games)))
     own_diffs: Dict[str, Dict[str, GameDifferences]] = defaultdict(lambda: defaultdict(games))
     noise: Dict[str, GameDifferences] = defaultdict(games)
+    repeat_noise: Dict[str, GameDifferences] = defaultdict(games)
     n_pairs = Counter()
     for rec in records:
-        identity = rec["replays"].get(("nl", None, None))
+        identity = rec["replays"].get(IDENTITY)
+        repeat = rec["replays"].get(REPEAT)
         baseline = rec["baseline"]
         if not identity or "error" in baseline:
             continue
         seed, roles = rec["seed"], baseline.get("role_dist", {})
         alive = set(identity.get("alive_at_start") or roles)
         for speaker in sorted(alive):
-            # identity-versus-baseline: the model's own run-to-run movement for this speaker
+            # identity versus the recorded game: the decisions only (the recorded game's trust
+            # scores come from the next day's reasoning, not from the post-day update)
             for k, v in speaker_outcomes(identity, speaker).items():
                 b = speaker_outcomes(baseline, speaker)[k]
-                if v is not None and b is not None:
+                if k != "trust_in_speaker" and v is not None and b is not None:
                     noise[k][seed][speaker].append(v - b)
-            flips = {c: rec["replays"].get(("flip_self", c, speaker)) for c in CONDITIONS
+            if repeat:
+                # identity versus its repeat: the model's run-to-run variation on every outcome
+                for k, v in speaker_outcomes(identity, speaker).items():
+                    b = speaker_outcomes(repeat, speaker)[k]
+                    if v is not None and b is not None:
+                        repeat_noise[k][seed][speaker].append(v - b)
+                own_repeat = own_behaviour(identity, speaker, repeat, roles.get(speaker))
+                for k in OWN_OUTCOMES:
+                    if own_repeat[k] is not None and k == "changed_vote":
+                        repeat_noise[k][seed][speaker].append(own_repeat[k])
+            flips = {c: rec["replays"].get(("flip_self", c, speaker)) for c in conditions
                      if not per_protocol or clean_exposure(rec, ("flip_self", c, speaker))}
             outcomes = {"identity": speaker_outcomes(identity, speaker)}
             outcomes.update({c: speaker_outcomes(r, speaker) for c, r in flips.items() if r})
-            for treatment, control in CONTRASTS:
+            for treatment, control in contrasts:
                 if treatment in outcomes and control in outcomes:
                     n_pairs[("flip_self", treatment, control)] += 1
                     for k in SPEAKER_OUTCOMES:
@@ -208,18 +246,19 @@ def paired_differences(records: List[dict], *, per_protocol: bool = False) -> di
                             speaker_diffs[(treatment, control)][k][seed][speaker].append(a - b)
                             side = "werewolf" if roles.get(speaker) == "werewolf" else "village"
                             role_diffs[(treatment, control)][side][k][seed][speaker].append(a - b)
-            others = {c: rec["replays"].get(("flip_others", c, speaker)) for c in CONDITIONS
+            others = {c: rec["replays"].get(("flip_others", c, speaker)) for c in conditions
                       if not per_protocol or clean_exposure(rec, ("flip_others", c, speaker))}
             own = {"identity": own_behaviour(identity, speaker, identity, roles.get(speaker))}
             own.update({c: own_behaviour(r, speaker, identity, roles.get(speaker)) for c, r in others.items() if r})
-            for treatment, control in CONTRASTS:
+            for treatment, control in contrasts:
                 if treatment in own and control in own:
                     n_pairs[("flip_others", treatment, control)] += 1
                     for k in OWN_OUTCOMES:
                         a, b = own[treatment][k], own[control][k]
                         if a is not None and b is not None:
                             own_diffs[f"{treatment}_vs_{control}"][k][seed][speaker].append(a - b)
-    return {"speaker": speaker_diffs, "by_role": role_diffs, "own": own_diffs, "noise": noise, "n_pairs": n_pairs}
+    return {"speaker": speaker_diffs, "by_role": role_diffs, "own": own_diffs, "noise": noise,
+            "repeat_noise": repeat_noise, "n_pairs": n_pairs}
 
 
 def game_weighted(diffs: GameDifferences) -> dict:
@@ -242,7 +281,7 @@ def game_weighted(diffs: GameDifferences) -> dict:
             "pooled_mean": mean(pooled)}
 
 
-def availability(records: List[dict]) -> dict:
+def availability(records: List[dict], *, conditions: Sequence[str] = CONDITIONS) -> dict:
     out: Dict[str, Counter] = defaultdict(Counter)
     for rec in records:
         for (mode, cond, _), result in rec["replays"].items():
@@ -250,7 +289,7 @@ def availability(records: List[dict]) -> dict:
             out[label]["present"] += int(result is not None)
             out[label]["missing_result"] += int(result is None)
         for run_id, rc in rec["expected"].items():
-            meta = parse_run_id(run_id)
+            meta = parse_run_id(run_id, conditions=conditions)
             if meta:
                 label = meta["mode"] if meta["condition"] is None else f"{meta['mode']}:{meta['condition']}"
                 out[label]["expected"] += 1
@@ -281,7 +320,7 @@ def holm(pvalues: Dict[str, Optional[float]]) -> Dict[str, dict]:
     """Holm step-down adjustment over one prespecified family."""
     items = sorted(((p, k) for k, p in pvalues.items() if p is not None))
     out, running = {}, 0.0
-    m = len(items)
+    m = len(pvalues)                     # the family is the prespecified set, not the available p-values
     for i, (p, k) in enumerate(items):
         running = max(running, min(1.0, (m - i) * p))
         out[k] = {"p": p, "p_holm": running, "reject_05": running <= .05}
@@ -301,14 +340,16 @@ def summarize(records: List[dict]) -> dict:
     by_role = {f"{t}_vs_{c}": {side: {k: game_weighted(diffs["by_role"][(t, c)][side][k]) for k in SPEAKER_OUTCOMES}
                                for side in ("werewolf", "village")} for t, c in CONTRASTS}
     own = {name: {k: game_weighted(block[k]) for k in OWN_OUTCOMES} for name, block in diffs["own"].items()}
-    noise = {k: game_weighted(diffs["noise"][k]) for k in SPEAKER_OUTCOMES}
+    noise = {k: game_weighted(diffs["noise"][k]) for k in SPEAKER_OUTCOMES if k != "trust_in_speaker"}
+    repeat_noise = {k: game_weighted(diffs["repeat_noise"][k]) for k in SPEAKER_OUTCOMES + ("changed_vote",)}
     seeds = sorted({r["seed"] for r in records})
     return {"created_at": now_iso(), "games": seeds, "n_checkpoints": len(records),
             "days_per_game": dict(Counter(r["seed"] for r in records)),
             "n_pairs": {f"{m}:{t}_vs_{c}": n for (m, t, c), n in diffs["n_pairs"].items()},
             "availability": availability(records), "flip_self": effects, "co_primary_low_vs_neutral": co_primary,
             "flip_self_per_protocol": per_protocol, "flip_self_by_role": by_role,
-            "flip_others": own, "identity_vs_baseline": noise, "estimand": "equal_game_weight",
+            "flip_others": own, "identity_vs_baseline": noise, "identity_vs_repeat": repeat_noise,
+            "estimand": "equal_game_weight",
             "analysis_policy": "assignment-based analysis of completed replays; per-protocol analysis requires complete logs matching every treated utterance, with all rewrites successful",
             "aggregation": "days within speaker, speakers within game, then games; equal weights at each step",
             "n_boot": N_BOOT, "seed": SEED}
@@ -369,10 +410,14 @@ def render(s: dict) -> str:
         lines += [_row(k, block[k]) for k in SPEAKER_OUTCOMES]
         lines.append("")
     lines += ["`votes_received` counts first-round votes against the speaker; `executed`, `wolf_target` and "
-              "`seer_target` are 0/1; `trust_in_speaker` is the mean reliability score other players assign the speaker "
-              "after the day. The identity-minus-baseline rows below are the noise floor of the model itself.", "",
-              "### identity minus baseline (noise floor)", "", head, sep]
-    lines += [_row(k, s["identity_vs_baseline"][k]) for k in SPEAKER_OUTCOMES]
+              "`seer_target` are 0/1; `trust_in_speaker` is the mean reliability score the village players alive "
+              "after the night assign the speaker in their post-day memory update. The rows below compare the "
+              "identity replay with the recorded game on the decisions, and with its own repeat on every outcome.", "",
+              "### identity minus recorded game", "", head, sep]
+    lines += [_row(k, s["identity_vs_baseline"][k]) for k in s["identity_vs_baseline"]]
+    if any(e.get("n_pairs") for e in s.get("identity_vs_repeat", {}).values()):
+        lines += ["", "### identity minus identity repeat (run-to-run variation)", "", head, sep]
+        lines += [_row(k, s["identity_vs_repeat"][k]) for k in s["identity_vs_repeat"]]
     lines += ["", "### By the treated speaker's side (exploratory)", ""]
     for name, sides in s["flip_self_by_role"].items():
         for side, block in sides.items():
@@ -389,7 +434,7 @@ def render(s: dict) -> str:
               "applies to wolves and the seer only.", "",
               "The per-protocol table uses replays whose logs match all treated utterances and record a successful rewrite for each.", "",
               "## Files", "", "| file | contents |", "|---|---|",
-              "| `data/flip_summary.json` | every number above, with intervals and tests |",
+              f"| `{SUMMARY_JSON.relative_to(EXPERIMENT_DIR)}` | every number above, with intervals and tests |",
               "| `games/` (ignored) | baselines, replays, `subprocess.log` and `rewrites.jsonl` per replay |",
               "| `code/analyze.py` | rebuilds this summary from `games/`; no model calls |", ""]
     return "\n".join(lines)

@@ -21,6 +21,12 @@ from typing import Any, Dict, List, Optional
 
 import requests
 
+# A pooled session: the gate issues several judge calls per rewrite, and one new TCP
+# connection per call overflows the accept queue of a locally served model.
+_SESSION = requests.Session()
+for _scheme in ("http://", "https://"):
+    _SESSION.mount(_scheme, requests.adapters.HTTPAdapter(pool_connections=4, pool_maxsize=16))
+
 from lurkingwolf.utils.speech_nl import strip_reasoning
 
 THINK_OPEN = re.compile(r"</?think\b", re.IGNORECASE)
@@ -220,7 +226,7 @@ class JudgeModel:
         retried = 0
         for attempt in range(self.retries + 1):
             try:
-                response = requests.post(url, headers=headers, json=payload,
+                response = _SESSION.post(url, headers=headers, json=payload,
                                          timeout=self.timeout)
                 response.raise_for_status()
                 data = response.json()

@@ -9,9 +9,11 @@ the gated proficiency rewriter from `experiments/proficiency_validation/rewrite/
 | --- | --- |
 | `config.yaml` | The experiment: 30 seeds of 7-player NL baselines, identity replays, `flip_self` and `flip_others` replays for A, B and C |
 | `code/analyze.py` | Paired analysis of the treated speaker's outcomes against the identity replay, games as independent units |
-| `data/` | `flip_summary.json`: every number in `summary.md` |
+| `code/figures.py`, `code/export_passages.py` | The figures; the replay passages for the listener validation |
+| `data/runs/qwen35_27b/` | This run: `manifest.json` with the model and code hashes, `flip_summary.json` (every number in `summary.md`), `replay_passages.jsonl` and the listener answers under `validation/` |
 | `summary.md` | The result |
-| `games/` | Raw baselines and replays (gitignored; kept on the cluster and locally) |
+| `figures/` | Decision change rates and level contrasts, the treated speaker's outcomes, the self player's response and the manipulation check; the numbers behind each figure in `figure_stats.json`, the reading of each figure in `figures/README.md` |
+| `games/` | Baselines and replays: results, rewrite logs and agent memory are versioned; raw LLM call logs, checkpoints and stdout stay on the cluster |
 
 ## How a replay works
 
@@ -20,8 +22,9 @@ loads one day-start checkpoint and plays that day again (discussion, vote, night
 `flip_self` the rewriter sits on one player for the whole day, so every public utterance
 of that player is rewritten to the assigned level before other agents read it; the
 history before the checkpoint is untouched. In `flip_others` the rewriter sits on every
-other player. The `nl` replay repeats the day with no rewriter and estimates the model's
-own run-to-run variation at temperature 0. A player who is dead at the day start has no
+other player. The `nl` replay repeats the day with no rewriter and is the control every
+treated replay is paired with; a second `nl` replay of the same checkpoint measures the
+model's run-to-run variation on every outcome. A player who is dead at the day start has no
 speech to rewrite, so the runner skips that player's `flip_self` and `flip_others` replays.
 
 Each rewrite goes through the semantic gate (surface checks, inverse predicate parser,
@@ -41,11 +44,12 @@ original range; A and C are the restricted and expanded levels.
 
 For a treated speaker S in `flip_self`, per (game, day): votes received by S, whether S
 was executed, whether the wolves or the seer targeted S that night, and the mean
-reliability score other players assign to S after the day. Contrasts are A, B and C each
+reliability score the village players alive after the night assign to S in their post-day
+memory update (wolves know the roles, so their scores are not trust). Contrasts are A, B and C each
 minus identity, A minus B and C minus B, paired on the same checkpoint
 and speaker. For `flip_others`, the outcomes describe S's own behaviour when everyone
-else speaks at the treated level: whether S changed vote target, S's mean reliability
-toward others, and whether S changed a role-specific target.
+else speaks at the treated level: whether S changed vote target, a village S's mean
+reliability toward the others alive after the night, and whether S changed a role-specific target.
 
 The co-primary outcomes are the trust assigned to the treated speaker and the votes the
 speaker receives (A minus B), Holm-corrected; the other outcomes are secondary or
@@ -68,7 +72,19 @@ After the last seed:
 
 ```bash
 python -m experiments.proficiency_flip.code.analyze
+python -m experiments.proficiency_flip.code.figures
 ```
+
+The listener validation of what the other players heard uses the replays themselves:
+`code/export_passages.py` pairs each treated speaker's delivered discussion turns in a replay
+with their source text, and `experiments/proficiency_validation/validation probe` compares
+them blind (`low:original`, `neutral:original`, `high:original`, both constructs). On the
+cluster, `experiments/proficiency_validation/hpc/listener_qwen35_27b.slurm` runs it with the
+served Qwen model as the listener; another listener adds its own rows later.
+
+The politeness flip (`experiments/politeness_flip/`) replays the same baseline games: its
+cluster script copies each seed's baseline and checkpoints from this experiment before its
+replays, so both experiments treat the same days.
 
 `PROFICIENCY_MODEL_CONFIG` names the manifest with the `generator` and `judge` handles the
 rewriter uses; `SUBTLEX` (in `.env` locally, exported by the cluster script) is the
