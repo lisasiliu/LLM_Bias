@@ -45,7 +45,7 @@ from components.helpers import read_jsonl, sources_from_game_dir, write_jsonl
 from components.judges.blind_politeness_classifier import (
     PROMPT_VERSION, BlindPolitenessClassifier, system_prompt)
 from components.judges.judge_model import JudgeModel
-from components.judges.majority_vote import majority
+from components.judges.judge_model import majority
 from components.rewriters.politeness_rewriter import PRIMARY_PREDICATES
 
 HERE = Path(__file__).resolve().parents[1]

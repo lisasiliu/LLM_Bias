@@ -24,6 +24,10 @@ class RewriteContext:
     speaker_id: str
     speaker_role_claimed: Optional[str]
     public_history: List[str] = field(default_factory=list)
+    # Optional runtime context a rewriter may use; existing rewriters ignore it.
+    day: Optional[int] = None
+    alive_players: Optional[List[str]] = None
+    speaker_reliability: Optional[Dict[str, int]] = None  # the speaker's current 1-10 ratings
 
 
 class Rewriter(ABC):

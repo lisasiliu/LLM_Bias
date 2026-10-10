@@ -247,6 +247,7 @@ def replay_phase(
       4. Run vote → collect votes
       5. Run night → collect skills
       6. Run memory update → collect post-phase reliability
+         (the day's discussion is shown to the raters)
 
     Returns a PhaseResult with all collected data.
     """
@@ -263,6 +264,9 @@ def replay_phase(
         agents, experiment_type,
         rewriter=rewriter, scope=rewriter_scope, self_player=self_player,
     )
+
+    if rewriter is not None and hasattr(rewriter, "bind"):
+        rewriter.bind(agents)                    # policies that read the live agents' ratings
 
     if verbose:
         print(f"\n  == Replay Day {day} Discussion ({config_name}) ==")
@@ -298,9 +302,11 @@ def replay_phase(
 
     # Post-phase memory update for reliability scores
     time_str = f"day_{day}_post_replay"
+    state.current_turn_buffer = list(discussion_preds)    # raters see what was said today
     for p in state.get_alive():
         if p in agents:
             agents[p].update_memory(state, time_str, dry_run=dry_run)
+    state.current_turn_buffer.clear()
 
     reliability = {}
     for pid, agent in agents.items():

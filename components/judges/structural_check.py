@@ -14,7 +14,7 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, List
 
-from components.helpers import CheckResult, SourceRecord
+from components.helpers import CheckResult, SourceRecord, decide
 
 
 _PLAYER_RE = re.compile(r"^P\d+$", re.IGNORECASE)
@@ -223,3 +223,54 @@ def _is_hedged_copy(original: str, rewrite: str) -> bool:
     return keeps_most and len(novel) <= 2
 
 
+# ── gates used live in a game ──
+# AdmissionGate admits a rewrite only if the structural check, the inverse parser and the dimensional semantic
+# validator all agree. StructuralGate runs the deterministic check alone, for runs where the model checks are
+# deferred to an offline audit.
+
+class AdmissionGate:
+    def __init__(self, model):
+        from components.judges.dimensional_semantic_validator import DimensionalSemanticValidator
+        from components.judges.inverse_predicate_parser import InversePredicateParser
+        self.parser = InversePredicateParser(model)
+        self.validator = DimensionalSemanticValidator(model)
+
+    def check(self, source: SourceRecord, rewrite: str, *,
+              commitment_may_be_indirect: bool = False) -> Dict[str, Any]:
+        from components.judges.inverse_predicate_parser import compare, context_phase
+        det = structural_check(source, rewrite,
+                               commitment_may_be_indirect=commitment_may_be_indirect)
+        parsed = self.parser.parse(
+            rewrite, phase=context_phase(source), speaker_id=source.speaker_id,
+            public_history=source.public_history)
+        comparison = compare(parsed, source.predicate_text) if parsed.ok else None
+        semantic = self.validator.validate(
+            source, rewrite, commitment_may_be_indirect=commitment_may_be_indirect)
+        verdict = decide(
+            parser_structural_match=bool(comparison and comparison["structural_match"]),
+            semantic_ok=semantic.ok, deterministic_ok=det.ok)
+        return {
+            "admitted": verdict.auto_accepted,
+            "structural_ok": det.ok,
+            "structural_reasons": list(det.reasons),
+            "identical_to_original": bool(det.details.get("identical_to_original")),
+            "parser_status": verdict.parser_status,
+            "parser_error": parsed.error,
+            "parser_mismatched_slots": (comparison or {}).get("mismatched_slots"),
+            "semantic_status": verdict.semantic_status,
+            "semantic_reasons": list(semantic.reasons),
+            "adjudication_reasons": list(verdict.reasons),
+        }
+
+
+class StructuralGate:
+    """Deterministic checks only, for runs where the model checks are deferred to an offline audit."""
+
+    def check(self, source: SourceRecord, rewrite: str, *,
+              commitment_may_be_indirect: bool = False) -> Dict[str, Any]:
+        det = structural_check(source, rewrite,
+                               commitment_may_be_indirect=commitment_may_be_indirect)
+        return {"admitted": det.ok, "structural_ok": det.ok,
+                "structural_reasons": list(det.reasons),
+                "identical_to_original": bool(det.details.get("identical_to_original")),
+                "parser_status": "not_run", "semantic_status": "not_run"}
