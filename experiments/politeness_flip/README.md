@@ -8,11 +8,13 @@ politeness rewriter validated in `experiments/politeness_validation/`.
 | Path | Contents |
 | --- | --- |
 | `config.yaml` | The experiment: 30 seeds of 7-player NL baselines, two identity replays, `flip_self` and `flip_others` replays for the four strategies |
-| `code/analyze.py` | Paired analysis of the treated speaker's outcomes, games as independent units |
-| `summary.md` | The result |
-| `code/manipulation_check.py` | Blind labelling of the delivered speech, and the report it writes |
-| `manipulation_check.md` | Agreement with the requested strategy, and the confusion between them |
-| `data/runs/qwen35_27b/` | This run: `manifest.json`, `politeness_summary.json` (every number in `summary.md`), the labelled sample and every classifier pass |
+| `code/analyze.py` | Every number and the whole of `summary.md`: paired outcomes, exposure, the discussion predicates, the net change over a plain re-run, the equivalence tests and the manipulation tables |
+| `code/manipulation_check.py` | Labels the delivered speech, and the sets with known answers, with the blind politeness classifier |
+| `code/provenance.py` | The artifacts `manifest.json` pins: the four strategy prompts, the classifier and the semantic rubric, and the engine sources, each at the revision the replays ran from |
+| `code/figures.py` | The three figures in `figures/` |
+| `summary.md` | The whole result: what the run found, every table and the manipulation check |
+| `figures/` | The figures; `summary.md` is where they are read |
+| `data/runs/qwen35_27b/` | `manifest.json` with the model handles, the seed list and the frozen prompt and source hashes, `politeness_summary.json` (every number in `summary.md`), the labelled sample and every classifier pass |
 | `games/` | Baselines and replays |
 
 ## How a replay works
@@ -47,9 +49,7 @@ alive after the night assign to S. Differences are averaged over days within eac
 speakers within each game, and games, with equal weights at each step. Intervals are game
 bootstraps and p-values sign-flip tests over games. Holm corrects the three strategies against
 the reference within each of two outcomes, the trust in the speaker and the votes against them;
-every other outcome and the contrasts against the identity replay are descriptive. Which family
-RQ2 treats as confirmatory is the politeness experiment's decision to record before the numbers
-are read.
+every other outcome and the contrasts against the identity replay are descriptive.
 
 ## Did the speech realize the strategy?
 
@@ -80,4 +80,13 @@ its baseline exists. After the last seed:
 
 ```bash
 python -m experiments.politeness_flip.code.analyze
+```
+
+The cluster script writes `manifest.json` before the first replay: the model handles, the seed
+list, the revision the tree is on and the hash of each frozen artifact. Each rewrite row carries
+the hash of the prompt template it was generated from, so a row can be traced to a strategy
+prompt without the manifest. To check the artifacts against a recorded run:
+
+```bash
+python -m experiments.politeness_flip.code.provenance
 ```

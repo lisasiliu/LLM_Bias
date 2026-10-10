@@ -29,6 +29,7 @@ from components.judges.blind_politeness_classifier import (
     LABELS, PROMPT_VERSION, BlindPolitenessClassifier, system_prompt)
 from components.judges.majority_vote import FAILED, NO_MAJORITY, majority
 from experiments.politeness_flip.code import analyze as pa
+from experiments.proficiency_flip.code import analyze as flip
 from experiments.proficiency_flip.code.analyze import _logged_text
 from experiments.proficiency_validation.rewrite.runtime import ValidationModel, fmt, now_iso
 
@@ -52,7 +53,12 @@ def delivered_utterances(games_dir: Path = pa.GAMES_DIR) -> List[dict]:
             log = run_dir / "rewrites.jsonl"
             if meta is None or meta["condition"] not in pa.CONDITIONS or not log.exists():
                 continue
-            for i, row in enumerate(read_jsonl(log)):
+            result_path = run_dir / "phase_result.json"
+            result = (json.loads(result_path.read_text())
+                      if result_path.exists() and result_path.stat().st_size else None)
+            rows = read_jsonl(log)
+            start = flip.exposure_summary(rows, result, meta)["interrupted_rows"]
+            for i, row in enumerate(rows[start:], start):
                 if row.get("phase", "day_speech") != "day_speech":
                     continue
                 category, text = _logged_text(row)
@@ -215,7 +221,12 @@ def tally(rows: List[dict], classifier: Optional[str] = None) -> dict:
         per_game = {g: hit / n for g, (hit, n) in block["by_game"].items() if n}
         overall = sum(c.get(w, 0) for w, c in confusion.items()) / max(1, block["items"])
         failed, total = failed_passes[handle]
-        out[handle] = {"n_items": block["items"], "agreement": agree, "overall_agreement": overall,
+        decided = {want: {l: n for l, n in counts.items() if l not in VOTE_OUTCOMES}
+                   for want, counts in confusion.items()}
+        agree_decided = {want: counts.get(want, 0) / sum(counts.values())
+                         for want, counts in decided.items() if sum(counts.values())}
+        out[handle] = {"n_items": block["items"], "agreement": agree,
+                       "agreement_of_decided": agree_decided, "overall_agreement": overall,
                        "confusion": confusion, "n_games": len(per_game),
                        "by_scope": {m: {"n_items": n, "agreement": hit / n}
                                     for m, (hit, n) in sorted(block["by_scope"].items()) if n},
@@ -277,13 +288,12 @@ def cmd_report(args) -> int:
                "source": "reference sets with known answers" if args.reference else "replay speech",
                "classifiers": tally(rows)}
     out_json = DATA / ("classifier_reference.json" if args.reference else "manipulation_check.json")
-    out_md = pa.EXPERIMENT_DIR / ("classifier_reference.md" if args.reference else "manipulation_check.md")
     out_json.parent.mkdir(parents=True, exist_ok=True)
     out_json.write_text(json.dumps(summary, indent=1))
-    out_md.write_text(render(summary))
+    # The tables go into the experiment's one summary; `analyze` reads this file back.
     for handle, block in sorted(summary["classifiers"].items()):
         print(f"{handle}: {block['n_items']} utterances, agreement {block['overall_agreement']:.3f}")
-    print(f"-> {out_json}, {out_md}")
+    print(f"-> {out_json}; run `analyze` to put the tables in summary.md")
     return 0
 
 

@@ -8,12 +8,15 @@ the gated proficiency rewriter from `experiments/proficiency_validation/rewrite/
 | Path | Contents |
 | --- | --- |
 | `config.yaml` | The experiment: 30 seeds of 7-player NL baselines, identity replays, `flip_self` and `flip_others` replays for A, B and C |
-| `code/analyze.py` | Paired analysis of the treated speaker's outcomes against the identity replay, games as independent units |
-| `code/figures.py`, `code/export_passages.py` | The figures; the replay passages for the listener validation |
-| `data/runs/qwen35_27b/` | This run: `manifest.json` with the model and code hashes, `flip_summary.json` (every number in `summary.md`), `replay_passages.jsonl` and the listener answers under `validation/` |
-| `summary.md` | The result |
-| `figures/` | Decision change rates and level contrasts, the treated speaker's outcomes, the self player's response and the manipulation check; the numbers behind each figure in `figure_stats.json`, the reading of each figure in `figures/README.md` |
-| `games/` | Baselines and replays: results, rewrite logs and agent memory are versioned; raw LLM call logs, checkpoints and stdout stay on the cluster |
+| `code/analyze.py` | Every number and the whole of `summary.md`: paired outcomes, exposure, the discussion predicates, the net change over a plain re-run, the equivalence tests and the listener tables |
+| `code/response.py` | Reads the recorded predicates into outcomes about the treated speaker, and trust as a rank |
+| `code/perception.py` | Reduces the blind listeners' answers to the table `summary.md` prints |
+| `code/export_passages.py` | Writes the replays' delivered speech and its source for the listener probe |
+| `code/figures.py` | The seven figures in `figures/`, with their numbers in `figure_stats.json` |
+| `data/runs/qwen35_27b/` | `manifest.json` with the model and code hashes, `flip_summary.json` (every number in `summary.md`), `replay_passages.jsonl` and the listener answers under `validation/` |
+| `summary.md` | The whole result: what the run found, every table, the manipulation check and the listener answers |
+| `figures/` | The figures and `figure_stats.json`; `summary.md` is where they are read |
+| `games/` | Baselines and replays: results, rewrite logs and agent memory are in the repository; raw LLM call logs, checkpoints and stdout stay on the cluster |
 
 ## How a replay works
 
@@ -26,6 +29,8 @@ other player. The `nl` replay repeats the day with no rewriter and is the contro
 treated replay is paired with; a second `nl` replay of the same checkpoint measures the
 model's run-to-run variation on every outcome. A player who is dead at the day start has no
 speech to rewrite, so the runner skips that player's `flip_self` and `flip_others` replays.
+B is an independent paraphrase control at the original range; A and C are the restricted and
+expanded levels.
 
 Each rewrite goes through the semantic gate (surface checks, inverse predicate parser,
 English fidelity judge with quoted alignments) with corrective retries. A rewrite that
@@ -33,12 +38,11 @@ still fails falls back to the untouched original utterance and is logged with
 `fallback_to_original: true`; the assigned replay continues. The primary analysis follows
 the assignment for completed replays and reports exposure rates. Per-protocol analysis uses
 replays whose logs match every treated utterance and record a successful rewrite for each.
-Every attempt is written to
+Each rewrite is written to
 `rewrites.jsonl` inside the replay directory; the executed player's last words are rewritten
 and logged too, and the analysis reports them separately because the replay result records
-only the discussion. When the runner restarts a replay that an earlier attempt left
-unfinished, the analysis keeps the rows of the completed attempt. B is an independent paraphrase control at the
-original range; A and C are the restricted and expanded levels.
+only the discussion. A replay the runner restarts rewrites that file, and the analysis reads
+the rows of the finished pass.
 
 ## Outcomes
 

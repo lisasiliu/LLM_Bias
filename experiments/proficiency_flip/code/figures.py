@@ -268,7 +268,8 @@ def forest(ax, entries: List[Tuple[str, dict, str]], title: str, xlabel: str) ->
         if lo is not None and hi is not None:
             ax.plot([lo, hi], [y_pos, y_pos], color=color, linewidth=2.2, solid_capstyle="round")
         ax.plot([est["estimate"]], [y_pos], marker="o", markersize=8, color=color)
-        ax.text(1.01, y_pos, f"{est['estimate']:+.2f}  [{lo:+.2f}, {hi:+.2f}]  pairs={est.get('n_pairs', 0)}",
+        note = f"  {est['note']}" if est.get("note") else f"  pairs={est.get('n_pairs', 0)}"
+        ax.text(1.01, y_pos, f"{est['estimate']:+.2f}  [{lo:+.2f}, {hi:+.2f}]{note}",
                 transform=ax.get_yaxis_transform(), ha="left", va="center", fontsize=10, color="#333333")
     ax.axvline(0, color="#555555", linewidth=1.1)
     ax.set_yticks(ys)
@@ -299,7 +300,7 @@ def figure_speaker_outcomes(summary: dict, out: Path) -> None:
     fig.suptitle(f"Speaker-directed rewriting (flip self): outcomes for the treated speaker, {n_games} games",
                  fontsize=15, fontweight="bold")
     fig.text(0.5, -0.04, "Game-weighted paired differences on the same checkpoint and speaker, with 95% bootstrap intervals "
-             "over games (experiments/proficiency_flip/data/flip_summary.json).",
+             "over games (data/runs/qwen35_27b/flip_summary.json).",
              ha="center", va="top", fontsize=11, color="#444444")
     save(fig, out / "speaker_outcomes")
 
@@ -353,15 +354,21 @@ def delivered_utterances(games_dir: Path) -> List[dict]:
     return rows_out
 
 
-MEASURES = [("words", "Words per utterance"), ("words_per_sentence", "Words per sentence"),
-            ("subtlex_mean", "Mean word frequency (SUBTLEX Lg10CD)")]
+MEASURES = [("subtlex_mean", "Word frequency\n(SUBTLEX Lg10CD)"), ("mtld", "Lexical diversity (MTLD)"),
+            ("words_per_sentence", "Words per sentence"),
+            ("subordinate_clauses_per_sentence", "Subordinate clauses\nper sentence"),
+            ("tree_depth_mean", "Mean dependency depth"), ("words", "Words per utterance")]
 
 
 def text_measures(text: str, scorer) -> dict:
+    """Vocabulary, lexical variety, sentence length and syntactic depth of one utterance."""
     features = scorer(text)
     n_sent = max(1, features.get("n_sentences") or 1)
     n_words = features.get("n_words") or features.get("word_count") or 0
-    return {"words": n_words, "words_per_sentence": n_words / n_sent, "subtlex_mean": features.get("subtlex_mean")}
+    return {"words": n_words, "words_per_sentence": n_words / n_sent,
+            "subtlex_mean": features.get("subtlex_mean"), "mtld": features.get("mtld"),
+            "subordinate_clauses_per_sentence": features.get("subordinate_clauses_per_sentence"),
+            "tree_depth_mean": features.get("tree_depth_mean")}
 
 
 def load_scorer():
@@ -387,17 +394,24 @@ def figure_manipulation_check(utterances: List[dict], scorer, out: Path) -> dict
 
     values = {(c, side, field): defaultdict(lambda: defaultdict(list))
               for c, _ in CONDITIONS for side in ("source", "delivered") for field, _ in MEASURES}
+    # the same utterance's delivered-minus-source change, kept per rewrite scope
+    by_scope: Dict[tuple, Dict[str, Dict[str, List[float]]]] = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
     counts = defaultdict(int)
     for u in utterances:
         group = f"{u['replay']}:{u['speaker']}"
         counts[u["condition"]] += 1
+        measured = {side: measure(u[side]) for side in ("source", "delivered")}
         for side in ("source", "delivered"):
-            m = measure(u[side])
             for field, _ in MEASURES:
-                if m[field] is not None:
-                    values[(u["condition"], side, field)][u["seed"]][group].append(m[field])
+                if measured[side][field] is not None:
+                    values[(u["condition"], side, field)][u["seed"]][group].append(measured[side][field])
+        for field, _ in MEASURES:
+            a, b = measured["delivered"][field], measured["source"][field]
+            if a is not None and b is not None:
+                by_scope[(u["condition"], u["mode"], field)][u["seed"]][group].append(a - b)
     stats_out = {}
-    fig, axes = plt.subplots(1, 3, figsize=(15, 4.8), constrained_layout=True)
+    fig, axes = plt.subplots(2, 3, figsize=(16, 9), constrained_layout=True)
+    axes = axes.ravel()
     width = 0.36
     for ax, (field, label) in zip(axes, MEASURES):
         xs = np.arange(len(CONDITIONS))
@@ -431,7 +445,82 @@ def figure_manipulation_check(utterances: List[dict], scorer, out: Path) -> dict
              "n counts utterances. Error bars: 95% bootstrap intervals over games.",
              ha="center", va="top", fontsize=11, color="#444444")
     save(fig, out / "manipulation_check")
+    for (condition, mode, field), v in by_scope.items():
+        stats_out[f"{condition}:{mode}:{field}:delivered_minus_source"] = game_level(v)
     return stats_out
+
+
+# ─── Figure 6: what the others say about the treated speaker ────────────────
+
+DISCUSSION = [("execution_urged", "Calls to execute the speaker", "Δ predicates urging their execution"),
+              ("accused_by_others", "Accusations of the speaker", "Δ predicates calling them a wolf"),
+              ("mentions_after_speaking", "Mentions after they speak", "Δ predicates about them by later speakers")]
+
+
+def figure_discussion(summary: dict, out: Path) -> None:
+    """The day's vote is one decision; the discussion that precedes it is tens of predicates."""
+    fs, holm = summary.get("flip_self", {}), summary.get("discussion_holm", {})
+    fig, axes = plt.subplots(1, len(DISCUSSION), figsize=(17, 4.6), constrained_layout=True)
+    for ax, (field, title, xlabel) in zip(axes, DISCUSSION):
+        entries = []
+        for key, label in CONTRASTS:
+            est = dict(fs.get(key, {}).get(field) or {})
+            adj = holm.get(key, {}).get(field, {})
+            if adj.get("p") is not None:
+                est["note"] = f"p {adj['p']:.3f}, Holm {adj['p_holm']:.3f}"
+            entries.append((label, est, SCOPE_COLORS["flip_self"]))
+        forest(ax, entries, title, xlabel)
+    n = len(summary.get("games") or [])
+    fig.suptitle(f"What the other players say about the rewritten speaker, {n} games", fontsize=15, fontweight="bold")
+    fig.text(0.5, -0.05, "Counted from the predicates the engine records for every utterance, which name who says "
+             "what about whom. The five discussion outcomes are one Holm family per contrast; the p-values beside "
+             "each row are before and after that correction.",
+             ha="center", va="top", fontsize=11, color="#444444")
+    save(fig, out / "discussion_outcomes")
+
+
+# ─── Figure 7: the effects against the movement of a plain re-run ───────────
+
+def figure_equivalence(summary: dict, out: Path) -> None:
+    """Every co-primary effect beside the movement one unchanged re-run produces."""
+    tost, bounds = summary.get("equivalence") or {}, summary.get("equivalence_bounds") or {}
+    outcomes = [k for k in ("trust_in_speaker", "votes_received") if k in bounds]
+    if not outcomes:
+        return
+    fig, axes = plt.subplots(1, len(outcomes), figsize=(7.4 * len(outcomes), 4.4), constrained_layout=True)
+    axes = np.atleast_1d(axes)
+    for ax, outcome in zip(axes, outcomes):
+        bound = bounds[outcome]
+        keys = [k for k, _ in CONTRASTS]
+        ys = np.arange(len(keys))[::-1]
+        ax.axvspan(-bound, bound, color="#8A9E78", alpha=0.16, lw=0)
+        for y, key in zip(ys, keys):
+            e = tost.get(key, {}).get(outcome) or {}
+            if e.get("ci_low") is None:
+                continue
+            inside = e.get("equivalent") is True
+            colour = "#6080A0" if inside else "#A86B6B"
+            ax.plot([e["ci_low"], e["ci_high"]], [y, y], color=colour, linewidth=2.4, solid_capstyle="round")
+            point = (summary.get("flip_self", {}).get(key, {}).get(outcome) or {}).get("estimate")
+            ax.plot([point if point is not None else (e["ci_low"] + e["ci_high"]) / 2], [y],
+                    marker="o", markersize=7, color=colour)
+        ax.axvline(0, color="#555555", linewidth=1.1)
+        ax.set_yticks(ys)
+        ax.set_yticklabels([label for _, label in CONTRASTS])
+        ax.set_title(outcome.replace("_", " "), fontsize=13, fontweight="bold")
+        ax.set_xlabel(f"90% interval of the difference; band = ±{bound:.2f}")
+        ax.grid(axis="x", linestyle="--", alpha=0.25)
+        span = max(bound * 1.25, max((abs(v) for k in keys
+                                      for v in ((tost.get(k, {}).get(outcome) or {}).get("ci_low"),
+                                                (tost.get(k, {}).get(outcome) or {}).get("ci_high"))
+                                      if v is not None), default=bound))
+        ax.set_xlim(-span * 1.1, span * 1.1)
+    fig.suptitle("Every effect is smaller than replaying the day unchanged", fontsize=15, fontweight="bold")
+    fig.text(0.5, -0.05, "The band is how far one untreated re-run of the same checkpoint typically moves the "
+             "outcome. An interval inside the band says the rewriting changes the outcome less than re-running "
+             "the day does. Two one-sided tests on the 90% bootstrap interval over games.",
+             ha="center", va="top", fontsize=11, color="#444444")
+    save(fig, out / "equivalence")
 
 
 def save(fig, stem: Path) -> None:
@@ -448,6 +537,8 @@ def make_all(records: List[dict], summary: dict, out: Path, *, utterances: Optio
              "scope_contrasts": figure_scope_contrasts(rows, out)}
     figure_speaker_outcomes(summary, out)
     figure_self_response(summary, out)
+    figure_discussion(summary, out)
+    figure_equivalence(summary, out)
     if utterances is not None and scorer is not None:
         stats["manipulation_check"] = figure_manipulation_check(utterances, scorer, out)
     (out / "figure_stats.json").write_text(json.dumps(stats, indent=1))

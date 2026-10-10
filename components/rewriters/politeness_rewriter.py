@@ -12,6 +12,7 @@ is read from the single source of truth, ``lurkingwolf/prompts/prompt.json``.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -31,6 +32,10 @@ from lurkingwolf.utils.speech_nl import (
 )
 
 THINK_OPEN = re.compile(r"</?think\b", re.IGNORECASE)
+
+# Stands in for the predicate definition when hashing the prompt TEMPLATE, so one
+# hash per strategy covers every predicate. Same literal as the proficiency rewriter's.
+DEFINITION_PLACEHOLDER = "{predicate_definition}"
 
 
 POLITENESS_STRATEGIES: dict[str, str] = {
@@ -225,6 +230,7 @@ class PolitenessRewriter(Rewriter):
         self.temperature = float(temperature)
         self.max_tokens = int(max_tokens)
         self._applies_to = set(applies_to) if applies_to else None
+        self._template_hash = self.template_sha256()
         self.log_path = _engine_log_path()
         if self.log_path and self.log_path.exists():
             # The engine restarts an interrupted replay from its checkpoint: one log per attempt.
@@ -236,26 +242,8 @@ class PolitenessRewriter(Rewriter):
 
     # ── Prompting ──
 
-    def build_prompts(self, ctx: RewriteContext) -> tuple[str, str]:
-        """Return (system_prompt, user_prompt). Raises if the context is unusable."""
-        predicate_name = context_predicate_name(ctx)
-        if not predicate_name:
-            raise ValueError(
-                "RewriteContext must expose the predicate (directly or in metadata)"
-            )
-
-        definition = _ctx_value(ctx, "predicate_definition", "predicate_description")
-        if not definition:
-            definition = predicate_definition(predicate_name)
-        if not definition:
-            raise ValueError(
-                f"No predicate definition available for {predicate_name!r}; the "
-                "politeness rewriter needs it to preserve the predicate's semantic scope"
-            )
-
-        if not (ctx.original_nl or "").strip():
-            raise ValueError("RewriteContext.original_nl is empty; nothing to rewrite")
-
+    def _system_prompt(self, definition: str) -> str:
+        """The system prompt for this strategy, with ``definition`` in the predicate slot."""
         if self.strategy == "off_record":
             certainty_rule = (
                 "For off-record only, preserve the underlying intended proposition, "
@@ -299,6 +287,30 @@ class PolitenessRewriter(Rewriter):
             """
         ).strip()
 
+        return system_prompt
+
+    def build_prompts(self, ctx: RewriteContext) -> tuple[str, str]:
+        """Return (system_prompt, user_prompt). Raises if the context is unusable."""
+        predicate_name = context_predicate_name(ctx)
+        if not predicate_name:
+            raise ValueError(
+                "RewriteContext must expose the predicate (directly or in metadata)"
+            )
+
+        definition = _ctx_value(ctx, "predicate_definition", "predicate_description")
+        if not definition:
+            definition = predicate_definition(predicate_name)
+        if not definition:
+            raise ValueError(
+                f"No predicate definition available for {predicate_name!r}; the "
+                "politeness rewriter needs it to preserve the predicate's semantic scope"
+            )
+
+        if not (ctx.original_nl or "").strip():
+            raise ValueError("RewriteContext.original_nl is empty; nothing to rewrite")
+
+        system_prompt = self._system_prompt(definition)
+
         user_prompt = dedent(
             f"""\
             Predicate: {ctx.predicate}
@@ -311,6 +323,16 @@ class PolitenessRewriter(Rewriter):
         ).strip()
 
         return system_prompt, user_prompt
+
+    def prompt_sha256(self, ctx: RewriteContext) -> str:
+        """Hash of the system prompt as sent for THIS context (definition included)."""
+        system, _ = self.build_prompts(ctx)
+        return hashlib.sha256(system.encode("utf-8")).hexdigest()
+
+    def template_sha256(self) -> str:
+        """Hash of the system prompt with the predicate-definition slot left as a
+        placeholder: one value per strategy, whatever the predicate."""
+        return hashlib.sha256(self._system_prompt(DEFINITION_PLACEHOLDER).encode("utf-8")).hexdigest()
 
     # ── Rewriter interface ──
 
@@ -359,6 +381,7 @@ class PolitenessRewriter(Rewriter):
         row = {"speaker": getattr(ctx, "speaker_id", None), "phase": getattr(ctx, "phase", None),
                "predicate": getattr(ctx, "predicate", None), "strategy": self.strategy,
                "condition": self.strategy, "model": self.model, "temperature": self.temperature,
+               "prompt_sha256": self._template_hash,
                "status": "ok", "original_text": ctx.original_nl, "rewritten_text": text}
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
         with open(self.log_path, "a", encoding="utf-8") as handle:

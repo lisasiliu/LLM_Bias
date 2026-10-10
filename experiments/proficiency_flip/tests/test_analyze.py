@@ -43,11 +43,106 @@ class TrustAndNoiseTests(unittest.TestCase):
         rec = {"seed": "201", "day": 1, "baseline": {**identity, "role_dist": {"P1": "villager", "P2": "villager", "P3": "villager"}},
                "replays": {("nl", None, None): identity, ("nl", "repeat1", None): repeat}, "expected": {}, "gate": {}, "exposure": {}}
         d = fa.paired_differences([rec])
-        self.assertEqual(d["repeat_noise"]["votes_received"]["201"]["P1"], [1])
-        self.assertEqual(d["repeat_noise"]["trust_in_speaker"]["201"]["P1"], [0.5])
+        # the day fixes the vote total, so the signed difference carries no information and the
+        # spread of a single speaker's count is recorded instead
+        self.assertNotIn("votes_received", d["repeat_noise"])
+        self.assertEqual(d["repeat_spread"]["votes_received"]["201"]["P1"], [1])
         self.assertEqual(d["repeat_noise"]["changed_vote"]["201"]["P1"], [1])
-        self.assertNotIn("trust_in_speaker", fa.summarize([rec])["identity_vs_baseline"])
-        self.assertIn("identity repeat", fa.render(fa.summarize([rec])))
+        summary = fa.summarize([rec])
+        self.assertNotIn("trust_in_speaker", summary["identity_vs_baseline"])
+        self.assertNotIn("votes_received", summary["identity_vs_baseline"])
+        self.assertIn("votes_received", summary["identity_vs_repeat_spread"])
+        # the repeat is what sets the equivalence bound the summary reports
+        self.assertIn("largest difference worth calling an effect", fa.render(fa.summarize([rec])))
+
+
+class ResponseTests(unittest.TestCase):
+    def result(self):
+        line = lambda i, sp, pred: f"[s{i}|{sp}] {pred}: free text"
+        return {"alive_at_start": ["P1", "P2", "P3"], "role_dist": {"P1": "villager", "P2": "villager", "P3": "seer"},
+                "executed": None, "reliability": {"P2": {"P1": 8, "P3": 2}, "P3": {"P1": 4, "P2": 9}},
+                "votes_received": {}, "votes": {},
+                "speeches": [{"speaker": "P1", "predicates": [line(1, "P1", "estimate(D1, P1, P2, werewolf)")], "nl": []},
+                             {"speaker": "P2", "predicates": [line(2, "P2", "estimate(D1, P2, P1, werewolf)"),
+                                                              line(3, "P2", "recommend_action(D1, P2, P3, vote_execute, P1)")], "nl": []},
+                             {"speaker": "P3", "predicates": [line(4, "P3", "estimate(D1, P3, P1, villager)"),
+                                                              line(5, "P3", "question(D1, P3, P2)")], "nl": []}]}
+
+    def test_predicates_become_outcomes_about_the_treated_speaker(self):
+        from experiments.proficiency_flip.code.response import response_outcomes, speech_acts
+        acts = speech_acts(self.result())
+        self.assertEqual(len(acts), 5)
+        self.assertEqual(sum(1 for a in acts if a["target"]), 5)
+        o = response_outcomes(self.result(), "P1")
+        self.assertEqual((o["accused_by_others"], o["defended_by_others"], o["execution_urged"]), (1, 1, 1))
+        # P1 spoke first, so every mention of P1 by the others is a reaction
+        self.assertEqual(o["mentions_after_speaking"], 3)
+        self.assertAlmostEqual(o["share_accused_after_speaking"], 1 / 3)
+        last = response_outcomes(self.result(), "P3")
+        self.assertEqual(last["mentions_after_speaking"], 0)
+        self.assertIsNone(last["share_accused_after_speaking"])
+
+    def test_trust_rank_removes_the_assessors_own_scale(self):
+        from experiments.proficiency_flip.code.response import trust_rank
+        r = self.result()
+        # P2 ranks P1 above P3; P3 ranks P1 below P2; both are village and alive
+        self.assertEqual(trust_rank(r, "P1"), 0.5)
+        r["reliability"] = {"P2": {"P1": 1, "P3": 9}, "P3": {"P1": 2, "P2": 8}}
+        self.assertEqual(trust_rank(r, "P1"), 0.0)
+
+    def test_net_change_subtracts_the_identity_repeat_floor(self):
+        identity = phase({}, votes={"P1": "P2", "P2": "P1"}, alive=["P1", "P2"])
+        repeat = phase({}, votes={"P1": "P3", "P2": "P1"}, alive=["P1", "P2"])     # 1 of 2 votes differ
+        treated = phase({}, votes={"P1": "P3", "P2": "P3"}, alive=["P1", "P2"])    # 2 of 2 differ
+        rec = {"seed": "201", "day": 1, "baseline": {**identity, "role_dist": {}},
+               "replays": {("nl", None, None): identity, ("nl", "repeat1", None): repeat,
+                           ("flip_self", "low", "P1"): treated},
+               "expected": {}, "gate": {}, "exposure": {}}
+        net = fa.beyond_repeat([rec])
+        self.assertAlmostEqual(net["flip_self:low"]["estimate"], 0.5)
+
+    def test_equivalence_needs_the_interval_inside_the_bound(self):
+        diffs = {g: {"P1": [0.0]} for g in ("201", "202", "203")}
+        self.assertTrue(fa.equivalence(diffs, 0.5)["equivalent"] in (True, None))
+        wide = {"201": {"P1": [1.0]}, "202": {"P1": [-1.0]}, "203": {"P1": [1.0]}}
+        self.assertFalse(fa.equivalence(wide, 0.05)["equivalent"])
+
+
+class JointTestTests(unittest.TestCase):
+    def diffs(self, per_game):
+        return {g: {"P1": [v]} for g, v in per_game.items()}
+
+    def test_correlated_outcomes_are_one_test_not_three(self):
+        # every game shifts the same way, by varying amounts, in all three outcomes
+        games = {f"20{i}": -(1.0 + i * 0.1) for i in range(10)}
+        outcomes = {k: self.diffs(games) for k in fa.TARGETING}
+        joint = fa.joint_sign_flip(outcomes, n_perm=2000)
+        self.assertEqual((joint["n_games"], len(joint["outcomes"])), (10, 3))
+        # every game points the same way, so the sign-flip null almost never reaches it
+        self.assertLess(joint["p_sign_flip"], 0.01)
+        self.assertLess(joint["estimate"], 0)
+
+    def test_outcomes_that_cancel_give_nothing(self):
+        games = {f"20{i}": (1.0 + i * 0.1) * (1 if i % 2 else -1) for i in range(10)}
+        joint = fa.joint_sign_flip({k: self.diffs(games) for k in fa.TARGETING}, n_perm=2000)
+        self.assertGreater(joint["p_sign_flip"], 0.5)
+
+    def test_a_count_and_a_score_weigh_the_same(self):
+        # one outcome on a scale a hundred times larger must not dominate the composite
+        small = self.diffs({f"20{i}": -0.01 * (1 + i * 0.1) for i in range(8)})
+        large = self.diffs({f"20{i}": -1.0 * (1 + i * 0.1) for i in range(8)})
+        mixed = fa.joint_sign_flip({"votes_received": large, "accused_by_others": small,
+                                    "execution_urged": small}, n_perm=2000)
+        same = fa.joint_sign_flip({k: small for k in fa.TARGETING}, n_perm=2000)
+        self.assertAlmostEqual(mixed["estimate"], same["estimate"], places=6)
+
+    def test_a_game_missing_an_outcome_is_left_out(self):
+        full = {f"20{i}": -(1.0 + i * 0.1) for i in range(6)}
+        partial = dict(full); partial.pop("205")
+        joint = fa.joint_sign_flip({"votes_received": self.diffs(full),
+                                    "accused_by_others": self.diffs(partial),
+                                    "execution_urged": self.diffs(full)}, n_perm=500)
+        self.assertEqual(joint["n_games"], 5)
 
 
 class OutcomeTests(unittest.TestCase):
@@ -173,7 +268,7 @@ class OutcomeTests(unittest.TestCase):
     def test_render_handles_empty_blocks(self):
         s = fa.summarize([])
         text = fa.render(s)
-        self.assertIn("Replay availability", text)
+        self.assertIn("The treated speaker", text)
         self.assertIn("Proficiency flip replays", text)
 
 

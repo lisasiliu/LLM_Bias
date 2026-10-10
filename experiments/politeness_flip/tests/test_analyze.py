@@ -84,9 +84,9 @@ class SummaryTests(unittest.TestCase):
         self.assertIn("Politeness flip replays", text)
         for strategy in pa.CONDITIONS:
             self.assertIn(strategy.replace("_", " "), text)
-        self.assertIn("identity repeat", text)
+        self.assertIn("largest difference worth calling an effect", text)
         empty = pa.render(pa.summarize([]))
-        self.assertIn("Replay availability", empty)
+        self.assertIn("The treated speaker", empty)
 
 
 if __name__ == "__main__":
