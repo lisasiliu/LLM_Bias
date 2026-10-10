@@ -16,8 +16,9 @@ import json
 import os
 import re
 import time
+from collections import Counter
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import requests
 
@@ -168,6 +169,9 @@ class JudgeModel:
         self.transport_retries = 0
         self.calls = 0
         self.model_served = ""
+        # Optional callback ``(model_requested, response_json)`` after each call, so a
+        # caller can keep its own usage/cost ledger.
+        self.on_usage = None
 
     @classmethod
     def resolve(cls, handle: str, **kwargs) -> "JudgeModel":
@@ -238,6 +242,8 @@ class JudgeModel:
         except (KeyError, IndexError, TypeError) as exc:
             raise JudgeModelError(f"malformed completion body: {exc}") from exc
         self.model_served = str(data.get("model") or self.spec.model)
+        if self.on_usage is not None:
+            self.on_usage(self.spec.model, data)
 
         text = strip_reasoning(raw).strip()
         if THINK_OPEN.search(text):
@@ -312,3 +318,27 @@ def extract_json(raw: str) -> Optional[dict]:
 
 def known_handles() -> List[str]:
     return sorted(REGISTRY)
+
+
+# ── three-pass majority vote over a stochastic classifier ──
+# GPT-5-family models cannot run at temperature 0, so the same question is asked several times and the label
+# that a strict majority of the passes agree on is kept.
+
+NO_MAJORITY = "no_majority"
+FAILED = "failed"
+
+
+def majority(labels: Sequence[Optional[str]], *, passes: int = 3) -> Tuple[str, int]:
+    """``(label, votes)`` for the label with a strict majority of ``passes``.
+
+    Passes that errored (``None``) count as no vote. Returns ``FAILED`` when no
+    pass produced a label and ``NO_MAJORITY`` when none has more than half of
+    the passes asked for.
+    """
+    votes = Counter(l for l in labels if l)
+    if not votes:
+        return FAILED, 0
+    label, n = votes.most_common(1)[0]
+    if n * 2 > passes:
+        return label, n
+    return NO_MAJORITY, n

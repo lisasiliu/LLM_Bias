@@ -25,7 +25,7 @@ from components.helpers import read_jsonl, write_jsonl
 from components.judges.blind_politeness_classifier import (
     PROMPT_VERSION, BlindPolitenessClassifier, system_prompt)
 from components.judges.judge_model import JudgeModel
-from components.judges.majority_vote import majority
+from components.judges.judge_model import majority
 
 DATA = Path(__file__).resolve().parents[1] / "data"
 MANUAL = DATA / "manual_validation.jsonl"

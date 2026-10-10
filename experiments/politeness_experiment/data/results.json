@@ -1,0 +1,67 @@
+{
+  "seeds": [
+    "pe01",
+    "pe02",
+    "pe03",
+    "pe04",
+    "pe05",
+    "pe06",
+    "pe07",
+    "pe08",
+    "pe09",
+    "pe10",
+    "pe11",
+    "pe12",
+    "pe13",
+    "pe14",
+    "pe15",
+    "pe16",
+    "pe17",
+    "pe18",
+    "pe19",
+    "pe20"
+  ],
+  "fallback": {
+    "all_bald": {
+      "rewrite": 214,
+      "original_fallback": 25
+    },
+    "trust_positive": {
+      "rewrite": 198,
+      "original_fallback": 30,
+      "bald_fallback": 28
+    },
+    "trust_bald": {
+      "rewrite": 249,
+      "bald_fallback": 14,
+      "original_fallback": 12
+    },
+    "all_positive": {}
+  },
+  "primary": {
+    "liking_vs_all_bald": {
+      "n_pairs": 8,
+      "mean_diff": -0.15416666666666667,
+      "signflip_p": 0.546875,
+      "wilcoxon_p": 0.625
+    },
+    "flipped_vs_all_bald": {
+      "n_pairs": 12,
+      "mean_diff": -0.175,
+      "signflip_p": 0.234375,
+      "wilcoxon_p": 0.2734375
+    },
+    "liking_vs_flipped": {
+      "n_pairs": 9,
+      "mean_diff": 0.046296296296296294,
+      "signflip_p": 0.8125,
+      "wilcoxon_p": 0.6875
+    },
+    "all_positive_vs_all_bald": {
+      "n_pairs": 0,
+      "mean_diff": null,
+      "signflip_p": null,
+      "wilcoxon_p": null
+    }
+  }
+}

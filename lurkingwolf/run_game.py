@@ -635,9 +635,13 @@ def run_single_game(
     token_budget: Optional[int] = None,
     checkpoint_dir: Optional[Path] = None,
     rewriter=None,
+    resume_checkpoint: Optional[Path] = None,
 ) -> dict:
+    """Play one game. With ``resume_checkpoint`` (a ``night_0`` checkpoint written by
+    an earlier run) the game continues from there to the end instead of starting new;
+    the random state, agents and memories are restored from the checkpoint."""
 
-    if seed is not None:
+    if seed is not None and resume_checkpoint is None:
         random.seed(seed)  # random.seed accepts strings
 
     t_start = time.time()
@@ -646,9 +650,24 @@ def run_single_game(
     speech_mode = "natural" if experiment_type in NL_EXPERIMENT_TYPES else "predicate"
     experiment_full = EXPERIMENT_TYPES.get(experiment_type, experiment_type)
 
-    players = [f"P{i}" for i in range(1, num_players + 1)]
-    roles = randomize_roles(players)
-    state = GameState(game_id, players, roles)
+    resumed = None
+    if resume_checkpoint is not None:
+        from .checkpointing import load_checkpoint
+        resumed, agents, tracker = load_checkpoint(Path(resume_checkpoint), prompts, client)
+        state = resumed.state
+        players = list(state.players)
+        roles = dict(state.roles)
+        num_players = len(players)
+        # Count only the tokens this replay uses, not the baseline's.
+        tracker.total_input_tokens = 0
+        tracker.total_output_tokens = 0
+        tracker.call_count = 0
+        if verbose:
+            print(f"\nResuming game {game_id} from {resume_checkpoint}")
+    else:
+        players = [f"P{i}" for i in range(1, num_players + 1)]
+        roles = randomize_roles(players)
+        state = GameState(game_id, players, roles)
 
     if verbose:
         print(f"\n{'='*60}")
@@ -660,32 +679,38 @@ def run_single_game(
             print(f"Token budget: {token_budget:,}")
         print(f"{'='*60}")
 
-    tracker = TokenTracker(model, max_tokens=token_budget)
+    if resumed is None:
+        tracker = TokenTracker(model, max_tokens=token_budget)
 
-    agents: Dict[str, LLMAgent] = {}
-    for p in players:
-        agents[p] = LLMAgent(
-            player_id=p, role=roles[p], game_id=game_id,
-            model=model, client=client, prompts=prompts,
-            players=players,
-            temperature=temperature, max_tokens=max_tokens,
-            token_tracker=tracker,
-            speech_mode=speech_mode,
-        )
+        agents: Dict[str, LLMAgent] = {}
+        for p in players:
+            agents[p] = LLMAgent(
+                player_id=p, role=roles[p], game_id=game_id,
+                model=model, client=client, prompts=prompts,
+                players=players,
+                temperature=temperature, max_tokens=max_tokens,
+                token_tracker=tracker,
+                speech_mode=speech_mode,
+            )
 
     if rewriter is not None:
         for agent in agents.values():
             agent.rewriter = rewriter
+        if hasattr(rewriter, "bind"):
+            rewriter.bind(agents)   # lets a rewriter read live agent state (e.g. ratings)
 
-    # Seed initial facts
-    init_agent_facts(agents, state)
+    if resumed is None:
+        # Seed initial facts
+        init_agent_facts(agents, state)
 
-    timeline_order: List[str] = []
-    group_headers: Dict[str, dict] = {}  # group_key -> {alive_players, dead_players, sheriff}
-    reasoning_timeline: List[dict] = []
+    timeline_order: List[str] = list(resumed.timeline_order) if resumed else []
+    group_headers: Dict[str, dict] = (  # group_key -> {alive_players, dead_players, sheriff}
+        dict(resumed.group_headers) if resumed else {})
+    reasoning_timeline: List[dict] = list(resumed.reasoning_timeline) if resumed else []
 
-    per_phase_predicates: Dict[str, List[str]] = {}
-    _ph_mark = [0]
+    per_phase_predicates: Dict[str, List[str]] = (
+        dict(resumed.per_phase_predicates) if resumed else {})
+    _ph_mark = [resumed.ph_mark if resumed else 0]
     nl_log: List[dict] = []  # NL speech records for game_nl.json
 
     def _snap_phase(tl: str):
@@ -738,15 +763,27 @@ def run_single_game(
         )
 
     # ════════════ NIGHT 0 ════════════
-    _, pending_night_deaths = run_night_phase(
-        state, agents, timeline_order, group_headers, verbose, dry_run
-    )
-    pending_night = state.night
-    winner = None
+    if resumed is not None:
+        pending_night_deaths = list(resumed.meta["pending_night_deaths"])
+        pending_night = resumed.meta["pending_night"]
+        winner = None
+    else:
+        _, pending_night_deaths = run_night_phase(
+            state, agents, timeline_order, group_headers, verbose, dry_run
+        )
+        pending_night = state.night
+        winner = None
 
-    _snap_phase("night_0")
+        _snap_phase("night_0")
+        # Snapshot after night 0 and before any day-1 speech (sheriff election
+        # included), so a replay can start from here.
+        _save_ckpt("night_0", extra_meta={
+            "pending_night_deaths": list(pending_night_deaths),
+            "pending_night": pending_night,
+        })
 
     # ── Game loop: D1 -> N1 -> D2 -> N2 -> ... ──
+    last_discussion: List[str] = []      # previous day's speeches, shown to raters at the next rating
     for round_num in range(1, max_rounds + 1):
         if winner:
             break
@@ -963,9 +1000,11 @@ def run_single_game(
         # ── Update agent memory BEFORE discussion ──
         time_str = f"day_{day}"
         phase_snapshots = {}
+        state.current_turn_buffer = list(last_discussion)
         for p in state.get_alive():
             snapshot = agents[p].update_memory(state, time_str, dry_run=dry_run)
             phase_snapshots[p] = snapshot
+        state.current_turn_buffer.clear()
         reasoning_timeline.append({
             "timeline": time_str,
             "agents": phase_snapshots,
@@ -1047,6 +1086,7 @@ def run_single_game(
 
         # Restore discussion into turn buffer so voters can read it during day_vote
         state.current_turn_buffer = list(per_phase_predicates[discussion_timeline])
+        last_discussion = list(state.current_turn_buffer)
 
         # If WWK exploded during discussion, skip rest of day → go to night
         if wwk_exploded:

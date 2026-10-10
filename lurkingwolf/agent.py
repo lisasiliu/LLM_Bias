@@ -482,6 +482,9 @@ class LLMAgent:
                         speaker_id=self.player_id,
                         speaker_role_claimed=self.role,
                         public_history=list(state.public_history),
+                        day=getattr(state, "day", None),
+                        alive_players=list(state.get_alive()),
+                        speaker_reliability=dict(self.reliability),
                     )
                     texts[idx] = self.rewriter.rewrite(ctx)
 
