@@ -28,6 +28,7 @@ class RewriteContext:
     day: Optional[int] = None
     alive_players: Optional[List[str]] = None
     speaker_reliability: Optional[Dict[str, int]] = None  # the speaker's current 1-10 ratings
+    town_consensus: Optional[Dict[str, int]] = None  # wolf speakers only: last-snapshot town consensus score
 
 
 class Rewriter(ABC):

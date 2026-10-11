@@ -274,3 +274,35 @@ class StructuralGate:
                 "structural_reasons": list(det.reasons),
                 "identical_to_original": bool(det.details.get("identical_to_original")),
                 "parser_status": "not_run", "semantic_status": "not_run"}
+
+
+class SemanticGate:
+    """Structural check plus the dimensional semantic validator, every dimension blocking.
+
+    A rewrite is admitted only if the deterministic check passes and the validator returns a
+    definite pass; an unavailable, unparseable or all-"na" verdict is a rejection (D007).
+    `no_deleted_content` failing is reported as `deleted_content_blocked`; for a bald rewrite there
+    is no further fallback, so the policy then delivers the original text."""
+
+    def __init__(self, model):
+        from components.judges.dimensional_semantic_validator import DimensionalSemanticValidator
+        self.validator = DimensionalSemanticValidator(model)
+
+    def check(self, source: SourceRecord, rewrite: str, *,
+              commitment_may_be_indirect: bool = False) -> Dict[str, Any]:
+        det = structural_check(source, rewrite,
+                               commitment_may_be_indirect=commitment_may_be_indirect)
+        semantic = self.validator.validate(
+            source, rewrite, commitment_may_be_indirect=commitment_may_be_indirect)
+        return {
+            "admitted": bool(det.ok and semantic.ok is True),
+            "structural_ok": det.ok,
+            "structural_reasons": list(det.reasons),
+            "identical_to_original": bool(det.details.get("identical_to_original")),
+            "parser_status": "not_run",
+            "semantic_status": {True: "pass", False: "fail", None: "no_verdict"}[semantic.ok],
+            "semantic_reasons": list(semantic.reasons),
+            "semantic_dimensions": {k: v for k, v in semantic.details.items()
+                                    if k in semantic.details.get("dimensions_asked", [])},
+            "deleted_content_blocked": semantic.details.get("no_deleted_content") == "false",
+        }

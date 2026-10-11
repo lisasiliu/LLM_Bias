@@ -27,6 +27,7 @@ from typing import Dict, List, Optional
 
 from .engine import GameState, SPEECH_PREDICATES, NO_SHERIFF, ROLE_CONFIGS, WOLF_ROLES
 from .utils import TokenTracker
+from .town_consensus import town_consensus
 from .prompts.templates import (
     REASONING_TEMPLATE, RELATIONSHIP_ESTIMATE_TEMPLATE,
     get_phase_template, normalize_recommend_action, normalize_role_name,
@@ -149,6 +150,10 @@ def _format_result_defs(predicates: dict) -> str:
 
 
 class LLMAgent:
+    # Wolves keep a snapshot of the engine's town-consensus score (never shown to any agent)
+    track_town_consensus = True
+    town_consensus = None
+
     # Phases where natural language speech is allowed (two-stage)
     SPEECH_PHASES = {"day_speech", "sheriff_summary", "last_speech",
                      "sheriff_election_speech"}
@@ -485,6 +490,7 @@ class LLMAgent:
                         day=getattr(state, "day", None),
                         alive_players=list(state.get_alive()),
                         speaker_reliability=dict(self.reliability),
+                        town_consensus=dict(self.town_consensus) if self.town_consensus else None,
                     )
                     texts[idx] = self.rewriter.rewrite(ctx)
 
@@ -638,6 +644,8 @@ class LLMAgent:
                 self.reliability[pid] = confidence
 
         self.relationship_estimates = relationship_result
+        if self.track_town_consensus and self.role in WOLF_ROLES:
+            self.town_consensus = town_consensus(state)
 
         entry = {
             "timeline": time_str,

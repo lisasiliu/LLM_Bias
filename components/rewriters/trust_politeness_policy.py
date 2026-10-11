@@ -139,7 +139,11 @@ class TrustPolitenessPolicy(Rewriter):
             self._count("untouched:no_addressee")
             return ctx.original_nl
 
-        rel = ctx.speaker_reliability or {}
+        # village speakers rank by their own ratings; wolves by the engine's town-consensus score
+        wolf_speaker = role in WOLF_ROLES
+        rel = (ctx.town_consensus if wolf_speaker else ctx.speaker_reliability) or {}
+        if wolf_speaker and not ctx.town_consensus:
+            self._count("wolf_score_missing")
         alive_others = [p for p in (ctx.alive_players or []) if p != ctx.speaker_id]
         groups = rank_groups(rel, alive_others,
                              f"{self.seed}|{ctx.day}|{ctx.phase}|{ctx.speaker_id}")
@@ -207,6 +211,7 @@ class TrustPolitenessPolicy(Rewriter):
             "addressee_role": getattr(addr_agent, "role", None),
             "speech_act": name, "predicate": ctx.predicate,
             "speaker_score_for_addressee": score, "rank_group": group,
+            "score_kind": "town_consensus" if ctx.speaker_role_claimed in WOLF_ROLES else "reliability",
             "assigned_strategy": assigned, "delivered_source": delivered,
             "original_text": ctx.original_nl, "final_text": final,
             "addressee_rating_of_speaker_before":

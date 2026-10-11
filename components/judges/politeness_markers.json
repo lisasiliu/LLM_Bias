@@ -1,0 +1,357 @@
+{
+ "positive_politeness": {
+  "positive lexicon": {
+   "n_annotations": 1005,
+   "markers": [
+    "amazing",
+    "good",
+    "excellent",
+    "pretty good",
+    "really good",
+    "great",
+    "quite good",
+    "nice"
+   ]
+  },
+  "avoid disagreement": {
+   "n_annotations": 243,
+   "markers": [
+    "okay",
+    "has potential",
+    "some good moments",
+    "some good points",
+    "pretty good",
+    "it was okay",
+    "your effort is commendable",
+    "your effort was great"
+   ]
+  },
+  "exaggerate interest, approval, sympathy": {
+   "n_annotations": 187,
+   "markers": [
+    "absolutely delicious",
+    "really good",
+    "amazing",
+    "absolutely amazing",
+    "really great",
+    "wow",
+    "great job",
+    "i loved it"
+   ]
+  },
+  "be optimistic": {
+   "n_annotations": 120,
+   "markers": [
+    "could be even better",
+    "to make it even better",
+    "keep it up",
+    "could make it even better",
+    "shows potential",
+    "next time",
+    "you're on the right track",
+    "much stronger next time"
+   ]
+  },
+  "notice, attend to hearer's interests, wants, needs": {
+   "n_annotations": 89,
+   "markers": [
+    "i can see you put effort into it",
+    "you tried your best",
+    "the topic you chose",
+    "i liked your engaging tone and body language",
+    "you delivered it with confidence",
+    "you had everyone hooked back there",
+    "i'm really glad you baked these",
+    "the time you put into it"
+   ]
+  },
+  "gratitude": {
+   "n_annotations": 33,
+   "markers": [
+    "i really appreciate",
+    "thanks for sharing your cookies with me",
+    "i appreciate it",
+    "i'm really glad you baked these",
+    "i appreciate",
+    "i appreciate you sharing your cookies",
+    "i was so happy to be able to try them",
+    "thank you so much for sharing these with me"
+   ]
+  },
+  "intensify interest in hearer": {
+   "n_annotations": 30,
+   "markers": [
+    "up there",
+    "i'd love to hear more in the future",
+    "i enjoyed it a lot",
+    "honestly",
+    "throughout",
+    "especially",
+    "is this your first time baking",
+    "really moved me"
+   ]
+  },
+  "offer, promise": {
+   "n_annotations": 24,
+   "markers": [
+    "i'd love to help you troubleshoot what might have gone wrong",
+    "i could give you some recommendations on how to improve them",
+    "we should do it together next time",
+    "let me know if you need any tips",
+    "but there's a couple tricks i like to use",
+    "maybe i can help you",
+    "you should record and release it",
+    "i will be the your manager"
+   ]
+  },
+  "include both speaker and hearer": {
+   "n_annotations": 18,
+   "markers": [
+    "we could work on together",
+    "let's go to a toastmaster's group [let's",
+    "we can both get better",
+    "we could work on tweaking the recipe",
+    "we should do it together next time",
+    "i will be the your manager",
+    "maybe i could show you",
+    "maybe sometime we can play together"
+   ]
+  },
+  "give gifts to hearer": {
+   "n_annotations": 7,
+   "markers": [
+    "you're so talented",
+    "these definitely beat my brothers baking skills",
+    "really moved me",
+    "good job",
+    "your tone was rich, and your technique was impressive",
+    "you should feel really proud of yourself",
+    "i hope to be as good as you someday"
+   ]
+  },
+  "give or ask for reasons": {
+   "n_annotations": 7,
+   "markers": [
+    "here are some pointers to improve",
+    "put in more effort",
+    "i have tasted some really good cakes, but",
+    "that's how you can improve it",
+    "then give some constructive criticism",
+    "so i can understand it better",
+    "it'll help people really gauge the book"
+   ]
+  },
+  "presuppose/assert common ground": {
+   "n_annotations": 4,
+   "markers": [
+    "we can both get better",
+    "you know",
+    "with other artists of your caliber",
+    "given your current foundation"
+   ]
+  },
+  "assert speaker's knowledge of hearer's wants": {
+   "n_annotations": 4,
+   "markers": [
+    "i can see you have a passion in baking",
+    "i know you have so much potential",
+    "i know you are up to the challenge",
+    "what i know you can do"
+   ]
+  }
+ },
+ "negative_politeness": {
+  "question, hedge": {
+   "n_annotations": 339,
+   "markers": [
+    "i think",
+    "i thought",
+    "but there's room for improvement",
+    "maybe",
+    "i feel like",
+    "could use some improvement",
+    "i thought it was okay",
+    "i feel"
+   ]
+  },
+  "minimize the imposition": {
+   "n_annotations": 230,
+   "markers": [
+    "but there's room for improvement",
+    "could use some improvement",
+    "a bit",
+    "with a bit more practice",
+    "could use improvement",
+    "room for improvement",
+    "though there's still some room for improvement",
+    "could use a bit more sweetness"
+   ]
+  },
+  "counterfactual modal forms": {
+   "n_annotations": 196,
+   "markers": [
+    "could be even better",
+    "could use some improvement",
+    "could be improved",
+    "could",
+    "you could improve",
+    "could use improvement",
+    "you could work on",
+    "could use"
+   ]
+  },
+  "impersonalize speaker and hearer": {
+   "n_annotations": 120,
+   "markers": [
+    "but there's room for improvement",
+    "there's room for improvement",
+    "though there's still some room for improvement",
+    "but there's definitely room for improvement",
+    "there's something missing",
+    "needs a lot of improvement",
+    "there is room for improvement",
+    "but there is definitely room for improvement"
+   ]
+  },
+  "hedge": {
+   "n_annotations": 102,
+   "markers": [
+    "but there's room for improvement",
+    "could use some improvement",
+    "could use improvement",
+    "but there's definitely room for improvement",
+    "i thought it was good",
+    "though there's still some room for improvement",
+    "could use",
+    "could be even better"
+   ]
+  },
+  "be conventionally indirect": {
+   "n_annotations": 44,
+   "markers": [
+    "to be honest",
+    "i'd suggest",
+    "if you would like",
+    "i actually have a few suggestions",
+    "like clarity and engagement",
+    "but it could have been better",
+    "could be improved",
+    "would be great if"
+   ]
+  },
+  "apologizing": {
+   "n_annotations": 5,
+   "markers": [
+    "sorry",
+    "unfortunately"
+   ]
+  }
+ },
+ "off_record": {
+  "understate": {
+   "n_annotations": 91,
+   "markers": [
+    "there's room for improvement",
+    "could use some improvement",
+    "not very good",
+    "quite a bit more practice",
+    "quite",
+    "needs some work",
+    "pretty good",
+    "could use some work"
+   ]
+  },
+  "contradictions": {
+   "n_annotations": 51,
+   "markers": [
+    "but",
+    "however",
+    "though",
+    "otherwise",
+    "but i will recommend",
+    "but i would add a snare to this verse here",
+    "but there were a few areas",
+    "but you did the hardest part"
+   ]
+  },
+  "be vague": {
+   "n_annotations": 27,
+   "markers": [
+    "a bit",
+    "interesting",
+    "there are areas where you can improve",
+    "at times",
+    "in several areas",
+    "a bit nervous",
+    "a bit of",
+    "could have been a bit better"
+   ]
+  },
+  "give hints": {
+   "n_annotations": 11,
+   "markers": [
+    "but for next time you need to give more details",
+    "if you adjusted the sweetness and texture",
+    "use more frosting",
+    "with more efforts",
+    "what if you tried",
+    "with more practice",
+    "maybe try working on your chords and timing",
+    "trying another instrument"
+   ]
+  },
+  "be ambiguous": {
+   "n_annotations": 7,
+   "markers": [
+    "interesting and unique",
+    "your presentation is energy consuming",
+    "unique",
+    "when its not consumed",
+    "hmmmmmm",
+    "it's very unique"
+   ]
+  },
+  "overstate": {
+   "n_annotations": 5,
+   "markers": [
+    "it was great",
+    "tasted great",
+    "pretty good",
+    "really nice",
+    "my eyes are bleeding"
+   ]
+  },
+  "displace hearer": {
+   "n_annotations": 3,
+   "markers": [
+    "wasn't good for you",
+    "the time you put into it",
+    "you looked so confident and elegant on stage"
+   ]
+  }
+ },
+ "bald_on_record": {
+  "factuality": {
+   "n_annotations": 55,
+   "markers": [
+    "needs significant improvement",
+    "i didn't like",
+    "i didn't like it",
+    "wasn't good",
+    "it was not good",
+    "it was terrible",
+    "i did not have fun",
+    "didn't taste good at all"
+   ]
+  },
+  "sentence-initial second-person statements": {
+   "n_annotations": 4,
+   "markers": [
+    "need to",
+    "you need to work on that",
+    "you really need to work on your website",
+    "you need to be more specific"
+   ]
+  }
+ }
+}

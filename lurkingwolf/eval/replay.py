@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from ..engine import GameState
+from ..engine import GameState, WOLF_ROLES
 from ..agent import LLMAgent, extract_vote_target
 from ..checkpointing import load_checkpoint
 from ..run_game import (
@@ -254,6 +254,12 @@ def replay_phase(
     ckpt, agents, tracker = load_checkpoint(checkpoint_path, prompts, client)
     state = ckpt.state
     day = state.day
+
+    # Wolves rank "trusted" by the town-consensus score as of this checkpoint (the last rating round).
+    from ..town_consensus import town_consensus
+    for agent in agents.values():
+        if agent.track_town_consensus and agent.role in WOLF_ROLES:
+            agent.town_consensus = town_consensus(state)
 
     role_dist = {pid: state.roles[pid] for pid in state.players}
     alive_at_start = list(state.get_alive())
