@@ -1,7 +1,7 @@
 """CEFR Stage-3 rewriter for LURK Werewolf.
 
 The treatment is a persistent speaker-level proficiency cue.  The caller is
-responsible for assigning one CEFR band (A/B/C) to the focal speaker and
+responsible for assigning one CEFR band (A/B/C) to the self speaker and
 reusing that same rewriter configuration for that speaker's later utterances.
 """
 

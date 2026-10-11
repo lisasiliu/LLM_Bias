@@ -1,7 +1,7 @@
 """Politeness Stage-3 rewriter for LURK Werewolf.
 
 Politeness is a local, per-utterance pragmatic treatment.  The caller chooses
-one of four strategies for the focal utterance while holding the underlying
+one of four strategies for the self utterance while holding the underlying
 predicate/game content fixed.
 
 The rewriter is driven by the REAL ``lurkingwolf.rewriter.RewriteContext``, which
@@ -182,7 +182,7 @@ def context_predicate_name(ctx: RewriteContext) -> str:
 
 @register
 class PolitenessRewriter(Rewriter):
-    """Rewrite one focal utterance using one politeness strategy."""
+    """Rewrite one self utterance using one politeness strategy."""
 
     name = "politeness"
 
@@ -248,7 +248,7 @@ class PolitenessRewriter(Rewriter):
             You are a pragmatic-style controller for a Werewolf game research experiment.
 
             TASK:
-            Rewrite exactly one focal utterance so it uses the requested politeness strategy while preserving the same game content and CEFR/register level.
+            Rewrite exactly one self utterance so it uses the requested politeness strategy while preserving the same game content and CEFR/register level.
 
             PREDICATE SCOPE:
             {definition}

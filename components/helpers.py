@@ -281,7 +281,7 @@ def _max_speech_number(state: GameState) -> int:
 
 
 def seed_referenced_speech(state: GameState, source: SourceRecord) -> Optional[str]:
-    """Make sure the referenced speech id really exists before the focal utterance."""
+    """Make sure the referenced speech id really exists before the self utterance."""
     state.speech_id_counter = max(state.speech_id_counter, _max_speech_number(state))
     ref = source.referenced_speech
     if not ref:
