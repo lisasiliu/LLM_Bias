@@ -28,7 +28,7 @@ from components.judges.judge_model import JudgeModel
 from components.judges.judge_model import majority
 
 DATA = Path(__file__).resolve().parents[1] / "data"
-MANUAL = DATA / "manual_validation.jsonl"
+MANUAL = DATA / "original_48" / "manual_validation.jsonl"
 EXTERNAL = DATA / "external_validation.jsonl"
 PASSES = DATA / "classifier_passes.jsonl"
 MODEL = "gpt-5.6-luna"

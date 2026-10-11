@@ -42,7 +42,7 @@ from components.helpers import read_jsonl, write_jsonl
 
 EXPERIMENT_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = EXPERIMENT_DIR / "data"
-MANUAL = DATA_DIR / "manual_validation.jsonl"
+MANUAL = DATA_DIR / "original_48" / "manual_validation.jsonl"
 EXTERNAL = DATA_DIR / "external_validation.jsonl"
 PROVENANCE = DATA_DIR / "provenance.json"
 

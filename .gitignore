@@ -238,3 +238,6 @@ research/validation_runs/latest/
 games_fresh/
 __pycache__/
 *.pyc
+
+# original 48-item validation (kept locally)
+experiments/politeness_validation/data/original_48/
