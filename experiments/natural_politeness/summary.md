@@ -28,8 +28,7 @@ strategy can attach to (`estimate`, `disagree`, `question`, `recommend_action`,
 
 **Strategy labels.** Each utterance is labelled bald on-record, positive
 politeness, negative politeness or off-record by the LLM politeness judge
-(`gpt-5.6-luna`, three passes, majority label; described in
-`experiments/politeness_validation/VALIDATION.md`). The judge sees the utterance,
+(`gpt-5.6-luna`, three passes, majority label; validated in `experiments/politeness_validation/`). The judge sees the utterance,
 speaker and phase only. In 1,218 of 1,429 utterances all three passes agree; 3
 utterances have no majority and appear in no strategy column below.
 

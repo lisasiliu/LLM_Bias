@@ -1,1 +1,0 @@
-"""Politeness rewrite-validation experiment."""
