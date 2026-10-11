@@ -267,7 +267,6 @@ experiments/*/figures/
 /experiments/proficiency_validation/data/automatic_validation.jsonl
 /experiments/proficiency_validation/data/provenance.json
 /experiments/proficiency_validation/VALIDATION.md
-/experiments/determinism/*.out
 # Per-call token and spend records of the paid judges
 experiments/proficiency_validation/data/api_usage.jsonl
 

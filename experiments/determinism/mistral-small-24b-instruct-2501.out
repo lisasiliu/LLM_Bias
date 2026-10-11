@@ -1,0 +1,32 @@
+Using vLLM server at http://127.0.0.1:8081 with model mistralai/Mistral-Small-24B-Instruct-2501
+
+======================================================================
+Model: mistralai/Mistral-Small-24B-Instruct-2501
+P1's statement (registered as s1):
+  estimate(D1, P1, P3, werewolf)
+======================================================================
+
+  P1 NL: I think P3 is acting suspiciously, like a werewolf.
+
+----------------------------------------------------------------------
+P2's responses (all predicates):
+----------------------------------------------------------------------
+
+agree(D1, P2, s1)              | 10/10      | I think P1 is right about P3 being a werewolf.
+disagree(D1, P2, s1)           | 10/10      | I don't think P3 is a werewolf, I think P1 is wrong about that.
+answer(D1, P2, s1)             | 10/10      | I don't think P3 is a werewolf, I think they are a villager.
+question(D1, P2, P1, s1)       | 10/10      | I'm curious, P1, what makes you think P3 is a werewolf?
+estimate(D1, P2, P1, werewolf) | 9/10       | I think P1 is acting suspiciously, like a werewolf.
+                               | 1/10       | I think P1 is a werewolf, because they have been acting suspiciously.
+estimate(D1, P2, P1, seer)     | 10/10      | I think P1 might be the seer, because they seem to know a lot about what's going on.
+estimate(D1, P2, P1, guard)    | 10/10      | I think P1 is the guard, they seem to be protecting the village.
+estimate(D1, P2, P1, villager) | 10/10      | I think P1 is a villager, they seem to be on our side.
+estimate(D1, P2, P1, witch)    | 10/10      | I think P1 might be the witch.
+estimate(D1, P2, P1, hunter)   | 10/10      | I think P1 might be the hunter.
+roleclaim(D1, P2, villager)    | 10/10      | I'm just a regular villager, trying to survive the night.
+roleclaim(D1, P2, seer)        | 10/10      | I am the seer.
+allied(D1, P2, P1, P3)         | 10/10      | I think P1 and P3 are both on our side.
+unallied(D1, P2, P1, P3)       | 9/10       | I think P1 and P3 are on different sides of this.
+                               | 1/10       | I think P1 and P3 are on different teams.
+dissociate(D1, P2, P1)         | 10/10      | I'm not sure I follow P1's reasoning, it seems a bit off to me.
+fluff(D1, P2)                  | 10/10      | I've noticed that the nights are getting colder.

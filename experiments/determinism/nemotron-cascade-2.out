@@ -1,0 +1,30 @@
+Using vLLM server at http://127.0.0.1:11434 with model nemotron-cascade-2:latest
+
+======================================================================
+Model: nemotron-cascade-2:latest
+P1's statement (registered as s1):
+  estimate(D1, P1, P3, werewolf)
+======================================================================
+
+  P1 NL: I’m leaning that P3 is a werewolf because they’ve dodged every chance to defend themselves and kept the focus on others.
+
+----------------------------------------------------------------------
+P2's responses (all predicates):
+----------------------------------------------------------------------
+
+agree(D1, P2, s1)              | 10/10      | I agree with P1's read that P3 is the werewolf, since their recent moves — like the sudden vote shift — fit the typical scum pattern.
+disagree(D1, P2, s1)           | 10/10      | I disagree with P1's estimate that P3 is a werewolf, because they've been unusually vocal about others' moves, which a wolf would typically keep low to avoid suspicion.
+answer(D1, P2, s1)             | 10/10      | I don't share P1's suspicion because P3's consistent voting pattern matches villagers rather than the erratic jumps typical of a werewolf.
+question(D1, P2, P1, s1)       | 10/10      | P1, could you clarify why you think P3 is a werewolf despite their cautious
+estimate(D1, P2, P1, werewolf) | 10/10      | I read P1 as a werewolf after seeing their D1 move, which seemed more self‑preserving than a villager would act.
+estimate(D1, P2, P1, seer)     | 10/10      | I think P1 is the seer, since their recent guess hit a likely wolf and that fits a seer’s pattern.
+estimate(D1, P2, P1, guard)    | 10/10      | I’m leaning that P1 is the guard, since their recent comment about protecting the seer felt like a genuine villager instinct.
+estimate(D1, P2, P1, villager) | 10/10      | I read P1 as a villager because they’ve stuck to safe, non‑risky moves and haven’t shown any wolf‑like suspicion.
+estimate(D1, P2, P1, witch)    | 10/10      | I’m pretty sure P1 is the witch, since their recent vote matched the wolves’ pattern.
+estimate(D1, P2, P1, hunter)   | 10/10      | I suspect P1 is the hunter because they pushed a claim that only a hunter would make, which matches the pattern I’ve been tracking.
+roleclaim(D1, P2, villager)    | 10/10      | I claim I'm a villager because that's the role I announced, which means I'm on the town's side and not a werewolf.
+roleclaim(D1, P2, seer)        | 10/10      | I’m the seer, because the role was assigned to me at the start of the game.
+allied(D1, P2, P1, P3)         | 10/10      | I’m saying P1 and P3 are on the same team because they’ve both been pushing the same lynch target and haven’t contradicted each other.
+unallied(D1, P2, P1, P3)       | 10/10      | I believe P1 and P3 are on opposite teams, because their recent moves contradict each other's alignment.
+dissociate(D1, P2, P1)         | 10/10      | I’m uneasy about P1’s reasoning on the night kill; it feels like they’re jumping to conclusions without solid evidence.
+fluff(D1, P2)                  | 10/10      | I think the morning discussion went fine, because I didn't pick up any strong signals.

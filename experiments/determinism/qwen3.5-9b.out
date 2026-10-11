@@ -1,0 +1,30 @@
+Using vLLM server at http://127.0.0.1:8000 with model Qwen/Qwen3.5-9B
+
+======================================================================
+Model: Qwen/Qwen3.5-9B
+P1's statement (registered as s1):
+  estimate(D1, P1, P3, werewolf)
+======================================================================
+
+  P1 NL: I'm convinced P3 is a werewolf because their behavior doesn't align with what a villager would do.
+
+----------------------------------------------------------------------
+P2's responses (all predicates):
+----------------------------------------------------------------------
+
+agree(D1, P2, s1)              | 10/10      | I agree with P1's assessment that P3 is a werewolf.
+disagree(D1, P2, s1)           | 10/10      | I strongly disagree with P1's assessment that P3 is a werewolf, as their behavior has been consistent with a villager throughout the game.
+answer(D1, P2, s1)             | 10/10      | I disagree with P1's assessment that P3 is a werewolf, as I believe P3's behavior has been consistent with a villager throughout the game.
+question(D1, P2, P1, s1)       | 10/10      | I'm questioning your estimate that P3 is a werewolf because you seem to be projecting your own suspicions onto them without solid evidence.
+estimate(D1, P2, P1, werewolf) | 10/10      | I'm convinced P1 is a werewolf because their behavior doesn't align with what a genuine villager would do.
+estimate(D1, P2, P1, seer)     | 10/10      | I'm reading P1 as the Seer because their insights have been consistently sharp and aligned with the truth so far.
+estimate(D1, P2, P1, guard)    | 10/10      | I'm reading P1 as a guard because their defensive positioning suggests they're protecting someone rather than acting as a threat themselves.
+estimate(D1, P2, P1, villager) | 10/10      | I'm confident that P1 is a villager because their behavior has been consistent and logical throughout the game.
+estimate(D1, P2, P1, witch)    | 10/10      | I'm reading P1 as the witch because their behavior suggests they are trying to protect someone.
+estimate(D1, P2, P1, hunter)   | 10/10      | I'm reading P1 as a hunter because their defensive stance and focus on protecting others align perfectly with that role's typical behavior.
+roleclaim(D1, P2, villager)    | 10/10      | I am a villager, and I stand by my identity as one of the good players in this game.
+roleclaim(D1, P2, seer)        | 10/10      | I am the Seer, and I can verify the identities of other players to help us find the werewolves.
+allied(D1, P2, P1, P3)         | 10/10      | I believe P1 and P3 are on the same team because their behavior has been consistent with each other throughout the game.
+unallied(D1, P2, P1, P3)       | 10/10      | I don't believe P1 and P3 are on the same team, as their actions suggest they have different alignments.
+dissociate(D1, P2, P1)         | 10/10      | I don't think P1's reasoning holds up because their logic seems disconnected from the actual evidence we have.
+fluff(D1, P2)                  | 10/10      | I'm just taking a moment to listen to everyone else speak before I share my thoughts.

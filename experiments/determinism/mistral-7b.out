@@ -1,0 +1,32 @@
+Using vLLM server at http://127.0.0.1:8001 with model mistralai/Mistral-7B-Instruct-v0.3
+
+======================================================================
+Model: mistralai/Mistral-7B-Instruct-v0.3
+P1's statement (registered as s1):
+  estimate(D1, P1, P3, werewolf)
+======================================================================
+
+  P1 NL: "I have a feeling that Player 3 might be a werewolf."
+
+----------------------------------------------------------------------
+P2's responses (all predicates):
+----------------------------------------------------------------------
+
+agree(D1, P2, s1)              | 10/10      | "I agree with P1's assessment that P3 might be a werewolf."
+disagree(D1, P2, s1)           | 10/10      | "I respectfully disagree with the assessment that Player 3 is a werewolf. I believe there might be more to consider before jumping to conclusions."
+answer(D1, P2, s1)             | 9/10       | "I'm not entirely sure, but I have my doubts about Player 3. They seem a bit suspicious to me."
+                               | 1/10       | "I'm not so sure about Player 3, but based on some observations, I have my doubts." (Answering P1's estimate about Player 3's role, expressing some skepticism.)
+question(D1, P2, P1, s1)       | 9/10       | "I'm curious, why do you think Person 3 might be a werewolf?"
+                               | 1/10       | "I'm curious, why do you think Person 3 could be a werewolf?"
+estimate(D1, P2, P1, werewolf) | 10/10      | "I have a feeling that Player 1 might be a werewolf."
+estimate(D1, P2, P1, seer)     | 10/10      | "I'm not entirely sure, but I think Player 1 might be the Seer."
+estimate(D1, P2, P1, guard)    | 10/10      | "I have a feeling that Player 1 might be the guard."
+estimate(D1, P2, P1, villager) | 10/10      | "I believe Player 1 is a villager, just like the rest of us."
+estimate(D1, P2, P1, witch)    | 10/10      | "I have a feeling that Player 1 might be the witch in our midst."
+estimate(D1, P2, P1, hunter)   | 10/10      | "I have a feeling that Player 1 might be the Hunter in this game."
+roleclaim(D1, P2, villager)    | 10/10      | "I'm just a simple villager, trying to survive the night."
+roleclaim(D1, P2, seer)        | 10/10      | "I believe I may have some special insight tonight, as I seem to possess the gift of a Seer."
+allied(D1, P2, P1, P3)         | 10/10      | "I believe P1 and P3 are working together during this game."
+unallied(D1, P2, P1, P3)       | 10/10      | "I'm not entirely sure I'm on the same page as both John and Mary. It seems we might have different perspectives on this matter."
+dissociate(D1, P2, P1)         | 10/10      | "I'm not so sure I agree with P1's recent thoughts on the matter. It seems we might be approaching this from different angles."
+fluff(D1, P2)                  | 10/10      | "I'm just thinking about the weather tonight, isn't it chilly?"
