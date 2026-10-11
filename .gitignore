@@ -258,6 +258,7 @@ __pycache__/
 /experiments/politeness_flip/data/runs/
 # Figures are regenerated from the recorded games by each experiment's figures.py
 experiments/*/figures/
+!experiments/natural_politeness/figures/
 # Everything the cluster produced and everything built from it: the summaries and the
 # validation report are rebuilt by analyze.py and the validation CLI from the recorded runs.
 /experiments/proficiency_flip/summary.md
