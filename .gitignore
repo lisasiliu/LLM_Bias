@@ -258,9 +258,15 @@ __pycache__/
 /experiments/politeness_flip/data/runs/
 # Figures are regenerated from the recorded games by each experiment's figures.py
 experiments/*/figures/
-# The flip summaries are regenerated from the recorded games by each experiment's analyze.py
+# Everything the cluster produced and everything built from it: the summaries and the
+# validation report are rebuilt by analyze.py and the validation CLI from the recorded runs.
 /experiments/proficiency_flip/summary.md
 /experiments/politeness_flip/summary.md
+/experiments/proficiency_validation/data/runs/
+/experiments/proficiency_validation/data/automatic_validation.jsonl
+/experiments/proficiency_validation/data/provenance.json
+/experiments/proficiency_validation/VALIDATION.md
+/experiments/determinism/*.out
 # Per-call token and spend records of the paid judges
 experiments/proficiency_validation/data/api_usage.jsonl
 
