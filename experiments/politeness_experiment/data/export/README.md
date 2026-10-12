@@ -15,7 +15,11 @@ consensus guess); top half (middle player included) is trusted.
 ## Files
 - `replays.csv`: one row per replay (1,860). `condition` = control or a setting. `skill_change_rate`, `vote_change_rate`,
   `reliability_change_rate` = share of night-action targets / vote targets / reliability scores that differ from the baseline phase
-  (`mean_reliability_delta` = mean signed change). `votes_on_self_*` and `executed_*` compare with the baseline. `treated_utterances`
+  (`mean_reliability_delta` = mean signed change over all scores).
+  Reliability size measures (scores are 1-10; baseline phase vs replay, same assessor and target): `mean_abs_point_change` (mean absolute
+  change over all scores), `share_scores_moved_2plus` (share of scores that moved by 2 or more points), `self_trust_change_all_assessors`
+  (mean signed change in the scores the other players give the self player) and `self_trust_change_village_assessors` (the same, village
+  assessors only; a wolf's score for another player is its role-guess confidence, not trust, so this is the trust reading). `votes_on_self_*` and `executed_*` compare with the baseline. `treated_utterances`
   / `original_delivered` = rewrites attempted / delivered as the original wording after the gate. `cost_usd_ledger` is the ledger's
   DeepSeek-priced estimate.
 - `treated_utterances.csv`: one row per treated utterance (5,109 incl. repetitions). `rank_group` is the group used for the setting
@@ -25,7 +29,7 @@ consensus guess); top half (middle player included) is trusted.
   `evidence_dropped`, `added_epistemic_hedge`, `lost_action_slot`, ...). Texts: `original_text`, `attempt1_text`, `delivered_text`.
 - `seed_setting_summary.csv`: per seed and setting: treated, failed first attempt, rescued by retry, original delivered, replays and cost
   of the seed.
-- `e3_player_days.csv`: the E3 input, one row per (seed, day, self player) with control and each setting's three rates (repetitions
+- `e3_player_days.csv`: the E3 input, one row per (seed, day, self player) with control and each setting's seven measures (the three rates and the four reliability size measures) (repetitions
   averaged). E3 = setting minus control, pooled over player-days, 95% interval from a seed-clustered bootstrap (2000 draws),
   also reported without pe01. Results: `../../results.md`.
 

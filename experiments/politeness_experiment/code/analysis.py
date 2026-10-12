@@ -201,6 +201,28 @@ def cmd_metrics(args) -> int:
     return 0
 
 
+def reliability_detail(baseline, result: dict) -> list:
+    """Size of the reliability-score changes between the baseline phase and a replay (scores are 1-10).
+    Returns [mean absolute point change over all scores, share of scores that moved by 2 or more points,
+    mean signed change in the scores other players give the self player, the same for village assessors only].
+    A wolf's score for another player is its role-guess confidence, not trust, so the village-only figure is the
+    trust reading."""
+    deltas, self_all, self_village = [], [], []
+    me, roles = result.get("self_player") or result.get("player"), result.get("role_dist", {})
+    for assessor, scores in (result.get("reliability") or {}).items():
+        for target, new in scores.items():
+            old = (baseline.reliability.get(assessor) or {}).get(target)
+            if old is None or new is None:
+                continue
+            deltas.append(new - old)
+            if target == me and assessor != me:
+                self_all.append(new - old)
+                if roles.get(assessor) not in ("werewolf", "white_wolf_king"):
+                    self_village.append(new - old)
+    mean = lambda v: sum(v) / len(v) if v else 0.0
+    return [mean([abs(d) for d in deltas]), mean([1.0 if abs(d) >= 2 else 0.0 for d in deltas]), mean(self_all), mean(self_village)]
+
+
 def cmd_e3(args) -> int:
     """E3: for each setting, the difference from the control (natural text, branching at the same line) in the share of
     skill targets, vote targets and reliability scores that differ from the baseline phase. Paired by player-day
@@ -223,7 +245,8 @@ def cmd_e3(args) -> int:
             "wolf_target", "seer_target", "guard_target", "votes", "votes_received", "reliability",
             "executed", "config_name", "self_player", "experiment_type")}))["aggregates"]
         setting = "control" if r["mode"] == "control" else r["setting"]
-        cells[(r["seed"], r["day"], r["player"], setting)].append([agg[m] for m in metrics])
+        extra = reliability_detail(base[key], r)
+        cells[(r["seed"], r["day"], r["player"], setting)].append([agg[m] for m in metrics] + extra)
     mean = lambda rows: [sum(c) / len(c) for c in zip(*rows)]
     units = defaultdict(dict)                             # (seed, day, player) -> setting -> mean metrics
     for (seed, day, player, setting), rows in cells.items():
@@ -267,6 +290,19 @@ def cmd_e3(args) -> int:
         ctrl = [sum(units[k]["control"][j] for k in keys) / len(keys) for j in range(3)]
         lines += ["", "Control level (share differing from the baseline): " + ", ".join(
             f"{m.split('_')[0]} {100 * c:.1f}%" for m, c in zip(metrics, ctrl)), ""]
+        lines += ["Reliability churn, setting minus control (score points on the 1-10 scale; the 2+ share in percentage points):", "",
+                  "| setting | mean absolute point change | share of scores moving 2+ points | change in scores others give the self player (all assessors) | same, village assessors only |",
+                  "|---|--:|--:|--:|--:|"]
+        for st in settings:
+            cells_md = []
+            for j, scale in ((3, 1), (4, 100), (5, 1), (6, 1)):
+                v, n = estimate(keys, st, j)
+                lo, hi = interval(keys, st, j)
+                cells_md.append("" if v is None else f"{scale * v:+.2f} [{scale * lo:+.2f}, {scale * hi:+.2f}]")
+            lines.append(f"| {st} | " + " | ".join(cells_md) + " |")
+        ctrl = [sum(units[k]["control"][j] for k in keys) / len(keys) for j in range(3, 7)]
+        lines += ["", f"Control level: mean absolute change {ctrl[0]:.2f} points, {100 * ctrl[1]:.1f}% of scores move 2+ points, "
+                      f"scores others give the self player change {ctrl[2]:+.2f} (village assessors {ctrl[3]:+.2f}).", ""]
     out = Path(args.out_e3)
     out.write_text("\n".join(lines) + "\n")
     print("\n".join(lines))

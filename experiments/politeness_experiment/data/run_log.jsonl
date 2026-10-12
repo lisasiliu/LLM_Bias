@@ -348,3 +348,8 @@
 {"ts": "2026-10-12T17:18:05.393355+00:00", "event": "language_end", "counts": {"ok": 55}, "balance": 236.77}
 {"ts": "2026-10-12T17:18:06.660801+00:00", "event": "language_start", "first": 17, "last": 17, "tasks": 80, "balance": 236.77}
 {"ts": "2026-10-12T17:40:43.112709+00:00", "event": "language_end", "counts": {"ok": 80}, "balance": 217.15}
+{"ts": "2026-10-12T22:30:40.728417+00:00", "event": "language_start", "first": 18, "last": 18, "tasks": 50, "balance": 91.17}
+{"ts": "2026-10-12T22:43:32.356304+00:00", "event": "language_end", "counts": {"ok": 50}, "balance": 587.6}
+{"ts": "2026-10-12T22:43:33.902549+00:00", "event": "language_start", "first": 19, "last": 19, "tasks": 85, "balance": 587.6}
+{"ts": "2026-10-12T23:10:50.734189+00:00", "event": "language_end", "counts": {"ok": 85}, "balance": 575.51}
+{"ts": "2026-10-12T23:10:52.263623+00:00", "event": "language_start", "first": 20, "last": 20, "tasks": 30, "balance": 575.51}
