@@ -78,8 +78,11 @@ def language_replay(seed: str, day: int, level: str, player: str, rep: int = 0, 
     result, _agents, state = replay_phase(
         ckpt_path, prompts, players, experiment_type="nl", config_name=out.name, self_player=player,
         rewriter=rewriter, rewriter_scope="self", baseline_log=baseline / "game_log.jsonl", eligible=())
-    row = result.to_dict()
     entries = rewriter.log if rewriter else []
+    if any(e.get("status") == "infrastructure_unavailable" or any(a.get("error") for a in (e.get("attempts") or []))
+           for e in entries):
+        raise RuntimeError("the checking model was unavailable for some rewrites; replay not saved (rerun it when the judge is back)")
+    row = result.to_dict()
     row.update(seed=seed, mode="control" if level == "control" else "flip_self", setting=level, player=player,
                day=day, rep=rep, reliability_before=before, alive_at_end=sorted(state.get_alive()),
                rewrites=len(entries), fallbacks=sum(1 for e in entries if e.get("fallback_to_original")),

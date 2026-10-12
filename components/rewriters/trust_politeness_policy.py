@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from components.helpers import SourceRecord, parse_history_entry
+from components.judges.admission_gate import GateUnavailable
 from components.rewriters.politeness_rewriter import (
     ELIGIBLE_PREDICATES, PolitenessRewriter, predicate_definition, predicate_entry)
 from lurkingwolf.engine import WOLF_ROLES
@@ -185,6 +186,9 @@ class TrustPolitenessPolicy(Rewriter):
         try:
             out["checks"] = self.gate.check(source, text, addressee=addressee)
             out["admitted"] = bool(out["checks"]["admitted"])
+        except GateUnavailable as exc:                     # the replay must fail and be rerun; see flip_replay
+            self._count("gate_unavailable")
+            out["error"] = f"gate_unavailable: {exc}"[:300]
         except Exception as exc:
             out["error"] = f"gate {type(exc).__name__}: {exc}"[:300]
         return out

@@ -235,6 +235,9 @@ def flip_replay(seed: str, day: int, mode: str, setting: str, player: str,
         ckpt_path, prompts, players, experiment_type="nl", config_name=out.name,
         self_player=player, rewriter=policy, rewriter_scope=SCOPES.get(mode, "self"),
         baseline_log=baseline / "game_log.jsonl", eligible=ELIGIBLE_PREDICATES, dry_run=dry_run)
+    if policy is not None and policy.counters.get("gate_unavailable"):
+        raise RuntimeError(f"the checking model was unavailable for {policy.counters['gate_unavailable']} rewrites; "
+                           f"replay not saved (rerun it when the judge is back)")
     row = result.to_dict()
     row.update(seed=seed, mode=mode, setting=setting, player=player, day=day, rep=rep,
                reliability_before=before, alive_at_end=sorted(state.get_alive()),

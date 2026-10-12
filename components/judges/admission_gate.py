@@ -16,6 +16,7 @@ from __future__ import annotations
 import hashlib
 import json
 import threading
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -34,6 +35,13 @@ def action_and_target(source: SourceRecord, action_arg: str) -> tuple:
     else:
         target = "the same target as in the original"
     return action_arg.replace("_", " "), target
+
+
+class GateUnavailable(RuntimeError):
+    """The checking model could not be reached or gave no usable reply. A rewrite is never passed (or failed) on that."""
+
+
+RETRY_WAITS = (2, 6, 15)
 
 
 REASONS_SYSTEM = ('You read one utterance from a Werewolf game. Answer with JSON only: '
@@ -59,12 +67,20 @@ class AdmissionGate:
     def _key(original: str) -> str:
         return hashlib.sha256(original.encode("utf-8")).hexdigest()[:20]
 
-    def _json(self, system: str, user: str) -> Optional[dict]:
-        try:
-            parsed, _ = self.model.complete_json(system=system, user=user, max_tokens=500, temperature=0.0)
-            return parsed if isinstance(parsed, dict) else None
-        except Exception:
-            return None
+    def _json(self, system: str, user: str, max_tokens: int = 500) -> dict:
+        """One JSON reply from the checking model. Transport errors and unreadable replies are retried; if they persist the
+        gate raises GateUnavailable so the replay fails and is rerun, never silently skipping a check."""
+        last = ""
+        for wait in (0,) + RETRY_WAITS:
+            time.sleep(wait)
+            try:
+                parsed, _ = self.model.complete_json(system=system, user=user, max_tokens=max_tokens, temperature=0.0)
+                if isinstance(parsed, dict):
+                    return parsed
+                last = "unreadable reply"
+            except Exception as exc:
+                last = f"{type(exc).__name__}: {exc}"[:200]
+        raise GateUnavailable(last)
 
     def original_reasons(self, original: str) -> Optional[List[str]]:
         """The reasons or evidence the original gives for its claim ([] for none, None if unreadable)."""
@@ -80,9 +96,9 @@ class AdmissionGate:
                     return self._reasons[key]
         parsed = self._json(REASONS_SYSTEM, f'Utterance: "{original}"\nList the reasons or evidence this utterance '
                             f'gives for its claim, or say none.\nJSON:')
-        reasons = None
-        if parsed is not None and isinstance(parsed.get("reasons"), list):
-            reasons = [str(r).strip() for r in parsed["reasons"] if str(r).strip() and str(r).strip().lower() != "none"]
+        if not isinstance(parsed.get("reasons"), list):
+            raise GateUnavailable("reasons reply had no list")
+        reasons = [str(r).strip() for r in parsed["reasons"] if str(r).strip() and str(r).strip().lower() != "none"]
         with self._lock:
             self._reasons[key] = reasons
             if self.cache_path and reasons is not None:
@@ -95,7 +111,7 @@ class AdmissionGate:
         listed = "\n".join(f"- {r}" for r in reasons)
         parsed = self._json(KEPT_SYSTEM, f'Reasons the original gave:\n{listed}\nRewrite: "{rewrite}"\n'
                             f'Does the rewrite still give each of these reasons, in any wording? Answer yes or no.\nJSON:')
-        answer = str((parsed or {}).get("answer", "")).strip().lower()
+        answer = str(parsed.get("answer", "")).strip().lower()
         return True if answer == "yes" else False if answer == "no" else None
 
     def appeal(self, source: SourceRecord, rewrite: str, action_arg: str) -> Dict[str, Any]:
@@ -103,13 +119,8 @@ class AdmissionGate:
         question = (f"Original action: {action} toward {target}. Does the rewrite still recommend or describe "
                     f"the same action toward the same target, in any wording?")
         user = f'Rewrite: "{rewrite}"\n{question}\nJSON:'
-        answer = None
-        try:
-            parsed, _ = self.model.complete_json(system=ACTION_SYSTEM, user=user, max_tokens=400, temperature=0.0)
-            raw = str((parsed or {}).get("answer", "")).strip().lower()
-            answer = True if raw == "yes" else False if raw == "no" else None
-        except Exception:
-            answer = None
+        raw = str(self._json(ACTION_SYSTEM, user, 400).get("answer", "")).strip().lower()
+        answer = True if raw == "yes" else False if raw == "no" else None
         return {"action": action_arg, "question": question, "rewrite": rewrite, "answer": answer}
 
     def reasons_check(self, source: SourceRecord, rewrite: str) -> Dict[str, Any]:
