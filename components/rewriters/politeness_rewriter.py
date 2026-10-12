@@ -63,13 +63,17 @@ POLITENESS_STRATEGIES: dict[str, str] = {
     ),
 }
 
-# D009 — predicates eligible for the symmetric four-way primary validation.
-PRIMARY_PREDICATES: tuple[str, ...] = (
+# D009 — the speech acts the politeness treatment applies to (primary and secondary tiers).
+ELIGIBLE_PREDICATES: tuple[str, ...] = (
     "estimate",
     "question",
     "agree",
     "disagree",
     "recommend_action",
+    "address_role",
+    "allied",
+    "unallied",
+    "dissociate",
 )
 
 

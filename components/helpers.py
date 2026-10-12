@@ -116,6 +116,9 @@ _ENTRY_RE = re.compile(
 )
 
 
+_TEXT_ONLY_RE = re.compile(r"^\[(?P<sid>s\d+)\|(?P<speaker>[^\]]+)\]\s+(?P<text>.+)$", re.S)
+
+
 class TreatedSourceError(RuntimeError):
     """The game directory contains rewritten (treated) speech (VALIDATION_SPEC Phase A)."""
 
@@ -244,7 +247,9 @@ def parse_history_entry(entry: str) -> Dict[str, str]:
     """Split a ``[sN|Pk] predicate(args): text`` public-history line."""
     match = _ENTRY_RE.match(entry.strip())
     if not match:
-        return {}
+        text_only = _TEXT_ONLY_RE.match(entry.strip())          # what players see: no predicate
+        return {"sid": text_only["sid"], "speaker": text_only["speaker"], "pred": "",
+                "text": text_only["text"]} if text_only else {}
     data = match.groupdict()
     return {k: (v or "") for k, v in data.items()}
 
@@ -473,8 +478,7 @@ class Adjudication:
 
 
 def decide(*, parser_structural_match: Optional[bool],
-           semantic_ok: Optional[bool],
-           deterministic_ok: Optional[bool] = None) -> Adjudication:
+           semantic_ok: Optional[bool]) -> Adjudication:
     """Combine the checks into an explicit, auditable state."""
     parser_status = PARSER_EXACT if parser_structural_match else PARSER_MISMATCH
     if semantic_ok is True:
@@ -491,10 +495,6 @@ def decide(*, parser_structural_match: Optional[bool],
         reasons.append("semantic_fail")
     if semantic_status == SEMANTIC_NO_VERDICT:
         reasons.append("semantic_no_verdict")
-    if deterministic_ok is False:
-        reasons.append("deterministic_fail")
-    elif deterministic_ok is None:
-        reasons.append("deterministic_not_evaluated")
 
     return Adjudication(parser_status=parser_status,
                         semantic_status=semantic_status,

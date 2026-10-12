@@ -239,5 +239,11 @@ games_fresh/
 __pycache__/
 *.pyc
 
+# automated tests are kept local
+tests/
+
 # original 48-item validation (kept locally)
 experiments/politeness_validation/data/original_48/
+
+# game outputs
+games/

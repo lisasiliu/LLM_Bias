@@ -4,7 +4,7 @@
     python -m experiments.natural_politeness.code.politeness_by_level analyze
 
 ``extract`` reads the untreated game runs in ``games_fresh/prompt_levels/<level>/``
-(gitignored) and writes every primary-predicate utterance (D009) to
+(gitignored) and writes every eligible-predicate utterance (D009) to
 ``data/utterances.jsonl``. ``analyze`` reads only the committed files in ``data/``
 and prints every number in ``summary.md``. Nothing here calls a model.
 
@@ -23,7 +23,7 @@ from collections import Counter
 from pathlib import Path
 
 from components.helpers import read_jsonl, sources_from_game_dir, write_jsonl
-from components.rewriters.politeness_rewriter import PRIMARY_PREDICATES
+from components.rewriters.politeness_rewriter import ELIGIBLE_PREDICATES
 
 EXPERIMENT_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = EXPERIMENT_DIR / "data"
@@ -42,7 +42,7 @@ def extract(games: Path = GAMES) -> int:
         for game_dir in sorted((games / level).iterdir()):
             roles = json.loads((game_dir / "game_record.json").read_text())[
                 "hidden_info"]["role_distribution"]
-            for s in sources_from_game_dir(game_dir, set(PRIMARY_PREDICATES)):
+            for s in sources_from_game_dir(game_dir, set(ELIGIBLE_PREDICATES)):
                 records.append({
                     "id": f"{level}/{s.source_id}",
                     "level": level,
@@ -76,16 +76,16 @@ def analyze() -> None:
     utterances = read_jsonl(UTTERANCES)
     sample = read_jsonl(SAMPLE)
 
-    print("## Primary-predicate utterances per level\n")
+    print("## Eligible-predicate utterances per level\n")
     rows = []
     for level in LEVELS:
         items = [u for u in utterances if u["level"] == level]
         games = len({u["game"] for u in items})
         mix = Counter(u["predicate"] for u in items)
         rows.append([level, games, len(items)]
-                    + [mix[p] for p in PRIMARY_PREDICATES]
+                    + [mix[p] for p in ELIGIBLE_PREDICATES]
                     + [f"{mix['question'] / games:.1f}"])
-    print(table(["level", "games", "n", *PRIMARY_PREDICATES, "question/game"], rows))
+    print(table(["level", "games", "n", *ELIGIBLE_PREDICATES, "question/game"], rows))
 
     print("\n## Strategy of the labelled sample\n")
     rows = []

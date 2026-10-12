@@ -5,7 +5,7 @@
     python -m experiments.natural_politeness.code.natural_7p analyze
 
 `extract` reads the untreated game directories and writes one row per
-primary-predicate utterance to `data/utterances_7p.jsonl`: speaker, role, camp,
+eligible-predicate utterance (all nine D009 speech acts) to `data/utterances_7p.jsonl`: speaker, role, camp,
 phase, predicate, text, the player the utterance is addressed to (if any) and the
 speaker's reliability score for that player at the time of speaking.
 
@@ -46,11 +46,12 @@ from components.judges.blind_politeness_classifier import (
     PROMPT_VERSION, BlindPolitenessClassifier, system_prompt)
 from components.judges.judge_model import JudgeModel
 from components.judges.judge_model import majority
-from components.rewriters.politeness_rewriter import PRIMARY_PREDICATES
+from components.rewriters.politeness_rewriter import ELIGIBLE_PREDICATES
+from components.rewriters.trust_politeness_policy import addressee_of
 
 HERE = Path(__file__).resolve().parents[1]
 ROOT = HERE.parents[1]
-GAMES = ROOT / "games_fresh" / "natural_7p"
+GAMES = ROOT / "games" / "politeness_validation" / "natural_sources"
 UTTERANCES = HERE / "data" / "utterances_7p.jsonl"
 PASSES = HERE / "data" / "politeness_passes_7p.jsonl"
 RESULTS = HERE / "data" / "results_7p.json"
@@ -99,18 +100,6 @@ def _reliability(history: List[dict], role: str, phase: str, listener: str) -> t
     return score, entry["timeline"]
 
 
-def _addressee(name: str, args: List[str], speaker: str, ref_speaker: Optional[str]) -> Optional[str]:
-    if name == "question" and len(args) >= 3:
-        target = args[2].strip()
-    elif name == "recommend_action" and len(args) >= 3:
-        target = args[2].strip()
-    elif name in ("disagree", "agree"):
-        target = ref_speaker
-    else:
-        return None
-    return target if target and re.fullmatch(r"P\d+", target) and target != speaker else None
-
-
 def cmd_extract(args) -> int:
     rows = []
     for game_dir in sorted(GAMES.glob("game*")):
@@ -119,10 +108,10 @@ def cmd_extract(args) -> int:
         record = json.loads((game_dir / "game_record.json").read_text())
         roles: Dict[str, str] = record["hidden_info"]["role_distribution"]
         memory = {p.stem: json.loads(p.read_text()) for p in (game_dir / "agent_memory").glob("P*.json")}
-        for s in sources_from_game_dir(game_dir, set(PRIMARY_PREDICATES)):
+        for s in sources_from_game_dir(game_dir, set(ELIGIBLE_PREDICATES)):
             role = roles[s.speaker_id]
             ref = (s.referenced_speech or {}).get("speaker")
-            addressee = _addressee(s.predicate_name, s.predicate_args, s.speaker_id, ref)
+            addressee = addressee_of(s.predicate_name, s.predicate_args, s.speaker_id, ref)
             score = timeline = None
             if addressee:
                 score, timeline = _reliability(memory[s.speaker_id]["reasoning_history"],

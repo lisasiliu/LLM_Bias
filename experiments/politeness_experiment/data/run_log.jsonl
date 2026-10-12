@@ -299,3 +299,8 @@
 {"ts": "2026-10-10T02:17:52.290057+00:00", "event": "flip_start", "first": 6, "last": 15, "tasks": 804, "balance": 95.42}
 {"ts": "2026-10-10T02:31:29.521791+00:00", "event": "flip_start", "first": 6, "last": 15, "tasks": 768, "balance": 94.8}
 {"ts": "2026-10-10T05:48:33.070575+00:00", "event": "flip_end", "counts": {"done": 38, "ok": 730}, "balance": 82.69, "flip_spend": 19.5419}
+{"ts": "2026-10-11T23:07:20.958714+00:00", "event": "flip_start", "first": 1, "last": 8, "tasks": 750, "reps": 2, "balance": 40.08}
+{"ts": "2026-10-11T23:44:25.506784+00:00", "event": "flip_start", "first": 1, "last": 8, "tasks": 720, "reps": 2, "balance": 38.13}
+{"ts": "2026-10-12T01:31:56.115005+00:00", "event": "flip_end", "counts": {"ok": 720}, "balance": 25.64, "flip_spend": 12.9731}
+{"ts": "2026-10-12T02:42:54.396220+00:00", "event": "flip_start", "first": 1, "last": 1, "tasks": 110, "reps": 2, "balance": 25.15}
+{"ts": "2026-10-12T03:13:09.661978+00:00", "event": "flip_end", "counts": {"ok": 110}, "balance": 21.29, "flip_spend": 3.4361}

@@ -9,11 +9,14 @@ All files are in `data/`.
 
 | file | contents |
 | --- | --- |
-| `items.jsonl` | the 72 rated utterances, one per line: original and rewritten text, the strategy that was requested, the LLM judge's label, and both raters' labels |
-| `labels_lisa.csv` | Lisa's strategy, confidence and meaning label for each of the 72 items |
-| `labels_rq.csv` | Runqi's labels for the same 72 items |
-| `key.json` | the hidden answer key for the 72 items: where each came from and which strategy was requested |
-| `zhao_hawkins.jsonl` | 135 items from Zhao & Hawkins (2025), used as an outside check of the LLM judge: published label, mapped strategy, judge label |
+| `items.jsonl` | the 52 rated rewrites, one per line: original and rewritten text, the strategy that was requested, the LLM judge's label, and both raters' labels |
+| `werewolf-labels_lisa.csv` | Lisa's strategy, confidence and meaning label for each of the 52 items |
+| `werewolf-labels_rq.csv` | Runqi's labels for the same 52 items |
+| `werewolf-labels_judge.csv` | the LLM judge's label for each of the 52 items, in the same layout as the two human label files (judge: gpt-5.6-luna, majority of 3 passes) |
+| `key.json` | the hidden answer key for the 52 items: where each came from and which strategy was requested |
+| `natural_lisa.md`, `natural_rq.md` | the 60 natural utterances for the second rating round (30 the LLM judge called bald, 30 non-bald), one identical sheet per rater, to fill in |
+| `natural_key.json` | hidden key for those 60: the judge's label and group for each item; do not open before rating |
+| `zhao-hawkins_judge.jsonl` | 135 items from Zhao & Hawkins (2025), used as an outside check of the LLM judge: published label, mapped strategy, judge label |
 
 ## Reusable components
 

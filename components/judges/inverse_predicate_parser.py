@@ -17,11 +17,10 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 from .judge_model import JudgeModel, JudgeModelError, JudgeTransportError
-from components.rewriters.politeness_rewriter import predicate_entry
+from components.rewriters.politeness_rewriter import ELIGIBLE_PREDICATES, predicate_entry
 from lurkingwolf.utils.speech_nl import parse_predicate
 
-PARSEABLE_PREDICATES: tuple = ("estimate", "question", "agree", "disagree",
-                               "recommend_action")
+PARSEABLE_PREDICATES: tuple = ELIGIBLE_PREDICATES
 
 GIVEN_SLOTS: frozenset = frozenset({"Phase", "Player", "Speaker"})
 
@@ -54,7 +53,7 @@ _PARSER_SYSTEM = """\
 You are a semantic parser for a Werewolf (Mafia) game. You convert ONE public
 utterance into the single structured predicate that it realizes.
 
-ALLOWED GRAMMAR — the utterance realizes exactly one of these five predicates:
+ALLOWED GRAMMAR — the utterance realizes exactly one of these predicates:
 %(grammar)s
 
 Slot rules:
@@ -66,6 +65,8 @@ Slot rules:
   utterance actually responds to, not merely by topic overlap.
 - Role must be one of: %(roles)s
 - Action must be one of: %(actions)s
+- TargetRole must be one of: %(target_roles)s
+- Advice must be one of: %(advice)s
 
 How to choose the predicate:
 - estimate: the speaker asserts what role some target player has.
@@ -74,6 +75,10 @@ How to choose the predicate:
 - disagree: the speaker publicly opposes a specific earlier statement.
 - recommend_action: the speaker recommends that some actor take a game action
   toward some target.
+- address_role: the speaker addresses every player of one role group with advice.
+- allied: the speaker claims two players are on the same team.
+- unallied: the speaker claims two players are on different teams.
+- dissociate: the speaker says they do not share the same side as a target.
 
 Read the utterance on its own terms. Recover what the speaker is DOING, not what
 would be reasonable for them to do. If the utterance is indirect, hedged, polite
@@ -83,7 +88,7 @@ genuinely cannot be determined, and list the slots you could not fill in
 "unresolved".
 
 Answer with JSON only, no prose, exactly:
-{"predicate_name": "<one of the five, or null>",
+{"predicate_name": "<one of the allowed predicates, or null>",
  "arguments": {"<SlotName>": "<value>", ...},
  "recoverable": true|false,
  "unresolved": ["<SlotName>", ...],
@@ -97,8 +102,10 @@ you chose, and must contain every slot in that signature.
 def build_system_prompt() -> str:
     roles = "|".join(_enum_from_desc("estimate", "Role"))
     actions = "|".join(_enum_from_desc("recommend_action", "Action"))
-    return _PARSER_SYSTEM % {"grammar": grammar_block(), "roles": roles,
-                             "actions": actions}
+    return _PARSER_SYSTEM % {
+        "grammar": grammar_block(), "roles": roles, "actions": actions,
+        "target_roles": "|".join(_enum_from_desc("address_role", "TargetRole")),
+        "advice": "|".join(_enum_from_desc("address_role", "Advice"))}
 
 
 _PHASE_TOKEN = re.compile(r"^[DN]\d+$", re.IGNORECASE)

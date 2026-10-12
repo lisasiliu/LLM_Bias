@@ -11,6 +11,7 @@ Supports 7-12 players. Guard cannot protect the same player on consecutive night
 """
 
 import random
+import re
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Set
 
@@ -81,6 +82,17 @@ class DayResult:
     vote_counts: Dict[str, float] = field(default_factory=dict)
     tied_candidates: List[str] = field(default_factory=list)
     pk_round: int = 1        # 1 = first round, 2 = PK revote
+
+
+_SPEECH_WITH_TEXT = re.compile(r"^(\[s\d+\|[^\]]+\])\s+\w+\([^)]*\):\s*(.+)$", re.S)
+
+
+def visible_entry(entry: str) -> str:
+    """What a player sees of a public-history entry. A natural-language speech line is the speaker's
+    final words only, `[sN|Pk] text`; the predicate behind it stays in the game record. Predicate-mode
+    lines (no text) and system results are unchanged."""
+    m = _SPEECH_WITH_TEXT.match(entry) if isinstance(entry, str) else None
+    return f"{m.group(1)} {m.group(2)}" if m else entry
 
 
 class GameState:

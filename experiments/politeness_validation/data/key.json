@@ -44,30 +44,6 @@
   "predicate": "disagree",
   "original": "P2's read on me is backwards: P7 clearing me is exactly the reason to distrust P7, not to distrust me \u2014 a real seer would have no motive to hand out a free clear to an unclaimed player on day one, while a wolf needs a village-side name to hide behind."
  },
- "e1_006": {
-  "source": "natural",
-  "utterance_id": "game16:s41",
-  "judge_label": "bald_on_record",
-  "stratum": "judge_bald",
-  "predicate": null,
-  "original": null
- },
- "e1_007": {
-  "source": "natural",
-  "utterance_id": "game17:s41",
-  "judge_label": "positive_politeness",
-  "stratum": "judge_non_bald",
-  "predicate": null,
-  "original": null
- },
- "e1_008": {
-  "source": "natural",
-  "utterance_id": "game10:s75",
-  "judge_label": "off_record",
-  "stratum": "judge_non_bald",
-  "predicate": null,
-  "original": null
- },
  "e1_009": {
   "source": "rewrite",
   "source_id": "pe04:s35",
@@ -95,14 +71,6 @@
   "predicate": "estimate",
   "original": "P6 claimed seer and cleared P4, yet P6 and P4 have been reading as allied all game, so P6's \"result\" conveniently confirms the one player already tied to them."
  },
- "e1_012": {
-  "source": "natural",
-  "utterance_id": "game20:s41",
-  "judge_label": "positive_politeness",
-  "stratum": "judge_non_bald",
-  "predicate": null,
-  "original": null
- },
  "e1_013": {
   "source": "rewrite",
   "source_id": "pe06:s8",
@@ -121,14 +89,6 @@
   "predicate": "estimate",
   "original": "P6 claimed seer and cleared P4, yet P6 and P4 have been reading as allied all game, so P6's \"result\" conveniently confirms the one player already tied to them."
  },
- "e1_015": {
-  "source": "natural",
-  "utterance_id": "game02:s72",
-  "judge_label": "positive_politeness",
-  "stratum": "judge_non_bald",
-  "predicate": null,
-  "original": null
- },
  "e1_016": {
   "source": "rewrite",
   "source_id": "pe12:s19",
@@ -146,14 +106,6 @@
   "bald_blocked_deleted_content": false,
   "predicate": "address_role",
   "original": "To whoever is the real seer among the three claimants: hold your remaining results until the vote forces the false claimants to commit to specifics, because right now P1, P3, and P6 have each given exactly one result and none of them can be cross-checked."
- },
- "e1_018": {
-  "source": "natural",
-  "utterance_id": "game15:s11",
-  "judge_label": "positive_politeness",
-  "stratum": "judge_non_bald",
-  "predicate": null,
-  "original": null
  },
  "e1_019": {
   "source": "rewrite",
@@ -191,14 +143,6 @@
   "predicate": "question",
   "original": "P7, you say P6's timing is \"telling\" but you never asked P6 to name the concrete thing P3 did before Night 0 \u2014 if you truly suspected P6, why did your only question this turn go to P6's accuser's side of the board instead of to P6?"
  },
- "e1_029": {
-  "source": "natural",
-  "utterance_id": "game11:s26",
-  "judge_label": "positive_politeness",
-  "stratum": "judge_non_bald",
-  "predicate": null,
-  "original": null
- },
  "e1_027": {
   "source": "rewrite",
   "source_id": "pe10:s21",
@@ -216,14 +160,6 @@
   "bald_blocked_deleted_content": false,
   "predicate": "question",
   "original": "P7, you say P6's timing is \"telling\" but you never asked P6 to name the concrete thing P3 did before Night 0 \u2014 if you truly suspected P6, why did your only question this turn go to P6's accuser's side of the board instead of to P6?"
- },
- "e1_034": {
-  "source": "natural",
-  "utterance_id": "game15:s44",
-  "judge_label": "positive_politeness",
-  "stratum": "judge_non_bald",
-  "predicate": null,
-  "original": null
  },
  "e1_082": {
   "source": "rewrite",
@@ -252,14 +188,6 @@
   "predicate": "estimate",
   "original": "P6 claimed seer and cleared P4, yet P6 and P4 have been reading as allied all game, so P6's \"result\" conveniently confirms the one player already tied to them."
  },
- "e1_058": {
-  "source": "natural",
-  "utterance_id": "game03:s53",
-  "judge_label": "positive_politeness",
-  "stratum": "judge_non_bald",
-  "predicate": null,
-  "original": null
- },
  "e1_088": {
   "source": "rewrite",
   "source_id": "pe06:s8",
@@ -278,14 +206,6 @@
   "predicate": "question",
   "original": "P7, you say P6's timing is \"telling\" but you never asked P6 to name the concrete thing P3 did before Night 0 \u2014 if you truly suspected P6, why did your only question this turn go to P6's accuser's side of the board instead of to P6?"
  },
- "e1_066": {
-  "source": "natural",
-  "utterance_id": "game12:s73",
-  "judge_label": "positive_politeness",
-  "stratum": "judge_non_bald",
-  "predicate": null,
-  "original": null
- },
  "e1_135": {
   "source": "rewrite",
   "source_id": "pe07:s29",
@@ -303,14 +223,6 @@
   "bald_blocked_deleted_content": false,
   "predicate": "estimate",
   "original": "P5's seer claim is the weakest of the three because P5 cleared me as villager while condemning P3 as wolf, which conveniently builds a trusted bloc with me while removing a player who is now actively questioning P5."
- },
- "e1_073": {
-  "source": "natural",
-  "utterance_id": "game26:s14",
-  "judge_label": "positive_politeness",
-  "stratum": "judge_non_bald",
-  "predicate": null,
-  "original": null
  },
  "e1_037": {
   "source": "rewrite",
@@ -339,14 +251,6 @@
   "predicate": "estimate",
   "original": "P7's entire speech is built on the premise that three seer claims means two are lying, yet P7 never actually commits to which of P1, P3, P4 is the real seer \u2014 instead P7 pushes P2 and P5 to vote against P1 and P3 while conveniently clearing P4, the one who cleared P7, which looks like a wolf protecting the partner who vouched for him."
  },
- "e1_090": {
-  "source": "natural",
-  "utterance_id": "game14:s88",
-  "judge_label": "positive_politeness",
-  "stratum": "judge_non_bald",
-  "predicate": null,
-  "original": null
- },
  "e1_042": {
   "source": "rewrite",
   "source_id": "pe17:s19",
@@ -364,14 +268,6 @@
   "bald_blocked_deleted_content": false,
   "predicate": "question",
   "original": "P6, you said you divined P3 because P3 was the quietest seat, but P3 had already claimed seer before your speech \u2014 if you were a real seer who checked P3 on Night 0, why did you wait until after P3 claimed seer to reveal your result instead of coming forward first?"
- },
- "e1_091": {
-  "source": "natural",
-  "utterance_id": "game13:s48",
-  "judge_label": "off_record",
-  "stratum": "judge_non_bald",
-  "predicate": null,
-  "original": null
  },
  "e1_158": {
   "source": "rewrite",
@@ -400,14 +296,6 @@
   "predicate": "recommend_action",
   "original": "P1 should vote for P2 for Sheriff because a confirmed Seer holding the badge maximizes the information the village can act on each day, and I can direct the speaking order to pressure the wolves."
  },
- "e1_103": {
-  "source": "natural",
-  "utterance_id": "game21:s60",
-  "judge_label": "positive_politeness",
-  "stratum": "judge_non_bald",
-  "predicate": null,
-  "original": null
- },
  "e1_117": {
   "source": "rewrite",
   "source_id": "pe06:s17",
@@ -425,14 +313,6 @@
   "bald_blocked_deleted_content": false,
   "predicate": "recommend_action",
   "original": "P1 should vote for P2 for Sheriff because a confirmed Seer holding the badge maximizes the information the village can act on each day, and I can direct the speaking order to pressure the wolves."
- },
- "e1_106": {
-  "source": "natural",
-  "utterance_id": "game06:s8",
-  "judge_label": "negative_politeness",
-  "stratum": "judge_non_bald",
-  "predicate": null,
-  "original": null
  },
  "e1_044": {
   "source": "rewrite",
@@ -461,14 +341,6 @@
   "predicate": "question",
   "original": "P6, you said you divined P3 because P3 was the quietest seat, but P3 had already claimed seer before your speech \u2014 if you were a real seer who checked P3 on Night 0, why did you wait until after P3 claimed seer to reveal your result instead of coming forward first?"
  },
- "e1_107": {
-  "source": "natural",
-  "utterance_id": "game10:s14",
-  "judge_label": "positive_politeness",
-  "stratum": "judge_non_bald",
-  "predicate": null,
-  "original": null
- },
  "e1_040": {
   "source": "rewrite",
   "source_id": "pe20:s18",
@@ -487,14 +359,6 @@
   "predicate": "address_role",
   "original": "To whoever is the real seer among the three claimants: hold your remaining results until the vote forces the false claimants to commit to specifics, because right now P1, P3, and P6 have each given exactly one result and none of them can be cross-checked."
  },
- "e1_128": {
-  "source": "natural",
-  "utterance_id": "game02:s27",
-  "judge_label": "off_record",
-  "stratum": "judge_non_bald",
-  "predicate": null,
-  "original": null
- },
  "e1_138": {
   "source": "rewrite",
   "source_id": "pe20:s18",
@@ -512,14 +376,6 @@
   "bald_blocked_deleted_content": false,
   "predicate": "recommend_action",
   "original": "P5, you're not running, so I'd ask you to put your sheriff vote on P4 \u2014 a real Seer with the badge can direct the village's votes each day, and I've already got a confirmed village read to build on."
- },
- "e1_141": {
-  "source": "natural",
-  "utterance_id": "game30:s48",
-  "judge_label": "off_record",
-  "stratum": "judge_non_bald",
-  "predicate": null,
-  "original": null
  },
  "e1_054": {
   "source": "rewrite",
@@ -557,14 +413,6 @@
   "predicate": "recommend_action",
   "original": "P5, likewise I recommend you vote sheriff for P2 \u2014 a Seer holding the badge can announce a divination target each night and a badge succession plan, so even if the wolves kill me, my confirmed alignment on P4 and my next result still reach the village."
  },
- "e1_151": {
-  "source": "natural",
-  "utterance_id": "game20:s35",
-  "judge_label": "off_record",
-  "stratum": "judge_non_bald",
-  "predicate": null,
-  "original": null
- },
  "e1_061": {
   "source": "rewrite",
   "source_id": "pe09:s53",
@@ -600,14 +448,6 @@
   "bald_blocked_deleted_content": false,
   "predicate": "recommend_action",
   "original": "P2, you have been sitting on the fence all game and your vote is the one that decides this \u2014 put it on P1, because P1's divine on me was never justified, P5's counter-claim against P1 is on record, and if P1 is the real seer the village loses nothing by testing the claim that has the most contradictions around it."
- },
- "e1_160": {
-  "source": "natural",
-  "utterance_id": "game13:s34",
-  "judge_label": "positive_politeness",
-  "stratum": "judge_non_bald",
-  "predicate": null,
-  "original": null
  },
  "e1_063": {
   "source": "rewrite",

@@ -25,9 +25,8 @@ import re
 import random
 from typing import Dict, List, Optional
 
-from .engine import GameState, SPEECH_PREDICATES, NO_SHERIFF, ROLE_CONFIGS, WOLF_ROLES
+from .engine import GameState, SPEECH_PREDICATES, NO_SHERIFF, ROLE_CONFIGS, WOLF_ROLES, visible_entry
 from .utils import TokenTracker
-from .town_consensus import town_consensus
 from .prompts.templates import (
     REASONING_TEMPLATE, RELATIONSHIP_ESTIMATE_TEMPLATE,
     get_phase_template, normalize_recommend_action, normalize_role_name,
@@ -151,8 +150,7 @@ def _format_result_defs(predicates: dict) -> str:
 
 class LLMAgent:
     # Wolves keep a snapshot of the engine's town-consensus score (never shown to any agent)
-    track_town_consensus = True
-    town_consensus = None
+    town_consensus = None      # werewolves only: this wolf's own guess at how the town rates each living player
 
     # Phases where natural language speech is allowed (two-stage)
     SPEECH_PHASES = {"day_speech", "sheriff_summary", "last_speech",
@@ -296,7 +294,7 @@ class LLMAgent:
 
         # Current turn speeches (buffer) — only this phase's speeches
         turn_speeches = state.current_turn_buffer
-        turn_str = "\n".join(f"  {s}" for s in turn_speeches) if turn_speeches else "  (none yet)"
+        turn_str = "\n".join(f"  {visible_entry(s)}" for s in turn_speeches) if turn_speeches else "  (none yet)"
 
         roles_config = ROLE_CONFIGS.get(len(self.players), {})
         role_dist_note = ", ".join(
@@ -332,8 +330,8 @@ class LLMAgent:
         claims_on_record = []
         seen_claims: set = set()
         for entry in state.public_history:
-            if not isinstance(entry, str):
-                continue
+            if not isinstance(entry, str) or visible_entry(entry) != entry:
+                continue                      # natural-language speech shows no predicate
             for match in re.finditer(
                 r"\[s\d+\|(\w+)\]\s*(claim_role|claim_divine|roleclaim|divined)\([^)]+\)", entry
             ):
@@ -486,7 +484,7 @@ class LLMAgent:
                         phase=phase,
                         speaker_id=self.player_id,
                         speaker_role_claimed=self.role,
-                        public_history=list(state.public_history),
+                        public_history=[visible_entry(h) for h in state.public_history],
                         day=getattr(state, "day", None),
                         alive_players=list(state.get_alive()),
                         speaker_reliability=dict(self.reliability),
@@ -644,13 +642,15 @@ class LLMAgent:
                 self.reliability[pid] = confidence
 
         self.relationship_estimates = relationship_result
-        if self.track_town_consensus and self.role in WOLF_ROLES:
-            self.town_consensus = town_consensus(state)
+        if self.role in WOLF_ROLES:
+            self.town_consensus = {} if dry_run else self._run_town_consensus(state)
 
         entry = {
             "timeline": time_str,
             "reasoning_result": reasoning_result,
         }
+        if self.role in WOLF_ROLES:
+            entry["town_consensus"] = dict(self.town_consensus)
         self.reasoning_history.append(entry)
 
         return {
@@ -660,6 +660,38 @@ class LLMAgent:
                 k: v for k, v in relationship_result.items() if v
             },
         }
+
+    # ── Werewolf's own guess at the town consensus ──
+
+    def _run_town_consensus(self, state: GameState) -> dict:
+        """One call: this wolf's own 1-10 guess at how the town rates each other living player
+        (10 = trusted as village-side, 1 = thought to be a wolf), from the statements and votes
+        this wolf found notable. Players the reply leaves out are not scored."""
+        others = [p for p in state.get_alive() if p != self.player_id]
+        question = (
+            f"You are {self.player_id}, a {self.role}. Using what you have seen in the public "
+            "discussion and votes, and the statements you personally found notable, give your own "
+            "guess at the town's current consensus on each living player: 10 = the town trusts "
+            "this player as village-side, 1 = the town is convinced this player is a wolf. "
+            f"Score every one of: {', '.join(others)}.\n"
+            'Answer with JSON only: {"P2": {"score": 7, "note": "<=15 words on what you relied on"}, ...}'
+        )
+        saved = self.max_tokens
+        self.max_tokens = max(self.max_tokens, 1000)
+        try:
+            raw = self.call_llm(self.build_system_prompt(),
+                                self.build_user_prompt(state, "day_speech") + "\n" + question,
+                                **self._thinking_kwargs())
+        finally:
+            self.max_tokens = saved
+        data = self._extract_json_from_response(raw) or {}
+        scores = {}
+        for pid in others:
+            info = data.get(pid)
+            score = info.get("score") if isinstance(info, dict) else info
+            if isinstance(score, (int, float)) and not isinstance(score, bool):
+                scores[pid] = int(min(10, max(1, round(score))))
+        return scores
 
     # ── Deductive reasoning ──
 
