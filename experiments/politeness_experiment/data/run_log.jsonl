@@ -347,3 +347,4 @@
 {"ts": "2026-10-12T17:01:54.028531+00:00", "event": "language_start", "first": 16, "last": 16, "tasks": 55, "balance": 249.34}
 {"ts": "2026-10-12T17:18:05.393355+00:00", "event": "language_end", "counts": {"ok": 55}, "balance": 236.77}
 {"ts": "2026-10-12T17:18:06.660801+00:00", "event": "language_start", "first": 17, "last": 17, "tasks": 80, "balance": 236.77}
+{"ts": "2026-10-12T17:40:43.112709+00:00", "event": "language_end", "counts": {"ok": 80}, "balance": 217.15}

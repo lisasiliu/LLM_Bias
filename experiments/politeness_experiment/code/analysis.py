@@ -214,6 +214,8 @@ def cmd_e3(args) -> int:
     base, cells = {}, defaultdict(list)                   # (seed, day, player, setting) -> [per-replay metrics]
     for f in sorted(root.glob("pe*/day*/*/result.json")):
         r = json.loads(f.read_text())
+        if int(r["seed"][2:]) > args.max_seed:
+            continue
         key = (r["seed"], r["day"])
         if key not in base:
             base[key] = extract_baseline_phase(games / r["seed"] / "natural", r["day"])
@@ -283,6 +285,7 @@ def main(argv=None) -> int:
     m.add_argument("--out-paper", default="experiments/politeness_experiment/results_flip.md")
     e = sub.add_parser("e3")
     e.add_argument("--out-e3", default="experiments/politeness_experiment/results.md")
+    e.add_argument("--max-seed", type=int, default=99, help="use seeds pe01..pe<max-seed> only")
     for q in (c, j, m, e):
         q.add_argument("--flip-root", default=str(FLIP_ROOT))
     args = ap.parse_args(argv)
