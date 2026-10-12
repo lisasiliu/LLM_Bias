@@ -223,7 +223,7 @@ def flip_replay(seed: str, day: int, mode: str, setting: str, player: str,
     if not dry_run:
         judge = JudgeModel.resolve("gpt-5.6-luna")      # not the model that writes the rewrites
         judge.on_usage = lambda m, d: ledger.add("checks", str(d.get("model", "")), d.get("usage") or {})
-        gate = AdmissionGate(judge)
+        gate = AdmissionGate(judge, cache_path=games_root / "evidence_reasons.jsonl")
     policy = None
     if mode != "control":
         writer = None if dry_run else LedgerClient(ledger, "rewriter")

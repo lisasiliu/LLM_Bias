@@ -13,7 +13,10 @@ only if the original has reasons and the answer is no. An unparseable reply neve
 
 from __future__ import annotations
 
+import hashlib
+import json
 import threading
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from components.helpers import SourceRecord
@@ -39,10 +42,22 @@ KEPT_SYSTEM = 'You compare a rewrite with the reasons an original gave. Answer w
 
 
 class AdmissionGate:
-    def __init__(self, model):
+    def __init__(self, model, cache_path: Optional[Path] = None):
+        """`cache_path` is one file shared by every replay: each original utterance's reason list is
+        computed once (keyed by the hash of its text) and reused across settings and repetitions."""
         self.model = model
         self._reasons: Dict[str, Optional[List[str]]] = {}
         self._lock = threading.Lock()
+        self.cache_path = Path(cache_path) if cache_path else None
+        if self.cache_path and self.cache_path.exists():
+            for line in self.cache_path.read_text(encoding="utf-8").splitlines():
+                if line.strip():
+                    row = json.loads(line)
+                    self._reasons.setdefault(row["key"], row["reasons"])
+
+    @staticmethod
+    def _key(original: str) -> str:
+        return hashlib.sha256(original.encode("utf-8")).hexdigest()[:20]
 
     def _json(self, system: str, user: str) -> Optional[dict]:
         try:
@@ -53,16 +68,27 @@ class AdmissionGate:
 
     def original_reasons(self, original: str) -> Optional[List[str]]:
         """The reasons or evidence the original gives for its claim ([] for none, None if unreadable)."""
+        key = self._key(original)
         with self._lock:
-            if original in self._reasons:
-                return self._reasons[original]
+            if key in self._reasons:
+                return self._reasons[key]
+        if self.cache_path and self.cache_path.exists():           # another process may have written it
+            for line in self.cache_path.read_text(encoding="utf-8").splitlines():
+                if line.strip() and json.loads(line)["key"] == key:
+                    with self._lock:
+                        self._reasons[key] = json.loads(line)["reasons"]
+                    return self._reasons[key]
         parsed = self._json(REASONS_SYSTEM, f'Utterance: "{original}"\nList the reasons or evidence this utterance '
                             f'gives for its claim, or say none.\nJSON:')
         reasons = None
         if parsed is not None and isinstance(parsed.get("reasons"), list):
             reasons = [str(r).strip() for r in parsed["reasons"] if str(r).strip() and str(r).strip().lower() != "none"]
         with self._lock:
-            self._reasons[original] = reasons
+            self._reasons[key] = reasons
+            if self.cache_path and reasons is not None:
+                self.cache_path.parent.mkdir(parents=True, exist_ok=True)
+                with self.cache_path.open("a", encoding="utf-8") as f:
+                    f.write(json.dumps({"key": key, "original": original, "reasons": reasons}, ensure_ascii=False) + "\n")
         return reasons
 
     def reasons_kept(self, reasons: List[str], rewrite: str) -> Optional[bool]:

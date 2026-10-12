@@ -87,6 +87,9 @@ class TrustPolitenessPolicy(Rewriter):
         self.log_path = Path(log_path) if log_path else None
         self._writers = {s: PolitenessRewriter(llm_client=llm_client, strategy=s, model=model)
                          for s in (BALD, POSITIVE)}
+        # The second attempt uses the same frozen prompt and only samples at temperature 0.7.
+        self._retry_writers = {s: PolitenessRewriter(llm_client=llm_client, strategy=s, model=model, temperature=0.7)
+                               for s in (BALD, POSITIVE)}
         self._lock = threading.Lock()
         self.counters: Dict[str, int] = {}
 
@@ -148,7 +151,7 @@ class TrustPolitenessPolicy(Rewriter):
         attempts: List[Dict[str, Any]] = []
         final, delivered = ctx.original_nl, "original_fallback"
         for k in range(2):        # one regeneration with the same frozen prompt; then the original text
-            attempt = self._attempt(ctx, source, assigned, addressee)
+            attempt = self._attempt(ctx, source, assigned, addressee, retry=bool(attempts))
             attempts.append(attempt)
             if attempt["admitted"]:
                 final, delivered = attempt["text"], "rewrite"
@@ -159,7 +162,7 @@ class TrustPolitenessPolicy(Rewriter):
         return final
 
     def _attempt(self, ctx: RewriteContext, source: SourceRecord, strategy: str,
-                 addressee: Optional[str] = None) -> Dict[str, Any]:
+                 addressee: Optional[str] = None, retry: bool = False) -> Dict[str, Any]:
         out: Dict[str, Any] = {"strategy": strategy, "text": "", "admitted": False,
                                "error": "", "checks": None}
         text = ""
@@ -168,7 +171,7 @@ class TrustPolitenessPolicy(Rewriter):
             return out
         for _ in range(self.retries + 1):
             try:
-                text = self._writers[strategy].rewrite(ctx)
+                text = (self._retry_writers if retry else self._writers)[strategy].rewrite(ctx)
                 out["error"] = ""
                 break
             except Exception as exc:                      # a failed generation is a failure
