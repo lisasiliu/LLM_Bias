@@ -22,6 +22,12 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import requests
 
+# A pooled session: the gate issues several judge calls per rewrite, and one new TCP
+# connection per call overflows the accept queue of a locally served model.
+_SESSION = requests.Session()
+for _scheme in ("http://", "https://"):
+    _SESSION.mount(_scheme, requests.adapters.HTTPAdapter(pool_connections=4, pool_maxsize=16))
+
 from lurkingwolf.utils.speech_nl import strip_reasoning
 
 THINK_OPEN = re.compile(r"</?think\b", re.IGNORECASE)
@@ -157,13 +163,14 @@ class JudgeModel:
     """One model, callable by any judge. Provider-independent by construction."""
 
     def __init__(self, spec: ModelSpec, *, temperature: float = 0.0,
-                 max_tokens: int = 512, retries: int = 2, timeout: int = 180,
+                 max_tokens: int = 512, retries: int = 2, timeout: Optional[int] = None,
                  backoff: float = 0.5, sleep=time.sleep):
         self.spec = spec
         self.temperature = float(temperature)
         self.max_tokens = int(max_tokens)
         self.retries = int(retries)
-        self.timeout = int(timeout)
+        # Seconds per request; LLM_TIMEOUT raises it when many replays share one server.
+        self.timeout = int(timeout if timeout is not None else os.getenv("LLM_TIMEOUT", "180"))
         self._backoff = backoff
         self._sleep = sleep
         self.transport_retries = 0
@@ -223,7 +230,7 @@ class JudgeModel:
         retried = 0
         for attempt in range(self.retries + 1):
             try:
-                response = requests.post(url, headers=headers, json=payload,
+                response = _SESSION.post(url, headers=headers, json=payload,
                                          timeout=self.timeout)
                 response.raise_for_status()
                 data = response.json()

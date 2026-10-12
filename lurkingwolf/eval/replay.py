@@ -412,11 +412,16 @@ def replay_phase(
             state, agents, timeline_order, group_headers, verbose, dry_run,
         )
 
-    # Post-phase memory update for reliability scores
+    # Post-phase memory update for reliability scores. The raters see the day's discussion:
+    # the score is what they think of a speaker after hearing them, so the rewritten speech
+    # has to be in front of them.
     time_str = f"day_{day}_post_replay"
     state.current_turn_buffer = list(discussion_preds)    # raters see what was said today
     for p in state.get_alive():
         if p in agents:
+            # Each rater builds its prompt once, so the buffer is set per rater: whatever the
+            # vote and night stages left behind cannot decide who sees the day's speech.
+            state.current_turn_buffer = list(discussion_preds)
             agents[p].update_memory(state, time_str, dry_run=dry_run)
     state.current_turn_buffer.clear()
 

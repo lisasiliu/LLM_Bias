@@ -1,0 +1,61 @@
+# RQ2: a speaker-level politeness cue in LURK flip replays, mirroring experiments/proficiency_flip.
+#
+# For every seed the runner plays one untreated 7-player NL baseline with day-start checkpoints,
+# then replays each day from its checkpoint:
+#   nl           identity control: same checkpoint, no rewriter; a second identity replay
+#                (repeat_index 1) measures the model's run-to-run variation on every outcome
+#   flip_self    the politeness rewriter on ONE player's speech for the whole day, rotated through all players
+#   flip_others  the rewriter on everyone except that player
+# Conditions: the four Brown & Levinson strategies of experiments/politeness_validation.
+# The rewriter is components/rewriters/politeness_rewriter.py (registered as `politeness`); its
+# meaning checks run offline on the recorded speeches, as in the politeness validation.
+name: politeness_flip
+n_players: 7
+seeds: [201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230]
+model: Qwen/Qwen3.5-27B
+temperature: 0.0
+max_tokens: 300
+max_rounds: 20
+rewriter_module: components.rewriters.politeness_rewriter
+
+comparisons:
+  nl_vs_politeness:
+    baseline: nl
+    replays:
+      - mode: nl
+      - mode: nl
+        repeat_index: 1
+      - mode: flip_self
+        rewriter: politeness
+        rewriter_params: {strategy: bald_on_record}
+        inject_at: day_start
+      - mode: flip_self
+        rewriter: politeness
+        rewriter_params: {strategy: positive_politeness}
+        inject_at: day_start
+      - mode: flip_self
+        rewriter: politeness
+        rewriter_params: {strategy: negative_politeness}
+        inject_at: day_start
+      - mode: flip_self
+        rewriter: politeness
+        rewriter_params: {strategy: off_record}
+        inject_at: day_start
+      - mode: flip_others
+        rewriter: politeness
+        rewriter_params: {strategy: bald_on_record}
+        inject_at: day_start
+      - mode: flip_others
+        rewriter: politeness
+        rewriter_params: {strategy: positive_politeness}
+        inject_at: day_start
+      - mode: flip_others
+        rewriter: politeness
+        rewriter_params: {strategy: negative_politeness}
+        inject_at: day_start
+      - mode: flip_others
+        rewriter: politeness
+        rewriter_params: {strategy: off_record}
+        inject_at: day_start
+
+metrics: [skill, vote, reliability, fairness]

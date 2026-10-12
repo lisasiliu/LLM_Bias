@@ -245,6 +245,8 @@ _ENTRY_RE = re.compile(
 
 def parse_history_entry(entry: str) -> Dict[str, str]:
     """Split a ``[sN|Pk] predicate(args): text`` public-history line."""
+    if not isinstance(entry, str):
+        return {}
     match = _ENTRY_RE.match(entry.strip())
     if not match:
         text_only = _TEXT_ONLY_RE.match(entry.strip())          # what players see: no predicate

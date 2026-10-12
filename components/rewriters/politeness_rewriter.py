@@ -12,8 +12,13 @@ is read from the single source of truth, ``lurkingwolf/prompts/prompt.json``.
 
 from __future__ import annotations
 
+import hashlib
+import json
+import os
 import re
+import sys
 from collections.abc import Mapping
+from pathlib import Path
 from functools import lru_cache
 from textwrap import dedent
 from typing import Optional, Set
@@ -27,6 +32,10 @@ from lurkingwolf.utils.speech_nl import (
 )
 
 THINK_OPEN = re.compile(r"</?think\b", re.IGNORECASE)
+
+# Stands in for the predicate definition when hashing the prompt TEMPLATE, so one
+# hash per strategy covers every predicate. Same literal as the proficiency rewriter's.
+DEFINITION_PLACEHOLDER = "{predicate_definition}"
 
 
 POLITENESS_STRATEGIES: dict[str, str] = {
@@ -184,6 +193,24 @@ def context_predicate_name(ctx: RewriteContext) -> str:
     return str(parse_predicate(raw).get("name", "")).strip()
 
 
+def _thinking_kwargs(model: str) -> dict:
+    """The engine's thinking switch for the served model (off during games)."""
+    try:
+        from lurkingwolf.utils.gen_config import thinking_extra_body
+    except ImportError:
+        return {}
+    return thinking_extra_body(model)
+
+
+def _engine_log_path() -> Optional[Path]:
+    """``rewrites.jsonl`` next to the engine subprocess's ``--output`` (replay) target."""
+    argv = sys.argv
+    if "--output" in argv:
+        target = Path(argv[argv.index("--output") + 1])
+        return (target.parent if target.suffix == ".json" else target) / "rewrites.jsonl"
+    return None
+
+
 @register
 class PolitenessRewriter(Rewriter):
     """Rewrite one self utterance using one politeness strategy."""
@@ -202,10 +229,16 @@ class PolitenessRewriter(Rewriter):
     ):
         self.llm_client = llm_client
         self.strategy = normalize_strategy(strategy)
-        self.model = model
+        # Inside a LURK game or replay subprocess the engine's model name is the served model.
+        self.model = model if model != "default" else os.getenv("LLM_MODEL", model)
         self.temperature = float(temperature)
         self.max_tokens = int(max_tokens)
         self._applies_to = set(applies_to) if applies_to else None
+        self._template_hash = self.template_sha256()
+        self.log_path = _engine_log_path()
+        if self.log_path and self.log_path.exists():
+            # The engine restarts an interrupted replay from its checkpoint: one log per attempt.
+            self.log_path.unlink()
 
     @property
     def applies_to_predicates(self) -> Optional[Set[str]]:
@@ -213,26 +246,8 @@ class PolitenessRewriter(Rewriter):
 
     # ── Prompting ──
 
-    def build_prompts(self, ctx: RewriteContext) -> tuple[str, str]:
-        """Return (system_prompt, user_prompt). Raises if the context is unusable."""
-        predicate_name = context_predicate_name(ctx)
-        if not predicate_name:
-            raise ValueError(
-                "RewriteContext must expose the predicate (directly or in metadata)"
-            )
-
-        definition = _ctx_value(ctx, "predicate_definition", "predicate_description")
-        if not definition:
-            definition = predicate_definition(predicate_name)
-        if not definition:
-            raise ValueError(
-                f"No predicate definition available for {predicate_name!r}; the "
-                "politeness rewriter needs it to preserve the predicate's semantic scope"
-            )
-
-        if not (ctx.original_nl or "").strip():
-            raise ValueError("RewriteContext.original_nl is empty; nothing to rewrite")
-
+    def _system_prompt(self, definition: str) -> str:
+        """The system prompt for this strategy, with ``definition`` in the predicate slot."""
         if self.strategy == "off_record":
             certainty_rule = (
                 "For off-record only, preserve the underlying intended proposition, "
@@ -276,6 +291,30 @@ class PolitenessRewriter(Rewriter):
             """
         ).strip()
 
+        return system_prompt
+
+    def build_prompts(self, ctx: RewriteContext) -> tuple[str, str]:
+        """Return (system_prompt, user_prompt). Raises if the context is unusable."""
+        predicate_name = context_predicate_name(ctx)
+        if not predicate_name:
+            raise ValueError(
+                "RewriteContext must expose the predicate (directly or in metadata)"
+            )
+
+        definition = _ctx_value(ctx, "predicate_definition", "predicate_description")
+        if not definition:
+            definition = predicate_definition(predicate_name)
+        if not definition:
+            raise ValueError(
+                f"No predicate definition available for {predicate_name!r}; the "
+                "politeness rewriter needs it to preserve the predicate's semantic scope"
+            )
+
+        if not (ctx.original_nl or "").strip():
+            raise ValueError("RewriteContext.original_nl is empty; nothing to rewrite")
+
+        system_prompt = self._system_prompt(definition)
+
         user_prompt = dedent(
             f"""\
             Predicate: {ctx.predicate}
@@ -288,6 +327,16 @@ class PolitenessRewriter(Rewriter):
         ).strip()
 
         return system_prompt, user_prompt
+
+    def prompt_sha256(self, ctx: RewriteContext) -> str:
+        """Hash of the system prompt as sent for THIS context (definition included)."""
+        system, _ = self.build_prompts(ctx)
+        return hashlib.sha256(system.encode("utf-8")).hexdigest()
+
+    def template_sha256(self) -> str:
+        """Hash of the system prompt with the predicate-definition slot left as a
+        placeholder: one value per strategy, whatever the predicate."""
+        return hashlib.sha256(self._system_prompt(DEFINITION_PLACEHOLDER).encode("utf-8")).hexdigest()
 
     # ── Rewriter interface ──
 
@@ -306,6 +355,7 @@ class PolitenessRewriter(Rewriter):
             ],
             temperature=self.temperature,
             max_tokens=self.max_tokens,
+            **_thinking_kwargs(self.model),
         )
         raw = response.choices[0].message.content or ""
         # `clean_natural_text` only removes a CLOSED <think>...</think> PAIR, so it
@@ -325,7 +375,21 @@ class PolitenessRewriter(Rewriter):
             )
         if not text:
             raise RuntimeError("Politeness rewriter returned an empty response")
+        self._record(ctx, text)
         return text
+
+    def _record(self, ctx: RewriteContext, text: str) -> None:
+        """One row per rewritten utterance in the replay directory's rewrites.jsonl."""
+        if not self.log_path:
+            return
+        row = {"speaker": getattr(ctx, "speaker_id", None), "phase": getattr(ctx, "phase", None),
+               "predicate": getattr(ctx, "predicate", None), "strategy": self.strategy,
+               "condition": self.strategy, "model": self.model, "temperature": self.temperature,
+               "prompt_sha256": self._template_hash,
+               "status": "ok", "original_text": ctx.original_nl, "rewritten_text": text}
+        self.log_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(self.log_path, "a", encoding="utf-8") as handle:
+            handle.write(json.dumps(row, ensure_ascii=False) + "\n")
 
     def to_config(self) -> dict:
         params = {

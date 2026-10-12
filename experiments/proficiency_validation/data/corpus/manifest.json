@@ -1,0 +1,97 @@
+{
+  "format": "proficiency_artifacts",
+  "artifacts": {
+    "sources.jsonl": {
+      "provenance": {
+        "schema_version": 1,
+        "created_at": "2026-10-04T06:38:28+00:00",
+        "source_runs": [
+          {
+            "run_id": "run01",
+            "path": "experiments/validation/run01",
+            "manifest_game_id": "g1",
+            "source_model": "deepseek-chat",
+            "seed": "fresh01",
+            "players": 9,
+            "outcome": "werewolves_win",
+            "rewriter": null,
+            "treatment_evidence": [],
+            "raw_sha256": {
+              "manifest.json": "bbf8e2634fd0e0f97bf91358c4b1ec2076f24cf8b400b9ff28460d976da27408",
+              "game_nl.json": "7034d878945aa031bdf6209e2a74582ec80386574dcfb208a3ea923d3eb4c6bb",
+              "public_history.json": "4854d4d3794fe7f94b1299e534bf6979c74d3cf1b354aa3d1fd29f086af82db5"
+            }
+          },
+          {
+            "run_id": "run02",
+            "path": "experiments/validation/run02",
+            "manifest_game_id": "g1",
+            "source_model": "deepseek-chat",
+            "seed": "fresh02",
+            "players": 9,
+            "outcome": "villagers_win",
+            "rewriter": null,
+            "treatment_evidence": [],
+            "raw_sha256": {
+              "manifest.json": "0a1cb7bc3cf00ade274a7459e0a168448d8ab919c5e1515081422563317ec8b5",
+              "game_nl.json": "4b0a07ae0b85b8347811600d8c4f18df580df0c9512c62a40771699573fc57d2",
+              "public_history.json": "d582a1b3443d660051b661b7066ac452777a59e0c50a353bb08b34a1c32f6f5d"
+            }
+          },
+          {
+            "run_id": "run03",
+            "path": "experiments/validation/run03",
+            "manifest_game_id": "g1",
+            "source_model": "deepseek-chat",
+            "seed": "fresh03",
+            "players": 9,
+            "outcome": "villagers_win",
+            "rewriter": null,
+            "treatment_evidence": [],
+            "raw_sha256": {
+              "manifest.json": "03cb7b0a03540b6da49d8a13149a1543aff8b95ce129231583101711017976ff",
+              "game_nl.json": "db19a1a3f7bf20d087e2febbb97d5db2b2f1df9ab7777c9c26873afa913e7153",
+              "public_history.json": "80caa836d45b2fe7854c3819e3914bfdf2bdefa3b9f69d773e480a0872a2197e"
+            }
+          }
+        ],
+        "source_type": "untreated Stage-2 game speech",
+        "planned_test_model_family": "Qwen3.5",
+        "possible_additional_test_model_family": "DeepSeek",
+        "sampling": {
+          "rule": "all public speech records; one passage per game/speaker drawn from the early, middle and late thirds of the speaker's timeline with a fixed seed",
+          "selection": "phase_stratified",
+          "window_words": [
+            150,
+            250
+          ],
+          "max_per_game": null,
+          "use": "descriptive baseline and pilot preparation"
+        },
+        "history": "strictly before the source speech; private roles and future turns are excluded",
+        "instruments": {
+          "spacy": {
+            "spacy_version": "3.8.4",
+            "model": "core_web_sm",
+            "model_version": "3.8.0",
+            "lang": "en"
+          },
+          "mattr_window": 50,
+          "include_domain_terms": false,
+          "subtlex": null
+        },
+        "artifacts": {
+          "sources.jsonl": "490be7c819a668100ea4d29a2b5c94788e50d4d7bec2eb68c1e8e82d5251fd19",
+          "bundles.jsonl": "9f64106ad4c86215efa68dac99671c96bb0ea64d2c7a836f32f12e93c72b63b8",
+          "original_features.jsonl": "ca5124d6401c0d5dbff6a8c7b2cd9386652891ded6b8bae42bea805328bb71a1"
+        },
+        "validation_scope": "automated linguistic measures and model perception",
+        "validation_evidence": {
+          "proficiency_rewrites": false,
+          "grammar_guardrails": false,
+          "listener_perception": false
+        }
+      }
+    }
+  }
+}
