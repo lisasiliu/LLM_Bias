@@ -48,6 +48,7 @@ class SourceRecord:
     public_history: List[str] = field(default_factory=list)
     referenced_speech: Optional[Dict[str, str]] = None   # {speech_id, speaker, predicate, text}
     provenance: str = "constructed"                       # "constructed" | "game_run:<dir>"
+    addressee: Optional[str] = None                       # the one player the utterance is addressed to, if any
 
     def to_dict(self) -> dict:
         return asdict(self)

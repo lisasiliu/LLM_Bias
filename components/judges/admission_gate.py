@@ -98,7 +98,7 @@ class AdmissionGate:
         answer = str((parsed or {}).get("answer", "")).strip().lower()
         return True if answer == "yes" else False if answer == "no" else None
 
-    def _appeal(self, source: SourceRecord, rewrite: str, action_arg: str) -> Dict[str, Any]:
+    def appeal(self, source: SourceRecord, rewrite: str, action_arg: str) -> Dict[str, Any]:
         action, target = action_and_target(source, action_arg)
         question = (f"Original action: {action} toward {target}. Does the rewrite still recommend or describe "
                     f"the same action toward the same target, in any wording?")
@@ -112,24 +112,29 @@ class AdmissionGate:
             answer = None
         return {"action": action_arg, "question": question, "rewrite": rewrite, "answer": answer}
 
+    def reasons_check(self, source: SourceRecord, rewrite: str) -> Dict[str, Any]:
+        """The original's listed reasons, and whether the rewrite still gives each (None if not asked/readable)."""
+        evidence: Dict[str, Any] = {"original_reasons": None, "kept": None}
+        if (rewrite or "").strip():
+            listed = self.original_reasons(source.original_nl or "")
+            evidence["original_reasons"] = listed
+            if listed:
+                evidence["kept"] = self.reasons_kept(listed, rewrite)
+        return evidence
+
     def check(self, source: SourceRecord, rewrite: str, *, addressee: Optional[str] = None) -> Dict[str, Any]:
         det = structural_check(source, rewrite, addressee=addressee)
         reasons: List[str] = list(det.reasons)
         appeals: List[Dict[str, Any]] = []
         for reason in list(reasons):
             if reason.startswith("lost_action_slot:"):
-                appeal = self._appeal(source, rewrite, reason.split(":", 1)[1])
+                appeal = self.appeal(source, rewrite, reason.split(":", 1)[1])
                 appeals.append(appeal)
                 if appeal["answer"] is True:
                     reasons.remove(reason)
-        evidence = {"original_reasons": None, "kept": None}
-        if (rewrite or "").strip():
-            listed = self.original_reasons(source.original_nl or "")
-            evidence["original_reasons"] = listed
-            if listed:
-                evidence["kept"] = self.reasons_kept(listed, rewrite)
-                if evidence["kept"] is False:
-                    reasons.append("evidence_dropped")
+        evidence = self.reasons_check(source, rewrite)
+        if evidence["kept"] is False:
+            reasons.append("evidence_dropped")
         return {"admitted": not reasons, "structural_reasons": list(det.reasons),
                 "gate_failure_reasons": reasons, "action_appeals": appeals, "evidence": evidence,
                 "identical_to_original": bool(det.details.get("identical_to_original"))}

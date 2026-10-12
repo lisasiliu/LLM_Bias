@@ -13,7 +13,8 @@ from experiments.proficiency_validation.rewrite.runtime import ValidationModel
 from components.judges.inverse_predicate_parser import PARSEABLE_PREDICATES, InversePredicateParser, build_system_prompt as parser_system_prompt, compare, context_phase
 from components.api_usage import UsageLedger
 from components.judges.judge_model import Completion, JudgeModel
-from experiments.proficiency_validation.rewrite.fidelity import proficiency_check
+from experiments.proficiency_validation.rewrite.fidelity import NEUTRAL_DIMENSIONS, proficiency_check
+from components.rewriters.trust_politeness_policy import addressee_of
 from components.metrics.edit_distance import normalized_token_edit_distance
 from components.metrics.text_normalization import same_wording, surface_key
 from components.rewriters.language_rewriter import LanguageProficiencyRewriter, NeutralSelection, select_candidate
@@ -53,6 +54,7 @@ def source_from_context(ctx: RewriteContext) -> SourceRecord:
                        "predicate": item["pred"], "text": item.get("text", "")}
                 break
     return SourceRecord(
+        addressee=addressee_of(name, args, ctx.speaker_id, (ref or {}).get("speaker")),
         source_id=f"ctx:{ctx.speaker_id}:{ctx.predicate}",
         predicate_name=name, predicate_text=ctx.predicate, predicate_args=args,
         predicate_definition=predicate_definition(name),
@@ -177,6 +179,10 @@ class SemanticGate:
         self.judge_handle = judge_handle
         self._original_parses = {}
         self._original_inventories = {}
+        # When set (an AdmissionGate), the parser and fidelity judge are replaced by the shared in-game gate:
+        # the action appeal and the reasons check. The English fidelity judge is then asked only for
+        # Neutral's three range labels (the paraphrase control must stay at the original's range).
+        self.admission = None
 
     def set_neutral_frequency(self, subtlex_path, spacy_model: str = "en_core_web_sm") -> None:
         """Load SUBTLEX and the tokenizer once for ranking Neutral candidates."""
@@ -325,6 +331,36 @@ class SemanticGate:
                                if k not in ("validator", "dimensions_asked")},
                 "rubric_version": SEMANTIC_RUBRIC_VERSION}
 
+    def _evaluate_admission(self, source: SourceRecord, rewritten: str, condition: str, structural,
+                            result: "GateResult") -> "GateResult":
+        reasons = result.reasons
+        info: Dict[str, Any] = {"action_appeals": [], "evidence": None, "neutral_range": None}
+        for signal in structural.details.get("semantic_signals", []):
+            if signal.startswith("lost_action_slot:"):
+                appeal = self.admission.appeal(source, rewritten, signal.split(":", 1)[1])
+                info["action_appeals"].append(appeal)
+                if appeal["answer"] is not True:
+                    reasons.append(signal)
+        info["evidence"] = self.admission.reasons_check(source, rewritten)
+        if info["evidence"]["kept"] is False:
+            reasons.append("evidence_dropped")
+        no_verdict = False
+        if condition == "neutral" and not reasons and self.validator is not None:
+            verdict = self.validator.validate(source, rewritten, commitment_may_be_indirect=False, condition=condition)
+            labels = {name: (verdict.details or {}).get(name) for name in NEUTRAL_DIMENSIONS}
+            info["neutral_range"] = labels
+            if any(v not in ("simpler", "same", "more_advanced") for v in labels.values()):
+                no_verdict = True
+                reasons.append("neutral_range_no_verdict")
+            else:
+                reasons += [f"{name}:{label}" for name, label in labels.items() if label != "same"]
+        result.semantic = {"ok": None if no_verdict else (not reasons), "reasons": list(reasons),
+                           "dimensions": {}, "admission": info}
+        result.skipped += ["parser", "fidelity_judge"]
+        result.ok = False if [r for r in reasons if r != "neutral_range_no_verdict"] else (None if no_verdict else True)
+        result.reasons = reasons
+        return result
+
     def judge_all(self, source: SourceRecord, rewritten: str) -> Dict[str, Any]:
         """Every judge on the same text, independently and without short-circuit.
 
@@ -371,6 +407,9 @@ class SemanticGate:
             if cheap_only:
                 skipped += ["parser", "semantic"]
             return result
+
+        if self.admission is not None:
+            return self._evaluate_admission(source, rewritten, condition, structural, result)
 
         # The verdict is derived from each judge's own ok/None signal, never from
         # the wording of its reason strings.
@@ -513,7 +552,21 @@ class GenerationOutcome:
 
 def generate_with_gate(rewriter: LanguageProficiencyRewriter, gate: SemanticGate,
                        ctx: RewriteContext, source: SourceRecord, *,
-                       max_corrective_retries: int = 2) -> GenerationOutcome:
+                       max_corrective_retries: int = 2,
+                       retry_temperature: Optional[float] = None) -> GenerationOutcome:
+    """Gated generation; the rewriter's own temperature is restored whatever the outcome."""
+    first = rewriter.temperature
+    try:
+        return _generate_with_gate(rewriter, gate, ctx, source, max_corrective_retries=max_corrective_retries,
+                                   retry_temperature=retry_temperature)
+    finally:
+        rewriter.temperature = first
+
+
+def _generate_with_gate(rewriter: LanguageProficiencyRewriter, gate: SemanticGate,
+                        ctx: RewriteContext, source: SourceRecord, *,
+                        max_corrective_retries: int = 2,
+                        retry_temperature: Optional[float] = None) -> GenerationOutcome:
     """Gated generation for one utterance in one condition.
 
     Low/High: rewrite -> gate -> corrective retry.  Neutral: generate all
@@ -531,8 +584,11 @@ def generate_with_gate(rewriter: LanguageProficiencyRewriter, gate: SemanticGate
     if condition == "neutral" and not callable(getattr(gate, "neutral_frequency", None)):
         raise ValueError("Neutral requires a SUBTLEX word-frequency scorer before generation")
     saw_real_failure = False
+    first_temperature = rewriter.temperature
     for index in range(1 + max_corrective_retries):
         prior_reasons = list((feedback or {}).get("reasons", []))
+        # With retry_temperature, a retry is the same prompt sampled hotter, with no corrective feedback.
+        rewriter.temperature = retry_temperature if (retry_temperature is not None and index > 0) else first_temperature
         try:
             if condition == "neutral":
                 text, selection, gate_result = _neutral_attempt(
@@ -567,7 +623,9 @@ def generate_with_gate(rewriter: LanguageProficiencyRewriter, gate: SemanticGate
         saw_real_failure = True
         if attempt.gate.permanent_transport_failure:
             break
-        feedback = {"reasons": list(attempt.gate.reasons), "previous": attempt.text or ""}
+        if retry_temperature is None:
+            feedback = {"reasons": list(attempt.gate.reasons), "previous": attempt.text or ""}
+    rewriter.temperature = first_temperature
     status = STATUS_TREATMENT_UNAVAILABLE if saw_real_failure else STATUS_INFRASTRUCTURE_UNAVAILABLE
     return GenerationOutcome(condition, status, None, attempts)
 
@@ -741,6 +799,7 @@ class GatedRewriter(Rewriter):
 
     def __init__(self, base=None, gate="deepseek-chat", *, llm_client=None,
                  max_corrective_retries: int = 2, on_unavailable: str = "raise",
+                 retry_temperature: Optional[float] = None, admission=None,
                  log_path: Optional[str] = None,
                  subtlex_path: Optional[str] = None, spacy_model: str = "en_core_web_sm",
                  frozen_path: Optional[str] = None, generator_handle: Optional[str] = None,
@@ -819,6 +878,9 @@ class GatedRewriter(Rewriter):
                 raise ValueError("Neutral requires a SUBTLEX word-frequency scorer")
         self.base = base
         self.gate = gate
+        if admission is not None:
+            gate.admission = admission
+        self.retry_temperature = retry_temperature
         self.log_path = log_path
         self.max_corrective_retries = int(max_corrective_retries)
         self.on_unavailable = on_unavailable
@@ -845,7 +907,8 @@ class GatedRewriter(Rewriter):
         source.game_id = self.game_id
         source.source_id = f"{self.game_id}:{self.branch_id}:{self.sequence}"
         outcome = generate_with_gate(self.base, self.gate, ctx, source,
-                                     max_corrective_retries=self.max_corrective_retries)
+                                     max_corrective_retries=self.max_corrective_retries,
+                                     retry_temperature=self.retry_temperature)
         entry = {"game_id": self.game_id, "branch_id": self.branch_id, "source_id": source.source_id,
                  "sequence": self.sequence, "speaker": ctx.speaker_id, "phase": ctx.phase,
                  "predicate": ctx.predicate, "original_nl": ctx.original_nl, "original_text": ctx.original_nl,

@@ -26,7 +26,8 @@ NUMBER = re.compile(r"(?<![\w])\d+(?:\.\d+)?(?![\w])")
 
 def proficiency_check(source, rewritten):
     original = source.original_nl
-    base = structural_check(source, rewritten, commitment_may_be_indirect=False)
+    base = structural_check(source, rewritten, commitment_may_be_indirect=False,
+                            addressee=getattr(source, "addressee", None))
     hard, signals = [], []
     for reason in base.reasons:
         lexical_slot = reason.startswith(("lost_action_slot:", "lost_role_slot:", "lost_literal_slot:"))
