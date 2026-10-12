@@ -147,16 +147,19 @@ class TrustPolitenessPolicy(Rewriter):
 
         attempts: List[Dict[str, Any]] = []
         final, delivered = ctx.original_nl, "original_fallback"
-        attempt = self._attempt(ctx, source, assigned)   # a failed rewrite falls back to the original, not to another strategy
-        attempts.append(attempt)
-        if attempt["admitted"]:
-            final, delivered = attempt["text"], "rewrite"
+        for k in range(2):        # one regeneration with the same frozen prompt; then the original text
+            attempt = self._attempt(ctx, source, assigned, addressee)
+            attempts.append(attempt)
+            if attempt["admitted"]:
+                final, delivered = attempt["text"], "rewrite"
+                break
         self._count(f"touched:{self.arm}:{delivered}")
         self._log(ctx, name, addressee, group, rel.get(addressee), assigned, delivered,
                   final, attempts, by_reliability, by_consensus)
         return final
 
-    def _attempt(self, ctx: RewriteContext, source: SourceRecord, strategy: str) -> Dict[str, Any]:
+    def _attempt(self, ctx: RewriteContext, source: SourceRecord, strategy: str,
+                 addressee: Optional[str] = None) -> Dict[str, Any]:
         out: Dict[str, Any] = {"strategy": strategy, "text": "", "admitted": False,
                                "error": "", "checks": None}
         text = ""
@@ -177,7 +180,7 @@ class TrustPolitenessPolicy(Rewriter):
             out["admitted"] = True
             return out
         try:
-            out["checks"] = self.gate.check(source, text)
+            out["checks"] = self.gate.check(source, text, addressee=addressee)
             out["admitted"] = bool(out["checks"]["admitted"])
         except Exception as exc:
             out["error"] = f"gate {type(exc).__name__}: {exc}"[:300]
@@ -198,6 +201,10 @@ class TrustPolitenessPolicy(Rewriter):
             "rank_group_by_reliability": by_reliability,
             "rank_group_by_consensus": by_consensus,
             "assigned_strategy": assigned, "delivered_source": delivered,
+            "delivered": "rewrite" if delivered == "rewrite" else "original",
+            "delivered_attempt": next((i + 1 for i, a in enumerate(attempts) if a["admitted"]), None),
+            "gate_failure_reasons": [(a.get("checks") or {}).get("gate_failure_reasons") or ([a["error"]] if a.get("error") else [])
+                                     for a in attempts],
             "original_text": ctx.original_nl, "final_text": final,
             "addressee_rating_of_speaker_before":
                 (getattr(addr_agent, "reliability", {}) or {}).get(ctx.speaker_id),

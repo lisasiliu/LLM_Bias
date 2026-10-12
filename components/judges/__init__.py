@@ -16,10 +16,11 @@ from .blind_politeness_classifier import BlindPolitenessClassifier
 from .dimensional_semantic_validator import DimensionalSemanticValidator
 from .inverse_predicate_parser import InversePredicateParser
 from .admission_gate import AdmissionGate
+from .structural_check import structural_check
 
 __all__ = [
     "BlindPolitenessClassifier", "Completion", "DimensionalSemanticValidator",
     "InversePredicateParser", "JudgeModel", "JudgeModelError",
     "JudgeTransportError", "ModelSpec", "extract_json", "known_handles",
-    "resolve_spec", "AdmissionGate",
+    "resolve_spec", "AdmissionGate", "structural_check",
 ]
