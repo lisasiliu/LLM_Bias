@@ -201,6 +201,76 @@ def cmd_metrics(args) -> int:
     return 0
 
 
+def cmd_e3(args) -> int:
+    """E3: for each setting, the difference from the control (natural text, branching at the same line) in the share of
+    skill targets, vote targets and reliability scores that differ from the baseline phase. Paired by player-day
+    (seed, day, self player; repetitions averaged), pooled over player-days, 95% interval from a seed-clustered
+    bootstrap. Reported with all seeds and without pe01."""
+    from types import SimpleNamespace
+    from lurkingwolf.eval.metrics import compute_phase_delta
+    from lurkingwolf.eval.replay import extract_baseline_phase
+    root, games = Path(args.flip_root), Path(DEFAULT_GAMES)
+    metrics = ["skill_change_rate", "vote_change_rate", "reliability_change_rate"]
+    base, cells = {}, defaultdict(list)                   # (seed, day, player, setting) -> [per-replay metrics]
+    for f in sorted(root.glob("pe*/day*/*/result.json")):
+        r = json.loads(f.read_text())
+        key = (r["seed"], r["day"])
+        if key not in base:
+            base[key] = extract_baseline_phase(games / r["seed"] / "natural", r["day"])
+        agg = compute_phase_delta(base[key], SimpleNamespace(**{k: r.get(k) for k in (
+            "wolf_target", "seer_target", "guard_target", "votes", "votes_received", "reliability",
+            "executed", "config_name", "self_player", "experiment_type")}))["aggregates"]
+        setting = "control" if r["mode"] == "control" else r["setting"]
+        cells[(r["seed"], r["day"], r["player"], setting)].append([agg[m] for m in metrics])
+    mean = lambda rows: [sum(c) / len(c) for c in zip(*rows)]
+    units = defaultdict(dict)                             # (seed, day, player) -> setting -> mean metrics
+    for (seed, day, player, setting), rows in cells.items():
+        units[(seed, day, player)][setting] = mean(rows)
+    settings = ["all_bald", "all_positive", "trust_positive", "trust_bald"]
+    rng = random.Random(12345)
+
+    def estimate(unit_keys, setting, j):
+        d = [units[k][setting][j] - units[k]["control"][j] for k in unit_keys if setting in units[k] and "control" in units[k]]
+        return sum(d) / len(d) if d else None, len(d)
+
+    def interval(unit_keys, setting, j, B=2000):
+        by = defaultdict(list)
+        for k in unit_keys:
+            by[k[0]].append(k)
+        seeds = sorted(by)
+        out = []
+        for _ in range(B):
+            keys = [k for sd in (rng.choice(seeds) for _ in seeds) for k in by[sd]]
+            v, _n = estimate(keys, setting, j)
+            if v is not None:
+                out.append(v)
+        out.sort()
+        return (out[int(0.025 * len(out))], out[int(0.975 * len(out)) - 1]) if out else (None, None)
+
+    lines = ["# E3: setting minus control (no change)", "",
+             "Share of skill targets, vote targets and reliability scores that differ from the baseline phase, setting minus the "
+             "control replay. Paired by player-day (repetitions averaged), pooled over player-days; 95% intervals resample seeds "
+             "(2000 draws). Values in percentage points.", ""]
+    for label, keep in (("all seeds", lambda s: True), ("without pe01", lambda s: s != "pe01")):
+        keys = [k for k in units if keep(k[0]) and "control" in units[k]]
+        lines += [f"## {label}: {len({k[0] for k in keys})} seeds, {len(keys)} player-days", "",
+                  "| setting | skill targets | vote targets | reliability scores |", "|---|--:|--:|--:|"]
+        for st in settings:
+            cells_md = []
+            for j in range(3):
+                v, n = estimate(keys, st, j)
+                lo, hi = interval(keys, st, j)
+                cells_md.append("" if v is None else f"{100 * v:+.1f} [{100 * lo:+.1f}, {100 * hi:+.1f}] (n={n})")
+            lines.append(f"| {st} | " + " | ".join(cells_md) + " |")
+        ctrl = [sum(units[k]["control"][j] for k in keys) / len(keys) for j in range(3)]
+        lines += ["", "Control level (share differing from the baseline): " + ", ".join(
+            f"{m.split('_')[0]} {100 * c:.1f}%" for m, c in zip(metrics, ctrl)), ""]
+    out = Path(args.out_e3)
+    out.write_text("\n".join(lines) + "\n")
+    print("\n".join(lines))
+    return 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -211,10 +281,12 @@ def main(argv=None) -> int:
     j.add_argument("--out-all", default="experiments/politeness_experiment/data/flip_delivered_judged.jsonl")
     m = sub.add_parser("metrics")
     m.add_argument("--out-paper", default="experiments/politeness_experiment/results_flip.md")
-    for q in (c, j, m):
+    e = sub.add_parser("e3")
+    e.add_argument("--out-e3", default="experiments/politeness_experiment/results.md")
+    for q in (c, j, m, e):
         q.add_argument("--flip-root", default=str(FLIP_ROOT))
     args = ap.parse_args(argv)
-    return {"check": cmd_check, "judge": cmd_judge, "metrics": cmd_metrics}[args.cmd](args) or 0
+    return {"check": cmd_check, "judge": cmd_judge, "metrics": cmd_metrics, "e3": cmd_e3}[args.cmd](args) or 0
 
 
 if __name__ == "__main__":

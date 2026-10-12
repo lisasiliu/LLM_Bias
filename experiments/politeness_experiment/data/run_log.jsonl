@@ -307,3 +307,43 @@
 {"ts": "2026-10-12T04:06:46.803754+00:00", "event": "flip_start", "first": 1, "last": 1, "tasks": 110, "reps": 2, "balance": 21.05}
 {"ts": "2026-10-12T04:31:39.505866+00:00", "event": "flip_end", "counts": {"ok": 110}, "balance": 19.73, "flip_spend": 1.4587}
 {"ts": "2026-10-12T06:35:40.788701+00:00", "event": "language_start", "first": 1, "last": 1, "tasks": 55, "balance": 18.77}
+{"ts": "2026-10-12T07:03:45.651796+00:00", "event": "language_end", "counts": {"ok": 52, "done": 3}, "balance": 14.32}
+{"ts": "2026-10-12T07:04:10.250286+00:00", "event": "language_start", "first": 2, "last": 2, "tasks": 30, "balance": 14.32}
+{"ts": "2026-10-12T07:06:24.819858+00:00", "event": "language_start", "first": 2, "last": 2, "tasks": 30, "balance": 13.99}
+{"ts": "2026-10-12T07:22:21.855303+00:00", "event": "language_end", "counts": {"done": 4, "ok": 26}, "balance": 12.72}
+{"ts": "2026-10-12T07:22:23.287791+00:00", "event": "language_start", "first": 3, "last": 3, "tasks": 30, "balance": 12.72}
+{"ts": "2026-10-12T07:39:52.895430+00:00", "event": "language_end", "counts": {"ok": 30}, "balance": 11.7}
+{"ts": "2026-10-12T07:39:54.330176+00:00", "event": "language_start", "first": 4, "last": 4, "tasks": 55, "balance": 11.7}
+{"ts": "2026-10-12T08:03:32.440859+00:00", "event": "language_end", "counts": {"ok": 55}, "balance": 10.31}
+{"ts": "2026-10-12T08:03:33.875295+00:00", "event": "language_start", "first": 5, "last": 5, "tasks": 50, "balance": 10.31}
+{"ts": "2026-10-12T08:24:11.092851+00:00", "event": "language_end", "counts": {"ok": 50}, "balance": 8.99}
+{"ts": "2026-10-12T08:24:12.415100+00:00", "event": "language_start", "first": 6, "last": 6, "tasks": 55, "balance": 8.99}
+{"ts": "2026-10-12T08:49:26.214543+00:00", "event": "language_end", "counts": {"ok": 55}, "balance": 7.59}
+{"ts": "2026-10-12T08:49:27.585741+00:00", "event": "language_start", "first": 7, "last": 7, "tasks": 55, "balance": 7.59}
+{"ts": "2026-10-12T09:15:12.707847+00:00", "event": "language_end", "counts": {"ok": 55}, "balance": 6.1}
+{"ts": "2026-10-12T09:15:14.654344+00:00", "event": "language_start", "first": 8, "last": 8, "tasks": 30, "balance": 6.1}
+{"ts": "2026-10-12T09:33:24.914609+00:00", "event": "language_end", "counts": {"ok": 30}, "balance": 5.04}
+{"ts": "2026-10-12T09:33:26.245537+00:00", "event": "language_start", "first": 9, "last": 9, "tasks": 30, "balance": 5.04}
+{"ts": "2026-10-12T09:49:37.660279+00:00", "event": "language_end", "counts": {"ok": 30}, "balance": 4.11}
+{"ts": "2026-10-12T09:49:39.045810+00:00", "event": "language_start", "first": 10, "last": 10, "tasks": 55, "balance": 4.11}
+{"ts": "2026-10-12T10:15:29.779000+00:00", "event": "language_end", "counts": {"ok": 55}, "balance": 2.91}
+{"ts": "2026-10-12T10:15:31.078375+00:00", "event": "language_start", "first": 11, "last": 11, "tasks": 65, "balance": 2.91}
+{"ts": "2026-10-12T10:56:06.158739+00:00", "event": "language_end", "counts": {"ok": 65}, "balance": 1.56}
+{"ts": "2026-10-12T16:15:48.605188+00:00", "event": "language_start", "first": 12, "last": 12, "tasks": 30, "balance": 288.75}
+{"ts": "2026-10-12T16:26:18.850347+00:00", "event": "language_end", "counts": {"ok": 30}, "balance": 277.68}
+{"ts": "2026-10-12T16:26:20.212774+00:00", "event": "language_start", "first": 13, "last": 13, "tasks": 30, "balance": 277.68}
+{"ts": "2026-10-12T16:36:31.696151+00:00", "event": "language_end", "counts": {"ok": 30}, "balance": 268.97}
+{"ts": "2026-10-12T16:36:33.233244+00:00", "event": "language_start", "first": 14, "last": 14, "tasks": 30, "balance": 268.97}
+{"ts": "2026-10-12T16:47:57.619531+00:00", "event": "language_end", "counts": {"ok": 30}, "balance": 259.53}
+{"ts": "2026-10-12T16:47:58.973759+00:00", "event": "language_start", "first": 15, "last": 15, "tasks": 30, "balance": 259.53}
+{"ts": "2026-10-12T16:49:43.250132+00:00", "event": "language_start", "first": 12, "last": 12, "tasks": 30, "balance": 258.33}
+{"ts": "2026-10-12T16:49:43.657299+00:00", "event": "language_end", "counts": {"done": 30}, "balance": 258.33}
+{"ts": "2026-10-12T16:49:44.850279+00:00", "event": "language_start", "first": 13, "last": 13, "tasks": 30, "balance": 258.33}
+{"ts": "2026-10-12T16:49:45.223945+00:00", "event": "language_end", "counts": {"done": 30}, "balance": 258.33}
+{"ts": "2026-10-12T16:49:46.437750+00:00", "event": "language_start", "first": 14, "last": 14, "tasks": 30, "balance": 258.33}
+{"ts": "2026-10-12T16:49:46.814472+00:00", "event": "language_end", "counts": {"done": 30}, "balance": 258.33}
+{"ts": "2026-10-12T16:49:48.067475+00:00", "event": "language_start", "first": 15, "last": 15, "tasks": 30, "balance": 258.33}
+{"ts": "2026-10-12T17:01:52.779441+00:00", "event": "language_end", "counts": {"ok": 30}, "balance": 249.34}
+{"ts": "2026-10-12T17:01:54.028531+00:00", "event": "language_start", "first": 16, "last": 16, "tasks": 55, "balance": 249.34}
+{"ts": "2026-10-12T17:18:05.393355+00:00", "event": "language_end", "counts": {"ok": 55}, "balance": 236.77}
+{"ts": "2026-10-12T17:18:06.660801+00:00", "event": "language_start", "first": 17, "last": 17, "tasks": 80, "balance": 236.77}
