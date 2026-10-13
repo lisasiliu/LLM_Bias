@@ -9,7 +9,7 @@ they trust the speaker?
 ## Setup
 
 Seven-player games (2 werewolves, seer, guard, 3 villagers), all `deepseek-chat`, temperature 0.
-Twenty natural baseline games (`pe01`-`pe20`) are played once with checkpoints saved at each day start.
+Thirty natural baseline games (`pe01`-`pe30`) are played once with checkpoints saved at each day start.
 Every replay starts from a day-start checkpoint and plays that day: discussion, vote, night, then the
 players' reliability update.
 
@@ -38,11 +38,11 @@ delivered bald in the trust settings. A speaker ranks the living players by thei
 reliability scores; the top half, including the middle player of an odd count, is trusted and the
 rest is distrusted.
 
-**Rewrites.** Each rewrite is read back by a model that did not write it (gpt-5.6-luna). An inverse
-parser sees only the rewrite and the public record and must recover the original predicate, and a
-semantic validator checks commitment, act force, evidence, the referenced statement and the speaker's
-perspective, and flags invented or deleted content. Both must agree. If either fails, the speaker's
-original text is delivered and logged.
+**Rewrites.** A rewrite is delivered only if it keeps what the speech act needs: every player number in the original
+(the speaker may become "I" and the addressee "you"), role labels, referenced speech IDs, the action and its target, polarity,
+and any reasons the original gave. Most of this is checked by rule; two yes/no questions go to gpt-5.6-luna (is the
+action the same toward the same target; are the original's reasons still given). A rewrite that fails is regenerated once with
+the same prompt at temperature 0.7, and if it fails again the speaker's original text is delivered. Both attempts are logged.
 
 ## Outcomes
 
@@ -55,7 +55,9 @@ after the phase. The blind judge (gpt-5.6-luna) labels every delivered text to c
 ```bash
 python -m experiments.politeness_experiment.code.run play --seed pe21     # a new baseline
 python -m experiments.politeness_experiment.code.run flip --first 1 --last 2 --workers 6
-python -m experiments.politeness_experiment.code.analysis export|effects|judge
+python -m experiments.politeness_experiment.code.analysis export    # games/ -> data/*.csv
+python -m experiments.politeness_experiment.code.analysis effects   # data/player_days.csv -> results.md
+python -m experiments.politeness_experiment.code.analysis judge     # blind judge on delivered texts
 ```
 
 Each replay writes `result.json`, `cost.json` and `touched.jsonl` (one row per treated utterance:
