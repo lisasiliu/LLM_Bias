@@ -152,4 +152,3 @@ result (p = 0.16), because the werewolf score does not mean trust.
 | `data/results_7p.json` | every number above |
 | `figures/` | the two charts |
 | `code/natural_7p.py` | `extract`, `label`, `analyze`, `figures` |
-| `data/audit_random_rater_{1,2}.md` | blank blind worksheets for a human check of 50 utterances |
