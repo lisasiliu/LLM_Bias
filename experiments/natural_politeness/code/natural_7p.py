@@ -47,7 +47,7 @@ from components.judges.blind_politeness_classifier import (
 from components.judges.judge_model import JudgeModel
 from components.judges.judge_model import majority
 from components.rewriters.politeness_rewriter import ELIGIBLE_PREDICATES
-from components.rewriters.trust_politeness_policy import addressee_of
+from components.rewriters.politeness_rewriter import addressee_of
 
 HERE = Path(__file__).resolve().parents[1]
 ROOT = HERE.parents[1]

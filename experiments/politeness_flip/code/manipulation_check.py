@@ -27,7 +27,7 @@ from typing import Dict, List, Optional
 from components.helpers import read_jsonl
 from components.judges.blind_politeness_classifier import (
     LABELS, PROMPT_VERSION, BlindPolitenessClassifier, system_prompt)
-from components.judges.majority_vote import FAILED, NO_MAJORITY, majority
+from components.judges.judge_model import FAILED, NO_MAJORITY, majority
 from experiments.politeness_flip.code import analyze as pa
 from experiments.language_flip.code import analyze as flip
 from experiments.language_flip.code.analyze import _logged_text

@@ -14,7 +14,7 @@ from components.judges.inverse_predicate_parser import PARSEABLE_PREDICATES, Inv
 from components.api_usage import UsageLedger
 from components.judges.judge_model import Completion, JudgeModel
 from experiments.language_validation.rewrite.fidelity import NEUTRAL_DIMENSIONS, proficiency_check
-from components.rewriters.trust_politeness_policy import addressee_of
+from components.rewriters.politeness_rewriter import addressee_of
 from components.metrics.edit_distance import normalized_token_edit_distance
 from components.metrics.text_normalization import same_wording, surface_key
 from components.rewriters.language_rewriter import LanguageProficiencyRewriter, NeutralSelection, select_candidate

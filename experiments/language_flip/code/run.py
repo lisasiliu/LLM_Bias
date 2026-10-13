@@ -7,7 +7,7 @@ range, B paraphrase control, C expanded range) and two control replays (natural 
 line). The baselines are the ones the politeness study replays (`games/flip_experiments/<seed>/natural`), so both
 studies treat the same days. Replays go to `games/flip_experiments/language/<seed>/day<N>/`.
 
-Every rewrite passes the shared in-game gate (`components/judges/admission_gate.py`: player numbers, the action
+Every rewrite passes the shared in-game gate (`components/judges/gate.py`: player numbers, the action
 appeal, the reasons check with the global cache) plus the language treatment checks; a failed rewrite is
 regenerated once at temperature 0.7 and then the original text is delivered and logged.
 """
@@ -24,7 +24,7 @@ from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from components.judges.admission_gate import AdmissionGate
+from components.judges.gate import AdmissionGate
 from components.judges.judge_model import LUNA, JudgeModel
 from experiments.politeness_experiment.code.run import (
     DEFAULT_GAMES, MODEL, ROOT, Ledger, LedgerClient, balance, log, seed_name)

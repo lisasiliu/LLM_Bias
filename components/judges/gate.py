@@ -1,27 +1,30 @@
-"""Deterministic preservation checks driven by the structured predicate.
+"""The in-game gate: which rewrites may be delivered.
 
-A rewrite may not LOSE a slot the original utterance actually realized on the
-surface. Slots the original never spelled out (a bare speech id, usually) cannot
-be checked here, so this never invents a requirement the untreated text did not
-itself satisfy.
-
-Player numbers are checked on the original TEXT, not on predicate slots: every number the original
-names must appear in the rewrite, except that the speaker's own number may become I/me/my and the
+`structural_check` fails a rewrite that drops a player number, role, speech ID, action word or literal that the original named,
+adds a real hedge (might, maybe, perhaps, ...), or flips agree/disagree. The speaker's own number may become I/me/my, and the
 addressee's number may become you/your (only when the utterance is addressed to that player).
-Conventional stance markers ("I think", "I feel") are not hedges; real downgrades (might, maybe,
-perhaps, possibly, probably, could be, not sure, I guess) are.
 
-``commitment_may_be_indirect`` relaxes the added-hedge and slot rules for a
-strategy where indirectness is the treatment (politeness ``off_record``).
+`AdmissionGate` adds two questions to gpt-5.6-luna, both answered yes or no:
+- when the action rule fires: does the rewrite still recommend or describe the same action toward the same target, in any
+  wording? A yes clears that failure. The question and the answer are logged.
+- the reasons check: does the rewrite still give each reason or piece of evidence the original gave (listed once per original and
+  cached)? It fails only if the original gives reasons and the answer is no.
+
+If the checking model cannot be reached or gives no usable reply, the gate raises `GateUnavailable`, so the replay fails and is
+rerun instead of passing a rewrite unchecked.
 """
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
+import threading
+import time
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from components.helpers import CheckResult, SourceRecord, decide
-
+from components.helpers import CheckResult, SourceRecord
 
 _PLAYER_RE = re.compile(r"^P\d+$", re.IGNORECASE)
 _SPEECH_RE = re.compile(r"^s\d+$", re.IGNORECASE)
@@ -171,7 +174,6 @@ def structural_check(
     source: SourceRecord,
     rewritten_nl: str,
     *,
-    commitment_may_be_indirect: bool = False,
     addressee: Optional[str] = None,
 ) -> CheckResult:
     """Deterministic preservation checks driven by the structured predicate."""
@@ -180,7 +182,6 @@ def structural_check(
         "slots": [],
         "unverifiable_slots": [],
         "added_hedges": [],
-        "commitment_may_be_indirect": commitment_may_be_indirect,
         "identical_to_original": False,
     }
 
@@ -211,9 +212,6 @@ def structural_check(
             continue
         if in_rewrite:
             continue
-        if commitment_may_be_indirect and kind in ("role", "action", "literal"):
-            details["unverifiable_slots"].append(arg)
-            continue
         reasons.append(f"lost_{kind}_slot:{arg}")
 
     for missing in player_reference_failures(original, text, getattr(source, "speaker_id", ""), addressee):
@@ -221,7 +219,7 @@ def structural_check(
 
     added = [h for h in _matches(text, HEDGE_PATTERNS) if not _matches(original, [h])]
     details["added_hedges"] = added
-    if added and not commitment_may_be_indirect:
+    if added:
         reasons.append("added_epistemic_hedge:" + ",".join(h.strip("\\b") for h in added))
 
     if source.predicate_name == "agree" and _matches(text, _AGREEMENT_FLIP):
@@ -230,9 +228,6 @@ def structural_check(
         if _matches(text, _DISAGREEMENT_FLIP) and not _matches(text, _CONTRAST):
             reasons.append("polarity_flip_suspected:disagreement_became_agreement")
 
-    if commitment_may_be_indirect and _is_hedged_copy(original, text):
-        reasons.append("off_record_is_only_hedged_original")
-
     return CheckResult(ok=not reasons, reasons=reasons, details=details)
 
 
@@ -240,19 +235,129 @@ def _tokens(text: str) -> List[str]:
     return re.findall(r"[a-z0-9']+", (text or "").lower())
 
 
-def _is_hedged_copy(original: str, rewrite: str) -> bool:
-    """True when the rewrite is the original plus only hedge/filler words."""
-    hedge_words = {
-        "maybe", "might", "perhaps", "possibly", "probably", "potentially",
-        "seems", "seem", "appears", "think", "guess", "feel", "suspect",
-        "could", "may", "likely", "i'm", "im", "not", "sure", "just", "kind",
-        "sort", "of", "a", "bit",
-    }
-    original_tokens = set(_tokens(original))
-    rewrite_tokens = _tokens(rewrite)
-    if not rewrite_tokens or not original_tokens:
-        return False
-    novel = [t for t in rewrite_tokens if t not in original_tokens and t not in hedge_words]
-    kept = sum(1 for t in original_tokens if t in set(rewrite_tokens))
-    keeps_most = kept >= 0.7 * len(original_tokens)
-    return keeps_most and len(novel) <= 2
+ACTION_SYSTEM = 'You compare a rewrite with an action from a Werewolf game. Answer with JSON only: {"answer": "yes"} or {"answer": "no"}.'
+
+
+def action_and_target(source: SourceRecord, action_arg: str) -> tuple:
+    args = list(source.predicate_args)
+    if source.predicate_name == "recommend_action" and len(args) >= 5:
+        target = args[4]
+    elif source.predicate_name == "address_role" and len(args) >= 3:
+        target = f"the {args[2]} players"
+    else:
+        target = "the same target as in the original"
+    return action_arg.replace("_", " "), target
+
+
+class GateUnavailable(RuntimeError):
+    """The checking model could not be reached or gave no usable reply. A rewrite is never passed (or failed) on that."""
+
+
+RETRY_WAITS = (2, 6, 15)
+
+
+REASONS_SYSTEM = ('You read one utterance from a Werewolf game. Answer with JSON only: '
+                  '{"reasons": ["...", "..."]}, using an empty list when it gives none.')
+KEPT_SYSTEM = 'You compare a rewrite with the reasons an original gave. Answer with JSON only: {"answer": "yes"} or {"answer": "no"}.'
+
+
+class AdmissionGate:
+    def __init__(self, model, cache_path: Optional[Path] = None):
+        """`cache_path` is one file shared by every replay: each original utterance's reason list is
+        computed once (keyed by the hash of its text) and reused across settings and repetitions."""
+        self.model = model
+        self._reasons: Dict[str, Optional[List[str]]] = {}
+        self._lock = threading.Lock()
+        self.cache_path = Path(cache_path) if cache_path else None
+        if self.cache_path and self.cache_path.exists():
+            for line in self.cache_path.read_text(encoding="utf-8").splitlines():
+                if line.strip():
+                    row = json.loads(line)
+                    self._reasons.setdefault(row["key"], row["reasons"])
+
+    @staticmethod
+    def _key(original: str) -> str:
+        return hashlib.sha256(original.encode("utf-8")).hexdigest()[:20]
+
+    def _json(self, system: str, user: str, max_tokens: int = 500) -> dict:
+        """One JSON reply from the checking model. Transport errors and unreadable replies are retried; if they persist the
+        gate raises GateUnavailable so the replay fails and is rerun, never silently skipping a check."""
+        last = ""
+        for wait in (0,) + RETRY_WAITS:
+            time.sleep(wait)
+            try:
+                parsed, _ = self.model.complete_json(system=system, user=user, max_tokens=max_tokens, temperature=0.0)
+                if isinstance(parsed, dict):
+                    return parsed
+                last = "unreadable reply"
+            except Exception as exc:
+                last = f"{type(exc).__name__}: {exc}"[:200]
+        raise GateUnavailable(last)
+
+    def original_reasons(self, original: str) -> Optional[List[str]]:
+        """The reasons or evidence the original gives for its claim ([] for none, None if unreadable)."""
+        key = self._key(original)
+        with self._lock:
+            if key in self._reasons:
+                return self._reasons[key]
+        if self.cache_path and self.cache_path.exists():           # another process may have written it
+            for line in self.cache_path.read_text(encoding="utf-8").splitlines():
+                if line.strip() and json.loads(line)["key"] == key:
+                    with self._lock:
+                        self._reasons[key] = json.loads(line)["reasons"]
+                    return self._reasons[key]
+        parsed = self._json(REASONS_SYSTEM, f'Utterance: "{original}"\nList the reasons or evidence this utterance '
+                            f'gives for its claim, or say none.\nJSON:')
+        if not isinstance(parsed.get("reasons"), list):
+            raise GateUnavailable("reasons reply had no list")
+        reasons = [str(r).strip() for r in parsed["reasons"] if str(r).strip() and str(r).strip().lower() != "none"]
+        with self._lock:
+            self._reasons[key] = reasons
+            if self.cache_path and reasons is not None:
+                self.cache_path.parent.mkdir(parents=True, exist_ok=True)
+                with self.cache_path.open("a", encoding="utf-8") as f:
+                    f.write(json.dumps({"key": key, "original": original, "reasons": reasons}, ensure_ascii=False) + "\n")
+        return reasons
+
+    def reasons_kept(self, reasons: List[str], rewrite: str) -> Optional[bool]:
+        listed = "\n".join(f"- {r}" for r in reasons)
+        parsed = self._json(KEPT_SYSTEM, f'Reasons the original gave:\n{listed}\nRewrite: "{rewrite}"\n'
+                            f'Does the rewrite still give each of these reasons, in any wording? Answer yes or no.\nJSON:')
+        answer = str(parsed.get("answer", "")).strip().lower()
+        return True if answer == "yes" else False if answer == "no" else None
+
+    def appeal(self, source: SourceRecord, rewrite: str, action_arg: str) -> Dict[str, Any]:
+        action, target = action_and_target(source, action_arg)
+        question = (f"Original action: {action} toward {target}. Does the rewrite still recommend or describe "
+                    f"the same action toward the same target, in any wording?")
+        user = f'Rewrite: "{rewrite}"\n{question}\nJSON:'
+        raw = str(self._json(ACTION_SYSTEM, user, 400).get("answer", "")).strip().lower()
+        answer = True if raw == "yes" else False if raw == "no" else None
+        return {"action": action_arg, "question": question, "rewrite": rewrite, "answer": answer}
+
+    def reasons_check(self, source: SourceRecord, rewrite: str) -> Dict[str, Any]:
+        """The original's listed reasons, and whether the rewrite still gives each (None if not asked/readable)."""
+        evidence: Dict[str, Any] = {"original_reasons": None, "kept": None}
+        if (rewrite or "").strip():
+            listed = self.original_reasons(source.original_nl or "")
+            evidence["original_reasons"] = listed
+            if listed:
+                evidence["kept"] = self.reasons_kept(listed, rewrite)
+        return evidence
+
+    def check(self, source: SourceRecord, rewrite: str, *, addressee: Optional[str] = None) -> Dict[str, Any]:
+        det = structural_check(source, rewrite, addressee=addressee)
+        reasons: List[str] = list(det.reasons)
+        appeals: List[Dict[str, Any]] = []
+        for reason in list(reasons):
+            if reason.startswith("lost_action_slot:"):
+                appeal = self.appeal(source, rewrite, reason.split(":", 1)[1])
+                appeals.append(appeal)
+                if appeal["answer"] is True:
+                    reasons.remove(reason)
+        evidence = self.reasons_check(source, rewrite)
+        if evidence["kept"] is False:
+            reasons.append("evidence_dropped")
+        return {"admitted": not reasons, "structural_reasons": list(det.reasons),
+                "gate_failure_reasons": reasons, "action_appeals": appeals, "evidence": evidence,
+                "identical_to_original": bool(det.details.get("identical_to_original"))}

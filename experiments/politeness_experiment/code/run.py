@@ -28,9 +28,9 @@ from typing import Optional
 
 import requests
 from components.judges.judge_model import LUNA, JudgeModel, read_key
-from components.judges.admission_gate import AdmissionGate
+from components.judges.gate import AdmissionGate
 from components.rewriters.politeness_rewriter import ELIGIBLE_PREDICATES
-from components.rewriters.trust_politeness_policy import TrustPolitenessPolicy
+from components.rewriters.politeness_rewriter import TrustPolitenessPolicy
 
 ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_GAMES = ROOT / "games" / "flip_experiments"      # baselines at <seed>/natural, replays at <seed>/day<N>/

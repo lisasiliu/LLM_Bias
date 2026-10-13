@@ -19,8 +19,6 @@ from typing import List, Optional
 
 from components.judges.blind_politeness_classifier import (
     PROMPT_VERSION as CLASSIFIER_PROMPT_VERSION, system_prompt as classifier_prompt)
-from components.judges.dimensional_semantic_validator import (
-    SEMANTIC_RUBRIC_VERSION, semantic_prompt_sha)
 from components.judges.inverse_predicate_parser import build_system_prompt as parser_system_prompt
 from components.rewriters.politeness_rewriter import POLITENESS_STRATEGIES, PolitenessRewriter
 from lurkingwolf.rewriter import RewriteContext
@@ -39,7 +37,6 @@ CANONICAL_CONTEXT = RewriteContext(
 SOURCE_FILES = (
     "components/rewriters/politeness_rewriter.py",
     "components/judges/blind_politeness_classifier.py",
-    "components/judges/dimensional_semantic_validator.py",
     "components/judges/inverse_predicate_parser.py",
     "lurkingwolf/agent.py",
     "lurkingwolf/config.py",
@@ -86,8 +83,6 @@ def frozen_hashes(rev: Optional[str] = None) -> dict:
                                        for s, t in sorted(POLITENESS_STRATEGIES.items())},
         "politeness_classifier_prompt_version": CLASSIFIER_PROMPT_VERSION,
         "politeness_classifier_prompt_sha256": sha256_text(classifier_prompt(CLASSIFIER_PROMPT_VERSION)),
-        "semantic_rubric_version": SEMANTIC_RUBRIC_VERSION,
-        "semantic_rubric_sha256": semantic_prompt_sha(),
         "parser_prompt_sha256": sha256_text(parser_system_prompt()),
         "source_sha256": {path: git_sha256(path, rev) for path in SOURCE_FILES},
     }
