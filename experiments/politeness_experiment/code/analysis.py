@@ -20,7 +20,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from components.judges.judge_model import LUNA, JudgeModel, majority
-from components.stats import paired_contrast
+from components.stats import paired_contrast, reliability_detail
 from experiments.politeness_experiment.code.run import DEFAULT_GAMES
 
 HERE = Path(__file__).resolve().parents[1]
@@ -29,28 +29,6 @@ WOLVES = {"werewolf", "white_wolf_king"}
 SETTINGS = ["all_bald", "all_positive", "trust_positive", "trust_bald"]
 MEASURES = ["skill_change_rate", "vote_change_rate", "reliability_change_rate", "mean_abs_point_change",
             "share_scores_moved_2plus", "self_trust_change_all_assessors", "self_trust_change_village_assessors"]
-
-
-def reliability_detail(baseline, result: dict) -> list:
-    """Size of the reliability-score changes between the baseline phase and a replay (scores are 1-10).
-
-    Returns [mean absolute point change over all scores, share of scores that moved by 2 or more points, mean signed
-    change in the scores the other players give the self player, the same for village assessors only]. A wolf's score for
-    another player is its role-guess confidence, not trust, so the village-only figure is the trust reading."""
-    deltas, to_self, to_self_village = [], [], []
-    me, roles = result.get("self_player") or result.get("player"), result.get("role_dist", {})
-    for assessor, scores in (result.get("reliability") or {}).items():
-        for target, new in scores.items():
-            old = (baseline.reliability.get(assessor) or {}).get(target)
-            if old is None or new is None:
-                continue
-            deltas.append(new - old)
-            if target == me and assessor != me:
-                to_self.append(new - old)
-                if roles.get(assessor) not in WOLVES:
-                    to_self_village.append(new - old)
-    mean = lambda v: sum(v) / len(v) if v else 0.0
-    return [mean([abs(d) for d in deltas]), mean([1.0 if abs(d) >= 2 else 0.0 for d in deltas]), mean(to_self), mean(to_self_village)]
 
 
 def write_csv(path: Path, rows: list) -> None:
