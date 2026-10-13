@@ -281,3 +281,27 @@ def paired_contrast(rows: Sequence[Mapping], a: str, b: str, measure: str, **kw)
             clusters.setdefault(r["seed"], []).append(float(x) - float(y))
     return cluster_bootstrap(clusters, **kw)
 
+
+_WOLF_ROLES = {"werewolf", "white_wolf_king"}
+
+
+def reliability_detail(baseline, result: dict) -> list:
+    """Size of the reliability-score changes between the baseline phase and a replay (scores are 1-10).
+
+    Returns [mean absolute point change over all scores, share of scores that moved by 2 or more points, mean signed
+    change in the scores the other players give the self player, the same for village assessors only]. A wolf's score for
+    another player is its role-guess confidence, not trust, so the village-only figure is the trust reading."""
+    deltas, to_self, to_self_village = [], [], []
+    me, roles = result.get("self_player") or result.get("player"), result.get("role_dist", {})
+    for assessor, scores in (result.get("reliability") or {}).items():
+        for target, new in scores.items():
+            old = (baseline.reliability.get(assessor) or {}).get(target)
+            if old is None or new is None:
+                continue
+            deltas.append(new - old)
+            if target == me and assessor != me:
+                to_self.append(new - old)
+                if roles.get(assessor) not in _WOLF_ROLES:
+                    to_self_village.append(new - old)
+    mean = lambda v: sum(v) / len(v) if v else 0.0
+    return [mean([abs(d) for d in deltas]), mean([1.0 if abs(d) >= 2 else 0.0 for d in deltas]), mean(to_self), mean(to_self_village)]
