@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import List
 
 from components.helpers import read_jsonl
-from components.judges.judge_model import JudgeModel, majority
+from components.judges.judge_model import LUNA, JudgeModel, majority
 from experiments.politeness_experiment.code.run import DEFAULT_GAMES, FLIP_ROOT
 
 WOLVES = {"werewolf", "white_wolf_king"}
@@ -54,7 +54,7 @@ def cmd_check(args) -> int:
         for r in rng.sample(rs, min(args.n, len(rs))):
             jobs.append((arm, "delivered", r["delivered_source"], r["final_text"], r))
             jobs.append((arm, "original", r["delivered_source"], r["original_text"], r))
-    model = JudgeModel.resolve("gpt-5.6-luna")
+    model = JudgeModel.resolve(LUNA)
     ok, msg = model.preflight()
     if not ok:
         print("preflight failed:", msg)
@@ -93,7 +93,7 @@ def cmd_judge(args) -> int:
             if uid not in done:
                 jobs.append((uid, r))
     print(f"{len(jobs)} utterances to judge ({len(done)} done)")
-    model = JudgeModel.resolve("gpt-5.6-luna")
+    model = JudgeModel.resolve(LUNA)
     ok, msg = model.preflight()
     if not ok:
         print("preflight failed:", msg)

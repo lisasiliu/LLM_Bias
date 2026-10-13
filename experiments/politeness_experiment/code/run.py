@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import Optional
 
 import requests
-from components.judges.judge_model import JudgeModel, read_key
+from components.judges.judge_model import LUNA, JudgeModel, read_key
 from components.judges.admission_gate import AdmissionGate
 from components.rewriters.politeness_rewriter import ELIGIBLE_PREDICATES
 from components.rewriters.trust_politeness_policy import TrustPolitenessPolicy
@@ -221,7 +221,7 @@ def flip_replay(seed: str, day: int, mode: str, setting: str, player: str,
     players = None if dry_run else LedgerClient(ledger, "players")
     gate = None
     if not dry_run:
-        judge = JudgeModel.resolve("gpt-5.6-luna")      # not the model that writes the rewrites
+        judge = JudgeModel.resolve(LUNA)      # not the model that writes the rewrites
         judge.on_usage = lambda m, d: ledger.add("checks", str(d.get("model", "")), d.get("usage") or {})
         gate = AdmissionGate(judge, cache_path=games_root / "evidence_reasons.jsonl")
     policy = None

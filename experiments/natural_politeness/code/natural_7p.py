@@ -55,7 +55,8 @@ GAMES = ROOT / "games" / "politeness_validation" / "natural_sources"
 UTTERANCES = HERE / "data" / "utterances_7p.jsonl"
 PASSES = HERE / "data" / "politeness_passes_7p.jsonl"
 RESULTS = HERE / "data" / "results_7p.json"
-MODEL = "gpt-5.6-luna"
+from components.judges.judge_model import LUNA
+MODEL = LUNA
 N_PASSES = 3
 WOLF_ROLES = {"werewolf", "white_wolf_king"}
 STRATEGIES = ["bald_on_record", "positive_politeness", "negative_politeness", "off_record"]

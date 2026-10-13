@@ -25,14 +25,14 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from components.judges.admission_gate import AdmissionGate
-from components.judges.judge_model import JudgeModel
+from components.judges.judge_model import LUNA, JudgeModel
 from experiments.politeness_experiment.code.run import (
     DEFAULT_GAMES, MODEL, ROOT, Ledger, LedgerClient, balance, log, seed_name)
 
 LEVELS = {"A": "low", "B": "neutral", "C": "high"}
 LANGUAGE_ROOT = DEFAULT_GAMES / "language"
 CACHE = DEFAULT_GAMES / "evidence_reasons.jsonl"
-JUDGE = "gpt-5.6-luna"
+JUDGE = LUNA
 RETRY_TEMPERATURE = 0.7
 
 

@@ -92,7 +92,14 @@ PROVIDER_DEFAULTS: Dict[str, Dict[str, Any]] = {
     "gemini": {"base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
                "api_key_env": ("GEMINI_API_KEY", "GOOGLE_API_KEY"), "family": "gemini"},
     "local": {"base_url": "", "api_key_env": ("LLM_API_KEY",), "family": "local"},
+    # OpenRouter serves the OpenAI models under "openai/<name>"; same request style as the OpenAI provider.
+    "openrouter": {"base_url": "https://openrouter.ai/api",
+                   "api_key_env": ("OPENROUTER_API_KEY", "OPENROUTER"), "family": "openai"},
 }
+
+# The judge model used by the in-game gate and the blind strategy judge. The same gpt-5.6-luna, reached through OpenRouter
+# while the OpenAI account has no credit; set it back to "gpt-5.6-luna" to use the OpenAI account.
+LUNA = "openrouter:openai/gpt-5.6-luna"
 
 
 def _dotenv_values() -> Dict[str, str]:
@@ -216,7 +223,7 @@ class JudgeModel:
             "messages": [{"role": "system", "content": system},
                          {"role": "user", "content": user}],
         }
-        if self.spec.provider == "openai":
+        if self.spec.provider in ("openai", "openrouter"):
             # GPT-5-family models reject temperature=0 and the `max_tokens`
             # name, and reasoning tokens count against the completion budget.
             payload["max_completion_tokens"] = max(budget, 2000)
