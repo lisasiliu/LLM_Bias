@@ -1,0 +1,470 @@
+{
+ "item_001": {
+  "source": "rewrite",
+  "source_id": "pe12:s19",
+  "strategy": "off_record",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "estimate",
+  "original": "P7's entire speech is built on the premise that three seer claims means two are lying, yet P7 never actually commits to which of P1, P3, P4 is the real seer \u2014 instead P7 pushes P2 and P5 to vote against P1 and P3 while conveniently clearing P4, the one who cleared P7, which looks like a wolf protecting the partner who vouched for him."
+ },
+ "item_002": {
+  "source": "rewrite",
+  "source_id": "pe10:s21",
+  "strategy": "positive_politeness",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "question",
+  "original": "P6, you said you divined P3 because P3 was the quietest seat, but P3 had already claimed seer before your speech \u2014 if you were a real seer who checked P3 on Night 0, why did you wait until after P3 claimed seer to reveal your result instead of coming forward first?"
+ },
+ "item_003": {
+  "source": "rewrite",
+  "source_id": "pe10:s3",
+  "strategy": "negative_politeness",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "recommend_action",
+  "original": "P1 should vote for P2 for Sheriff because a confirmed Seer holding the badge maximizes the information the village can act on each day, and I can direct the speaking order to pressure the wolves."
+ },
+ "item_004": {
+  "source": "rewrite",
+  "source_id": "pe01:s4",
+  "strategy": "off_record",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "recommend_action",
+  "original": "P5, likewise I recommend you vote sheriff for P2 \u2014 a Seer holding the badge can announce a divination target each night and a badge succession plan, so even if the wolves kill me, my confirmed alignment on P4 and my next result still reach the village."
+ },
+ "item_005": {
+  "source": "rewrite",
+  "source_id": "pe17:s19",
+  "strategy": "negative_politeness",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "disagree",
+  "original": "P2's read on me is backwards: P7 clearing me is exactly the reason to distrust P7, not to distrust me \u2014 a real seer would have no motive to hand out a free clear to an unclaimed player on day one, while a wolf needs a village-side name to hide behind."
+ },
+ "item_009": {
+  "source": "rewrite",
+  "source_id": "pe04:s35",
+  "strategy": "off_record",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "question",
+  "original": "P7, you say P6's timing is \"telling\" but you never asked P6 to name the concrete thing P3 did before Night 0 \u2014 if you truly suspected P6, why did your only question this turn go to P6's accuser's side of the board instead of to P6?"
+ },
+ "item_010": {
+  "source": "rewrite",
+  "source_id": "pe07:s29",
+  "strategy": "off_record",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "question",
+  "original": "P1, you say you checked P4 because P4 was \"the quietest seat on Night 0,\" but P4 had not spoken at all before your claim \u2014 explain how you judged P4 the quietest when every seat was equally silent on Night 0."
+ },
+ "item_011": {
+  "source": "rewrite",
+  "source_id": "pe19:s14",
+  "strategy": "negative_politeness",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "estimate",
+  "original": "P6 claimed seer and cleared P4, yet P6 and P4 have been reading as allied all game, so P6's \"result\" conveniently confirms the one player already tied to them."
+ },
+ "item_013": {
+  "source": "rewrite",
+  "source_id": "pe06:s8",
+  "strategy": "bald_on_record",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "recommend_action",
+  "original": "P5, you're not running, so I'd ask you to put your sheriff vote on P4 \u2014 a real Seer with the badge can direct the village's votes each day, and I've already got a confirmed village read to build on."
+ },
+ "item_014": {
+  "source": "rewrite",
+  "source_id": "pe19:s14",
+  "strategy": "bald_on_record",
+  "delivered_source": "original",
+  "bald_blocked_deleted_content": true,
+  "predicate": "estimate",
+  "original": "P6 claimed seer and cleared P4, yet P6 and P4 have been reading as allied all game, so P6's \"result\" conveniently confirms the one player already tied to them."
+ },
+ "item_016": {
+  "source": "rewrite",
+  "source_id": "pe12:s19",
+  "strategy": "positive_politeness",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "estimate",
+  "original": "P7's entire speech is built on the premise that three seer claims means two are lying, yet P7 never actually commits to which of P1, P3, P4 is the real seer \u2014 instead P7 pushes P2 and P5 to vote against P1 and P3 while conveniently clearing P4, the one who cleared P7, which looks like a wolf protecting the partner who vouched for him."
+ },
+ "item_017": {
+  "source": "rewrite",
+  "source_id": "pe11:s16",
+  "strategy": "positive_politeness",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "address_role",
+  "original": "To whoever is the real seer among the three claimants: hold your remaining results until the vote forces the false claimants to commit to specifics, because right now P1, P3, and P6 have each given exactly one result and none of them can be cross-checked."
+ },
+ "item_019": {
+  "source": "rewrite",
+  "source_id": "pe20:s18",
+  "strategy": "negative_politeness",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "estimate",
+  "original": "P5's seer claim is the weakest of the three because P5 cleared me as villager while condemning P3 as wolf, which conveniently builds a trusted bloc with me while removing a player who is now actively questioning P5."
+ },
+ "item_020": {
+  "source": "rewrite",
+  "source_id": "pe06:s17",
+  "strategy": "positive_politeness",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "unallied",
+  "original": "P3 and P6 cannot both be village-side seers since they each declared the other a wolf, so at least one of them is a wolf trying to bury the real seer before the village can consolidate."
+ },
+ "item_108": {
+  "source": "rewrite",
+  "source_id": "pe11:s16",
+  "strategy": "negative_politeness",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "address_role",
+  "original": "To whoever is the real seer among the three claimants: hold your remaining results until the vote forces the false claimants to commit to specifics, because right now P1, P3, and P6 have each given exactly one result and none of them can be cross-checked."
+ },
+ "item_065": {
+  "source": "rewrite",
+  "source_id": "pe04:s35",
+  "strategy": "positive_politeness",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "question",
+  "original": "P7, you say P6's timing is \"telling\" but you never asked P6 to name the concrete thing P3 did before Night 0 \u2014 if you truly suspected P6, why did your only question this turn go to P6's accuser's side of the board instead of to P6?"
+ },
+ "item_027": {
+  "source": "rewrite",
+  "source_id": "pe10:s21",
+  "strategy": "negative_politeness",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "question",
+  "original": "P6, you said you divined P3 because P3 was the quietest seat, but P3 had already claimed seer before your speech \u2014 if you were a real seer who checked P3 on Night 0, why did you wait until after P3 claimed seer to reveal your result instead of coming forward first?"
+ },
+ "item_132": {
+  "source": "rewrite",
+  "source_id": "pe04:s35",
+  "strategy": "negative_politeness",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "question",
+  "original": "P7, you say P6's timing is \"telling\" but you never asked P6 to name the concrete thing P3 did before Night 0 \u2014 if you truly suspected P6, why did your only question this turn go to P6's accuser's side of the board instead of to P6?"
+ },
+ "item_082": {
+  "source": "rewrite",
+  "source_id": "pe06:s17",
+  "strategy": "off_record",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "unallied",
+  "original": "P3 and P6 cannot both be village-side seers since they each declared the other a wolf, so at least one of them is a wolf trying to bury the real seer before the village can consolidate."
+ },
+ "item_036": {
+  "source": "rewrite",
+  "source_id": "pe11:s16",
+  "strategy": "off_record",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "address_role",
+  "original": "To whoever is the real seer among the three claimants: hold your remaining results until the vote forces the false claimants to commit to specifics, because right now P1, P3, and P6 have each given exactly one result and none of them can be cross-checked."
+ },
+ "item_122": {
+  "source": "rewrite",
+  "source_id": "pe19:s14",
+  "strategy": "positive_politeness",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "estimate",
+  "original": "P6 claimed seer and cleared P4, yet P6 and P4 have been reading as allied all game, so P6's \"result\" conveniently confirms the one player already tied to them."
+ },
+ "item_088": {
+  "source": "rewrite",
+  "source_id": "pe06:s8",
+  "strategy": "off_record",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "recommend_action",
+  "original": "P5, you're not running, so I'd ask you to put your sheriff vote on P4 \u2014 a real Seer with the badge can direct the village's votes each day, and I've already got a confirmed village read to build on."
+ },
+ "item_113": {
+  "source": "rewrite",
+  "source_id": "pe04:s35",
+  "strategy": "bald_on_record",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "question",
+  "original": "P7, you say P6's timing is \"telling\" but you never asked P6 to name the concrete thing P3 did before Night 0 \u2014 if you truly suspected P6, why did your only question this turn go to P6's accuser's side of the board instead of to P6?"
+ },
+ "item_135": {
+  "source": "rewrite",
+  "source_id": "pe07:s29",
+  "strategy": "negative_politeness",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "question",
+  "original": "P1, you say you checked P4 because P4 was \"the quietest seat on Night 0,\" but P4 had not spoken at all before your claim \u2014 explain how you judged P4 the quietest when every seat was equally silent on Night 0."
+ },
+ "item_069": {
+  "source": "rewrite",
+  "source_id": "pe20:s18",
+  "strategy": "positive_politeness",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "estimate",
+  "original": "P5's seer claim is the weakest of the three because P5 cleared me as villager while condemning P3 as wolf, which conveniently builds a trusted bloc with me while removing a player who is now actively questioning P5."
+ },
+ "item_037": {
+  "source": "rewrite",
+  "source_id": "pe12:s19",
+  "strategy": "bald_on_record",
+  "delivered_source": "original",
+  "bald_blocked_deleted_content": true,
+  "predicate": "estimate",
+  "original": "P7's entire speech is built on the premise that three seer claims means two are lying, yet P7 never actually commits to which of P1, P3, P4 is the real seer \u2014 instead P7 pushes P2 and P5 to vote against P1 and P3 while conveniently clearing P4, the one who cleared P7, which looks like a wolf protecting the partner who vouched for him."
+ },
+ "item_110": {
+  "source": "rewrite",
+  "source_id": "pe17:s19",
+  "strategy": "bald_on_record",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "disagree",
+  "original": "P2's read on me is backwards: P7 clearing me is exactly the reason to distrust P7, not to distrust me \u2014 a real seer would have no motive to hand out a free clear to an unclaimed player on day one, while a wolf needs a village-side name to hide behind."
+ },
+ "item_093": {
+  "source": "rewrite",
+  "source_id": "pe12:s19",
+  "strategy": "negative_politeness",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "estimate",
+  "original": "P7's entire speech is built on the premise that three seer claims means two are lying, yet P7 never actually commits to which of P1, P3, P4 is the real seer \u2014 instead P7 pushes P2 and P5 to vote against P1 and P3 while conveniently clearing P4, the one who cleared P7, which looks like a wolf protecting the partner who vouched for him."
+ },
+ "item_042": {
+  "source": "rewrite",
+  "source_id": "pe17:s19",
+  "strategy": "positive_politeness",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "disagree",
+  "original": "P2's read on me is backwards: P7 clearing me is exactly the reason to distrust P7, not to distrust me \u2014 a real seer would have no motive to hand out a free clear to an unclaimed player on day one, while a wolf needs a village-side name to hide behind."
+ },
+ "item_142": {
+  "source": "rewrite",
+  "source_id": "pe10:s21",
+  "strategy": "bald_on_record",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "question",
+  "original": "P6, you said you divined P3 because P3 was the quietest seat, but P3 had already claimed seer before your speech \u2014 if you were a real seer who checked P3 on Night 0, why did you wait until after P3 claimed seer to reveal your result instead of coming forward first?"
+ },
+ "item_158": {
+  "source": "rewrite",
+  "source_id": "pe01:s4",
+  "strategy": "bald_on_record",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "recommend_action",
+  "original": "P5, likewise I recommend you vote sheriff for P2 \u2014 a Seer holding the badge can announce a divination target each night and a badge succession plan, so even if the wolves kill me, my confirmed alignment on P4 and my next result still reach the village."
+ },
+ "item_022": {
+  "source": "rewrite",
+  "source_id": "pe07:s29",
+  "strategy": "positive_politeness",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "question",
+  "original": "P1, you say you checked P4 because P4 was \"the quietest seat on Night 0,\" but P4 had not spoken at all before your claim \u2014 explain how you judged P4 the quietest when every seat was equally silent on Night 0."
+ },
+ "item_098": {
+  "source": "rewrite",
+  "source_id": "pe10:s3",
+  "strategy": "bald_on_record",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "recommend_action",
+  "original": "P1 should vote for P2 for Sheriff because a confirmed Seer holding the badge maximizes the information the village can act on each day, and I can direct the speaking order to pressure the wolves."
+ },
+ "item_117": {
+  "source": "rewrite",
+  "source_id": "pe06:s17",
+  "strategy": "negative_politeness",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "unallied",
+  "original": "P3 and P6 cannot both be village-side seers since they each declared the other a wolf, so at least one of them is a wolf trying to bury the real seer before the village can consolidate."
+ },
+ "item_140": {
+  "source": "rewrite",
+  "source_id": "pe10:s3",
+  "strategy": "positive_politeness",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "recommend_action",
+  "original": "P1 should vote for P2 for Sheriff because a confirmed Seer holding the badge maximizes the information the village can act on each day, and I can direct the speaking order to pressure the wolves."
+ },
+ "item_044": {
+  "source": "rewrite",
+  "source_id": "pe10:s3",
+  "strategy": "off_record",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "recommend_action",
+  "original": "P1 should vote for P2 for Sheriff because a confirmed Seer holding the badge maximizes the information the village can act on each day, and I can direct the speaking order to pressure the wolves."
+ },
+ "item_092": {
+  "source": "rewrite",
+  "source_id": "pe17:s19",
+  "strategy": "off_record",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "disagree",
+  "original": "P2's read on me is backwards: P7 clearing me is exactly the reason to distrust P7, not to distrust me \u2014 a real seer would have no motive to hand out a free clear to an unclaimed player on day one, while a wolf needs a village-side name to hide behind."
+ },
+ "item_083": {
+  "source": "rewrite",
+  "source_id": "pe10:s21",
+  "strategy": "off_record",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "question",
+  "original": "P6, you said you divined P3 because P3 was the quietest seat, but P3 had already claimed seer before your speech \u2014 if you were a real seer who checked P3 on Night 0, why did you wait until after P3 claimed seer to reveal your result instead of coming forward first?"
+ },
+ "item_040": {
+  "source": "rewrite",
+  "source_id": "pe20:s18",
+  "strategy": "off_record",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "estimate",
+  "original": "P5's seer claim is the weakest of the three because P5 cleared me as villager while condemning P3 as wolf, which conveniently builds a trusted bloc with me while removing a player who is now actively questioning P5."
+ },
+ "item_100": {
+  "source": "rewrite",
+  "source_id": "pe11:s16",
+  "strategy": "bald_on_record",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "address_role",
+  "original": "To whoever is the real seer among the three claimants: hold your remaining results until the vote forces the false claimants to commit to specifics, because right now P1, P3, and P6 have each given exactly one result and none of them can be cross-checked."
+ },
+ "item_138": {
+  "source": "rewrite",
+  "source_id": "pe20:s18",
+  "strategy": "bald_on_record",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "estimate",
+  "original": "P5's seer claim is the weakest of the three because P5 cleared me as villager while condemning P3 as wolf, which conveniently builds a trusted bloc with me while removing a player who is now actively questioning P5."
+ },
+ "item_130": {
+  "source": "rewrite",
+  "source_id": "pe06:s8",
+  "strategy": "negative_politeness",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "recommend_action",
+  "original": "P5, you're not running, so I'd ask you to put your sheriff vote on P4 \u2014 a real Seer with the badge can direct the village's votes each day, and I've already got a confirmed village read to build on."
+ },
+ "item_054": {
+  "source": "rewrite",
+  "source_id": "pe06:s17",
+  "strategy": "bald_on_record",
+  "delivered_source": "original",
+  "bald_blocked_deleted_content": true,
+  "predicate": "unallied",
+  "original": "P3 and P6 cannot both be village-side seers since they each declared the other a wolf, so at least one of them is a wolf trying to bury the real seer before the village can consolidate."
+ },
+ "item_035": {
+  "source": "rewrite",
+  "source_id": "pe07:s29",
+  "strategy": "bald_on_record",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "question",
+  "original": "P1, you say you checked P4 because P4 was \"the quietest seat on Night 0,\" but P4 had not spoken at all before your claim \u2014 explain how you judged P4 the quietest when every seat was equally silent on Night 0."
+ },
+ "item_023": {
+  "source": "rewrite",
+  "source_id": "pe09:s53",
+  "strategy": "positive_politeness",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "recommend_action",
+  "original": "P2, you have been sitting on the fence all game and your vote is the one that decides this \u2014 put it on P1, because P1's divine on me was never justified, P5's counter-claim against P1 is on record, and if P1 is the real seer the village loses nothing by testing the claim that has the most contradictions around it."
+ },
+ "item_094": {
+  "source": "rewrite",
+  "source_id": "pe01:s4",
+  "strategy": "positive_politeness",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "recommend_action",
+  "original": "P5, likewise I recommend you vote sheriff for P2 \u2014 a Seer holding the badge can announce a divination target each night and a badge succession plan, so even if the wolves kill me, my confirmed alignment on P4 and my next result still reach the village."
+ },
+ "item_061": {
+  "source": "rewrite",
+  "source_id": "pe09:s53",
+  "strategy": "off_record",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "recommend_action",
+  "original": "P2, you have been sitting on the fence all game and your vote is the one that decides this \u2014 put it on P1, because P1's divine on me was never justified, P5's counter-claim against P1 is on record, and if P1 is the real seer the village loses nothing by testing the claim that has the most contradictions around it."
+ },
+ "item_041": {
+  "source": "rewrite",
+  "source_id": "pe19:s14",
+  "strategy": "off_record",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "estimate",
+  "original": "P6 claimed seer and cleared P4, yet P6 and P4 have been reading as allied all game, so P6's \"result\" conveniently confirms the one player already tied to them."
+ },
+ "item_137": {
+  "source": "rewrite",
+  "source_id": "pe06:s8",
+  "strategy": "positive_politeness",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "recommend_action",
+  "original": "P5, you're not running, so I'd ask you to put your sheriff vote on P4 \u2014 a real Seer with the badge can direct the village's votes each day, and I've already got a confirmed village read to build on."
+ },
+ "item_046": {
+  "source": "rewrite",
+  "source_id": "pe09:s53",
+  "strategy": "negative_politeness",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "recommend_action",
+  "original": "P2, you have been sitting on the fence all game and your vote is the one that decides this \u2014 put it on P1, because P1's divine on me was never justified, P5's counter-claim against P1 is on record, and if P1 is the real seer the village loses nothing by testing the claim that has the most contradictions around it."
+ },
+ "item_063": {
+  "source": "rewrite",
+  "source_id": "pe01:s4",
+  "strategy": "negative_politeness",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "recommend_action",
+  "original": "P5, likewise I recommend you vote sheriff for P2 \u2014 a Seer holding the badge can announce a divination target each night and a badge succession plan, so even if the wolves kill me, my confirmed alignment on P4 and my next result still reach the village."
+ },
+ "item_131": {
+  "source": "rewrite",
+  "source_id": "pe09:s53",
+  "strategy": "bald_on_record",
+  "delivered_source": "rewrite",
+  "bald_blocked_deleted_content": false,
+  "predicate": "recommend_action",
+  "original": "P2, you have been sitting on the fence all game and your vote is the one that decides this \u2014 put it on P1, because P1's divine on me was never justified, P5's counter-claim against P1 is on record, and if P1 is the real seer the village loses nothing by testing the claim that has the most contradictions around it."
+ }
+}

@@ -33,6 +33,7 @@ class ReplaySpec:
     inject_at: str = "day_start"
     self_role: Optional[str] = None
     metrics: List[str] = field(default_factory=list)
+    repeat_index: int = 0          # >0: another untreated replay of the same checkpoint
 
     def __post_init__(self):
         if not self.metrics:
@@ -56,6 +57,8 @@ class ReplaySpec:
     @property
     def run_tag(self) -> str:
         parts = [self.mode]
+        if self.repeat_index:
+            parts.append(f"repeat{self.repeat_index}")
         if self.rewriter_class:
             for k, v in sorted(self.rewriter_params.items()):
                 parts.append(str(v))
@@ -103,6 +106,7 @@ def load_config(path: str | Path) -> ExperimentConfig:
                 inject_at=r.get("inject_at", "day_start"),
                 self_role=r.get("self_role"),
                 metrics=r.get("metrics", []),
+                repeat_index=int(r.get("repeat_index", 0)),
             ))
         comparisons[comp_name] = ComparisonSpec(
             baseline=comp_raw["baseline"],
@@ -159,6 +163,12 @@ def _validate_raw(raw: dict, path: Path) -> None:
             )
 
         for i, r in enumerate(comp.get("replays", [])):
+            repeat = r.get("repeat_index", 0)
+            if not isinstance(repeat, int) or repeat < 0 or (repeat and r.get("mode") != "nl"):
+                raise ValueError(
+                    f"{path}: comparison '{comp_name}' replay #{i}: repeat_index must be a "
+                    "non-negative integer and is only used on an 'nl' replay"
+                )
             mode = r.get("mode")
             if mode is None:
                 raise ValueError(

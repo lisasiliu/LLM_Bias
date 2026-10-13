@@ -24,6 +24,11 @@ class RewriteContext:
     speaker_id: str
     speaker_role_claimed: Optional[str]
     public_history: List[str] = field(default_factory=list)
+    # Optional runtime context a rewriter may use; existing rewriters ignore it.
+    day: Optional[int] = None
+    alive_players: Optional[List[str]] = None
+    speaker_reliability: Optional[Dict[str, int]] = None  # the speaker's current 1-10 ratings
+    town_consensus: Optional[Dict[str, int]] = None  # wolf speakers only: this wolf's own guess at how the town rates each player
 
 
 class Rewriter(ABC):

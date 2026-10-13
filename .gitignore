@@ -136,6 +136,7 @@ celerybeat.pid
 
 # Environments
 .env
+/env
 .envrc
 .venv
 env/
@@ -221,7 +222,6 @@ research/
 ref/
 .claude/
 run_overnight.sh
-pyproject.toml
 
 # Local evaluation outputs
 lurkingwolf/runs/
@@ -236,5 +236,31 @@ research/validation_runs/latest/
 # lurkingwolf.run_game rather than versioning transcripts. The derived sample
 # and its provenance are committed under experiments/politeness_validation/data/.
 games_fresh/
+/experiments/validation/
 __pycache__/
 *.pyc
+
+# automated tests are kept local
+tests/
+
+# original 48-item validation (kept locally)
+experiments/politeness_validation/data/original_48/
+
+# game outputs
+games/
+
+
+*.partial
+
+# Flip replay results: the game trees, the run artifacts and the figures stay local.
+# The cluster holds the full trees, including the LLM call logs and the checkpoints.
+# Figures are regenerated from the recorded games by each experiment's figures.py
+experiments/*/figures/
+!experiments/natural_politeness/figures/
+# Everything the cluster produced and everything built from it: the summaries and the
+# validation report are rebuilt by analyze.py and the validation CLI from the recorded runs.
+# Per-call token and spend records of the paid judges
+
+# Judge-calibration items are repeated verbatim inside judged.jsonl
+
+experiments/politeness_experiment/data/run_log.jsonl

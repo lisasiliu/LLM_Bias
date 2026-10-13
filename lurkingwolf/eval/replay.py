@@ -13,7 +13,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from ..engine import GameState
+from ..engine import GameState, WOLF_ROLES
+from ..rewriter import Rewriter, RewriteContext
 from ..agent import LLMAgent, extract_vote_target
 from ..checkpointing import load_checkpoint
 from ..run_game import (
@@ -62,6 +63,12 @@ class PhaseResult:
     # Speeches (for debugging / NL analysis)
     speeches: List[Dict[str, Any]] = field(default_factory=list)
 
+    # Each werewolf's own guess at the town consensus, recorded next to the reliability scores: at the
+    # checkpoint and after the phase. Replay-cache statistics.
+    town_consensus_before: Optional[Dict[str, Dict[str, int]]] = None
+    town_consensus_after: Optional[Dict[str, Dict[str, int]]] = None
+    replay: Optional[Dict[str, Any]] = None
+
     def to_dict(self) -> dict:
         return {
             "day": self.day,
@@ -82,7 +89,101 @@ class PhaseResult:
             "night_killed": self.night_killed,
             "reliability": self.reliability,
             "speeches": self.speeches,
+            "town_consensus_before": self.town_consensus_before,
+            "town_consensus_after": self.town_consensus_after,
+            "replay": self.replay,
         }
+
+
+# ─── Replay from the baseline game log ─────────────────────────────────
+
+class _ReplayCache:
+    """Answers model calls from the baseline game's log (matched on the exact prompts) until the
+    first utterance the rewriter is asked about; every call after that is fresh. The replay therefore
+    repeats the baseline up to the changed line, and all variance starts there."""
+
+    def __init__(self, game_log: Path):
+        from collections import defaultdict, deque
+        self.responses = defaultdict(deque)
+        for line in Path(game_log).read_text(encoding="utf-8").splitlines():
+            row = json.loads(line)
+            if "response" in row:
+                self.responses[(row["system_prompt"], row["user_prompt"])].append(row["response"])
+        self.active = True
+        self.branch: Optional[Dict[str, Any]] = None
+        self.hits = self.misses_before_branch = self.calls_after_branch = 0
+
+    def lookup(self, system: str, user: str) -> Optional[str]:
+        if not self.active:
+            self.calls_after_branch += 1
+            return None
+        queue = self.responses.get((system, user))
+        if queue:
+            self.hits += 1
+            return queue.popleft()
+        self.misses_before_branch += 1
+        return None
+
+    def switch_off(self, ctx: RewriteContext) -> None:
+        if self.active:
+            self.active = False
+            self.branch = {"day": ctx.day, "phase": ctx.phase, "speaker": ctx.speaker_id,
+                           "predicate": ctx.predicate, "original_nl": ctx.original_nl,
+                           "history_length": len(ctx.public_history)}
+
+    def stats(self) -> dict:
+        return {"branched": self.branch is not None, "branch": self.branch, "cache_hits": self.hits,
+                "live_calls_before_branch": self.misses_before_branch,
+                "live_calls_after_branch": self.calls_after_branch}
+
+
+class _Reply:
+    def __init__(self, content):
+        self.choices = [type("Choice", (), {"message": type("Msg", (), {"content": content})()})()]
+
+
+class _CachedClient:
+    """OpenAI-style client that answers from a `_ReplayCache` while it is active."""
+
+    def __init__(self, inner, cache: _ReplayCache):
+        outer = self
+
+        class _Completions:
+            def create(self, *, messages, **kwargs):
+                by_role = {m["role"]: m["content"] for m in messages}
+                cached = cache.lookup(by_role.get("system", ""), by_role.get("user", ""))
+                if cached is not None:
+                    return _Reply(cached)
+                return inner.chat.completions.create(messages=messages, **kwargs)
+
+        self.chat = type("Chat", (), {})()
+        self.chat.completions = _Completions()
+
+
+class _ChangePoint(Rewriter):
+    """Ends the cached part of the replay at the first utterance in scope, then delegates to the real
+    rewriter. With no rewriter it keeps the natural text: the control replay, which leaves the baseline
+    at exactly the line a treated replay would."""
+
+    name = "change_point"
+
+    def __init__(self, cache: _ReplayCache, acts, inner: Optional[Rewriter] = None):
+        self.cache, self.acts, self.inner = cache, set(acts), inner
+
+    @property
+    def applies_to_predicates(self):
+        return set(self.acts)
+
+    def bind(self, agents: dict) -> None:
+        if hasattr(self.inner, "bind"):
+            self.inner.bind(agents)
+
+    def to_config(self) -> dict:
+        return self.inner.to_config() if self.inner else {"class": "Control", "params": {}}
+
+    def rewrite(self, ctx: RewriteContext) -> str:
+        self.cache.switch_off(ctx)
+        return self.inner.rewrite(ctx) if self.inner else ctx.original_nl
 
 
 # ─── Agent setting overrides ──────────────────────────────────────────
@@ -235,6 +336,8 @@ def replay_phase(
     self_player: Optional[str] = None,
     rewriter=None,
     rewriter_scope: str = "all",
+    baseline_log: Optional[Path] = None,
+    eligible: Optional[Any] = None,
     dry_run: bool = False,
     verbose: bool = False,
 ) -> PhaseResult:
@@ -247,12 +350,22 @@ def replay_phase(
       4. Run vote → collect votes
       5. Run night → collect skills
       6. Run memory update → collect post-phase reliability
+         (the day's discussion is shown to the raters)
 
     Returns a PhaseResult with all collected data.
     """
+    cache = None
+    if baseline_log is not None and client is not None and not dry_run:
+        # repeat the baseline's model responses up to the first utterance in scope, then go fresh
+        cache = _ReplayCache(baseline_log)
+        client = _CachedClient(client, cache)
+        rewriter = _ChangePoint(cache, eligible or (), inner=rewriter)
     ckpt, agents, tracker = load_checkpoint(checkpoint_path, prompts, client)
     state = ckpt.state
     day = state.day
+
+    # Each wolf's own guess at the town consensus, as of the checkpoint (restored with the agent).
+    consensus_before = {pid: dict(a.town_consensus or {}) for pid, a in agents.items() if a.role in WOLF_ROLES}
 
     role_dist = {pid: state.roles[pid] for pid in state.players}
     alive_at_start = list(state.get_alive())
@@ -263,6 +376,9 @@ def replay_phase(
         agents, experiment_type,
         rewriter=rewriter, scope=rewriter_scope, self_player=self_player,
     )
+
+    if rewriter is not None and hasattr(rewriter, "bind"):
+        rewriter.bind(agents)                    # policies that read the live agents' ratings
 
     if verbose:
         print(f"\n  == Replay Day {day} Discussion ({config_name}) ==")
@@ -296,11 +412,18 @@ def replay_phase(
             state, agents, timeline_order, group_headers, verbose, dry_run,
         )
 
-    # Post-phase memory update for reliability scores
+    # Post-phase memory update for reliability scores. The raters see the day's discussion:
+    # the score is what they think of a speaker after hearing them, so the rewritten speech
+    # has to be in front of them.
     time_str = f"day_{day}_post_replay"
+    state.current_turn_buffer = list(discussion_preds)    # raters see what was said today
     for p in state.get_alive():
         if p in agents:
+            # Each rater builds its prompt once, so the buffer is set per rater: whatever the
+            # vote and night stages left behind cannot decide who sees the day's speech.
+            state.current_turn_buffer = list(discussion_preds)
             agents[p].update_memory(state, time_str, dry_run=dry_run)
+    state.current_turn_buffer.clear()
 
     reliability = {}
     for pid, agent in agents.items():
@@ -325,6 +448,9 @@ def replay_phase(
         reliability=reliability,
         alive_at_start=alive_at_start,
         speeches=speeches,
+        town_consensus_before=consensus_before,
+        town_consensus_after={pid: dict(a.town_consensus or {}) for pid, a in agents.items() if a.role in WOLF_ROLES},
+        replay=cache.stats() if cache else None,
     )
     return result, agents, state
 

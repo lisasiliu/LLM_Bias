@@ -11,7 +11,9 @@ Manual annotation is the manipulation evidence.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 from .judge_model import JudgeModel, JudgeModelError, JudgeTransportError
@@ -112,11 +114,70 @@ Answer with JSON only, no prose, exactly:
  "notes": "<=20 words"}
 """
 
+
+_MARKERS_PATH = Path(__file__).with_name("politeness_markers.json")
+_FAMILY_TITLES = (("positive_politeness", "POSITIVE POLITENESS"),
+                  ("negative_politeness", "NEGATIVE POLITENESS"),
+                  ("off_record", "OFF-RECORD"),
+                  ("bald_on_record", "BALD ON-RECORD"))
+
+
+def _marker_reference(max_sub: int = 8, max_markers: int = 6) -> str:
+    """Marker lexicon distilled from the human-verified Zhao & Hawkins spans."""
+    lexicon = json.loads(_MARKERS_PATH.read_text(encoding="utf-8"))
+    lines = []
+    for key, title in _FAMILY_TITLES:
+        lines.append(f"{title}:")
+        for sub, info in list(lexicon[key].items())[:max_sub]:
+            shown = "; ".join(f'"{m}"' for m in info["markers"][:max_markers])
+            lines.append(f"  - {sub}: {shown}")
+    return "\n".join(lines)
+
+
+_MARKER_GUIDED_TAIL = """\
+
+MARKER REFERENCE.
+Below are politeness markers that human annotators verified in a DIFFERENT domain
+(feedback on someone's cake, song or presentation), grouped by Brown & Levinson
+strategy and sub-strategy. They are there to GUIDE your choice, not to decide it:
+use them to notice which kinds of redress are present, then apply the decision
+rule above. The surface strings are examples of a type, not a word list, and
+Werewolf wording will differ. A hedge or a "but" alone does not make an utterance
+off_record, and "good"-type praise only counts where it is affiliative redress on
+the act, not an in-game assessment of a player.
+
+{reference}
+
+RANKING.
+An utterance can realize several strategies at once. List EVERY strategy that is
+genuinely present, ordered from most to least dominant, in "ranking". The first
+entry must be the strategy the act MAINLY realizes, and is your "label". Use
+ambiguous_or_mixed or failed_manipulation only as a single-item ranking.
+Include a strategy only if you can point to its marker or its act-level realization.
+
+Answer with JSON only, no prose, exactly:
+{{"speech_act": "<=12 words naming what the speaker is doing>",
+ "act_left_to_inference": true|false,
+ "markers": ["<=4 short quoted spans, each tagged strategy:span>"],
+ "ranking": ["<strategy>", "..."],
+ "label": "<ranking[0]>",
+ "confidence": "low|medium|high",
+ "evidence": "<=15 words quoted from the utterance>",
+ "notes": "<=20 words"}}
+
+"act_left_to_inference" is true only when the act itself must be inferred; setting it
+false and then ranking off_record first is a contradiction.
+"""
+
 PROMPTS: dict = {
     # Step 1 names the speech act, step 2 decides how that act is realized.
     "act_then_strategy": _CLASSIFIER_SYSTEM,
     # Baseline that labels from politeness markers.
     "marker_based": _MARKER_V1_SYSTEM,
+    # act_then_strategy plus the human-verified marker lexicon and a ranked output.
+    "marker_guided": (_CLASSIFIER_SYSTEM.split("Answer with JSON only")[0].rstrip()
+                      + "\n" + _MARKER_GUIDED_TAIL.replace("{reference}", _marker_reference())
+                      .replace("{{", "{").replace("}}", "}")),
 }
 
 
@@ -147,6 +208,8 @@ class ClassificationResult:
     notes: str = ""
     error: str = ""
     provenance: Dict[str, Any] = field(default_factory=dict)
+    ranking: list = field(default_factory=list)
+    markers: list = field(default_factory=list)
 
     @property
     def inconsistent(self) -> bool:
@@ -158,7 +221,8 @@ class ClassificationResult:
     def to_dict(self) -> dict:
         return {"ok": self.ok, "label": self.label, "speech_act": self.speech_act,
                 "act_left_to_inference": self.act_left_to_inference,
-                "inconsistent": self.inconsistent, "confidence": self.confidence,
+                "inconsistent": self.inconsistent, "ranking": list(self.ranking),
+                "markers": list(self.markers), "confidence": self.confidence,
                 "evidence": self.evidence, "notes": self.notes, "error": self.error,
                 "provenance": dict(self.provenance)}
 
@@ -191,7 +255,11 @@ class BlindPolitenessClassifier:
         if parsed is None:
             return ClassificationResult(ok=False, error="unparseable_json",
                                         provenance=provenance)
+        ranking = [str(x).strip().lower() for x in (parsed.get("ranking") or [])
+                   if str(x).strip().lower() in LABELS]
         label = str(parsed.get("label", "")).strip().lower()
+        if ranking and label not in LABELS:
+            label = ranking[0]
         if label not in LABELS:
             return ClassificationResult(ok=False, error=f"unknown_label:{label}",
                                         provenance=provenance)
@@ -203,7 +271,8 @@ class BlindPolitenessClassifier:
             confidence=str(parsed.get("confidence", ""))[:10],
             evidence=str(parsed.get("evidence", ""))[:200],
             notes=str(parsed.get("notes", ""))[:200],
-            provenance=provenance,
+            provenance=provenance, ranking=ranking,
+            markers=[str(m)[:80] for m in (parsed.get("markers") or [])][:6],
         )
 
 

@@ -16,10 +16,17 @@ import json
 import os
 import re
 import time
+from collections import Counter
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import requests
+
+# A pooled session: the gate issues several judge calls per rewrite, and one new TCP
+# connection per call overflows the accept queue of a locally served model.
+_SESSION = requests.Session()
+for _scheme in ("http://", "https://"):
+    _SESSION.mount(_scheme, requests.adapters.HTTPAdapter(pool_connections=4, pool_maxsize=16))
 
 from lurkingwolf.utils.speech_nl import strip_reasoning
 
@@ -85,7 +92,14 @@ PROVIDER_DEFAULTS: Dict[str, Dict[str, Any]] = {
     "gemini": {"base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
                "api_key_env": ("GEMINI_API_KEY", "GOOGLE_API_KEY"), "family": "gemini"},
     "local": {"base_url": "", "api_key_env": ("LLM_API_KEY",), "family": "local"},
+    # OpenRouter serves the OpenAI models under "openai/<name>"; same request style as the OpenAI provider.
+    "openrouter": {"base_url": "https://openrouter.ai/api",
+                   "api_key_env": ("OPENROUTER_API_KEY", "OPENROUTER"), "family": "openai"},
 }
+
+# The judge model used by the in-game gate and the blind strategy judge. The same gpt-5.6-luna, reached through OpenRouter
+# while the OpenAI account has no credit; set it back to "gpt-5.6-luna" to use the OpenAI account.
+LUNA = "openrouter:openai/gpt-5.6-luna"
 
 
 def _dotenv_values() -> Dict[str, str]:
@@ -156,18 +170,22 @@ class JudgeModel:
     """One model, callable by any judge. Provider-independent by construction."""
 
     def __init__(self, spec: ModelSpec, *, temperature: float = 0.0,
-                 max_tokens: int = 512, retries: int = 2, timeout: int = 180,
+                 max_tokens: int = 512, retries: int = 2, timeout: Optional[int] = None,
                  backoff: float = 0.5, sleep=time.sleep):
         self.spec = spec
         self.temperature = float(temperature)
         self.max_tokens = int(max_tokens)
         self.retries = int(retries)
-        self.timeout = int(timeout)
+        # Seconds per request; LLM_TIMEOUT raises it when many replays share one server.
+        self.timeout = int(timeout if timeout is not None else os.getenv("LLM_TIMEOUT", "180"))
         self._backoff = backoff
         self._sleep = sleep
         self.transport_retries = 0
         self.calls = 0
         self.model_served = ""
+        # Optional callback ``(model_requested, response_json)`` after each call, so a
+        # caller can keep its own usage/cost ledger.
+        self.on_usage = None
 
     @classmethod
     def resolve(cls, handle: str, **kwargs) -> "JudgeModel":
@@ -205,7 +223,7 @@ class JudgeModel:
             "messages": [{"role": "system", "content": system},
                          {"role": "user", "content": user}],
         }
-        if self.spec.provider == "openai":
+        if self.spec.provider in ("openai", "openrouter"):
             # GPT-5-family models reject temperature=0 and the `max_tokens`
             # name, and reasoning tokens count against the completion budget.
             payload["max_completion_tokens"] = max(budget, 2000)
@@ -219,7 +237,7 @@ class JudgeModel:
         retried = 0
         for attempt in range(self.retries + 1):
             try:
-                response = requests.post(url, headers=headers, json=payload,
+                response = _SESSION.post(url, headers=headers, json=payload,
                                          timeout=self.timeout)
                 response.raise_for_status()
                 data = response.json()
@@ -238,6 +256,8 @@ class JudgeModel:
         except (KeyError, IndexError, TypeError) as exc:
             raise JudgeModelError(f"malformed completion body: {exc}") from exc
         self.model_served = str(data.get("model") or self.spec.model)
+        if self.on_usage is not None:
+            self.on_usage(self.spec.model, data)
 
         text = strip_reasoning(raw).strip()
         if THINK_OPEN.search(text):
@@ -312,3 +332,27 @@ def extract_json(raw: str) -> Optional[dict]:
 
 def known_handles() -> List[str]:
     return sorted(REGISTRY)
+
+
+# ── three-pass majority vote over a stochastic classifier ──
+# GPT-5-family models cannot run at temperature 0, so the same question is asked several times and the label
+# that a strict majority of the passes agree on is kept.
+
+NO_MAJORITY = "no_majority"
+FAILED = "failed"
+
+
+def majority(labels: Sequence[Optional[str]], *, passes: int = 3) -> Tuple[str, int]:
+    """``(label, votes)`` for the label with a strict majority of ``passes``.
+
+    Passes that errored (``None``) count as no vote. Returns ``FAILED`` when no
+    pass produced a label and ``NO_MAJORITY`` when none has more than half of
+    the passes asked for.
+    """
+    votes = Counter(l for l in labels if l)
+    if not votes:
+        return FAILED, 0
+    label, n = votes.most_common(1)[0]
+    if n * 2 > passes:
+        return label, n
+    return NO_MAJORITY, n

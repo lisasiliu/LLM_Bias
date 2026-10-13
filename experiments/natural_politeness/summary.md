@@ -28,8 +28,7 @@ strategy can attach to (`estimate`, `disagree`, `question`, `recommend_action`,
 
 **Strategy labels.** Each utterance is labelled bald on-record, positive
 politeness, negative politeness or off-record by the LLM politeness judge
-(`gpt-5.6-luna`, three passes, majority label; described in
-`experiments/politeness_validation/VALIDATION.md`). The judge sees the utterance,
+(`gpt-5.6-luna`, three passes, majority label; validated in `experiments/politeness_validation/`). The judge sees the utterance,
 speaker and phase only. In 1,218 of 1,429 utterances all three passes agree; 3
 utterances have no majority and appear in no strategy column below.
 
@@ -153,4 +152,3 @@ result (p = 0.16), because the werewolf score does not mean trust.
 | `data/results_7p.json` | every number above |
 | `figures/` | the two charts |
 | `code/natural_7p.py` | `extract`, `label`, `analyze`, `figures` |
-| `data/audit_random_rater_{1,2}.md` | blank blind worksheets for a human check of 50 utterances |

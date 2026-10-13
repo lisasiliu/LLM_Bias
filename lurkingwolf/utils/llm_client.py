@@ -9,10 +9,20 @@ TGI, OpenRouter, or the OpenAI API itself.
 """
 
 import os
+import random
+import time
 from dataclasses import dataclass
 from typing import Optional
 
 import requests
+
+# One pooled session per process: a replay issues hundreds of calls, and a new TCP
+# connection for each of them overflows the server's accept queue once dozens of
+# replays share one endpoint, which the client sees as a closed connection.
+_SESSION = requests.Session()
+_SESSION.mount("http://", requests.adapters.HTTPAdapter(pool_connections=4, pool_maxsize=16))
+_SESSION.mount("https://", requests.adapters.HTTPAdapter(pool_connections=4, pool_maxsize=16))
+_CONNECTION_ATTEMPTS = int(os.getenv("LLM_CONNECT_ATTEMPTS", "4"))
 
 
 @dataclass
@@ -57,12 +67,18 @@ class _Completions:
         if extra_body:
             payload.update(extra_body)
 
-        resp = requests.post(
-            f"{self._base_url}/v1/chat/completions",
-            headers=headers,
-            json=payload,
-            timeout=300,
-        )
+        timeout = int(os.getenv("LLM_TIMEOUT", "300"))   # seconds; raise it when many replays share one server
+        url = f"{self._base_url}/v1/chat/completions"
+        for attempt in range(1, _CONNECTION_ATTEMPTS + 1):
+            try:
+                resp = _SESSION.post(url, headers=headers, json=payload, timeout=timeout)
+                break
+            except (requests.exceptions.ConnectionError, requests.exceptions.ChunkedEncodingError):
+                # The connection was closed before the server answered, so this request was
+                # never served: asking again returns a sample for the same prompt.
+                if attempt == _CONNECTION_ATTEMPTS:
+                    raise
+                time.sleep(min(30.0, 2.0 ** attempt) * (0.5 + random.random()))
         resp.raise_for_status()
         data = resp.json()
         text = data["choices"][0]["message"]["content"]

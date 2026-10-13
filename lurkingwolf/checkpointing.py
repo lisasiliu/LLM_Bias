@@ -30,6 +30,7 @@ _AGENT_STATE_FIELDS = (
     "potential_truth",
     "potential_deception",
     "reliability",
+    "town_consensus",
     "reasoning_history",
     "relationship_estimates",
     "action_history",
