@@ -1,92 +1,70 @@
-# Proficiency flip replays
+# Language flip experiment
 
-RQ1 of the paper: when one designated speaker speaks all day at a restricted (A) or
-expanded (C) linguistic range, do the other agents change how they vote against, target
-and trust that speaker? This folder runs that question through the LURK replay framework with
-the gated proficiency rewriter from `experiments/language_validation/rewrite/`.
+## Question
 
-| Path | Contents |
+When one player's speech is delivered at a restricted or an expanded linguistic range (flip_self), do the other players change
+who they vote for, what they do at night, and how much they trust the speaker?
+
+## Setup
+
+Seven-player games (2 werewolves, seer, guard, 3 villagers), all `deepseek-chat`, temperature 0. Thirty natural baseline games
+(`pe01`-`pe30`, the same baselines as the politeness experiment) are played once with checkpoints saved at each day start. Every
+replay starts from a day-start checkpoint and plays that day: discussion, vote, night, then the players' reliability update.
+Each living player is the self player in turn.
+
+**Replay.** The replay repeats the baseline's model responses, matched on the exact prompts, up to the first utterance that is
+changed, and draws fresh responses from there on. The control replay keeps the natural text but branches at that same line, so its
+difference from the baseline is the noise floor (two control replays per player-day, one replay per level).
+
+**Levels.** The self player's speech acts that can be rewritten are delivered in one of three levels:
+
+| level | rewrite |
 | --- | --- |
-| `config.yaml` | The experiment: 30 seeds of 7-player NL baselines, identity replays, `flip_self` and `flip_others` replays for A, B and C |
-| `code/analyze.py` | Every number and the whole of `summary.md`: paired outcomes, exposure, the discussion predicates, the net change over a plain re-run, the equivalence tests and the listener tables |
-| `code/response.py` | Reads the recorded predicates into outcomes about the treated speaker, and trust as a rank |
-| `code/perception.py` | Reduces the blind listeners' answers to the table `summary.md` prints |
-| `code/export_passages.py` | Writes the replays' delivered speech and its source for the listener probe |
-| `code/figures.py` | The seven figures in `figures/`, with their numbers in `figure_stats.json` |
-| `data/runs/qwen35_27b/` | `manifest.json` with the model and code hashes, `flip_summary.json` (every number in `summary.md`), `replay_passages.jsonl` and the listener answers under `validation/` |
-| `summary.md` | The whole result: what the run found, every table, the manipulation check and the listener answers |
-| `figures/` | The figures and `figure_stats.json`; `summary.md` is where they are read |
-| `games/` | Baselines and replays: results, rewrite logs and agent memory are in the repository; raw LLM call logs, checkpoints and stdout stay on the cluster |
+| A | restricted range: simpler vocabulary, shorter and plainer sentences |
+| B | neutral paraphrase at the original range (controls for being paraphrased) |
+| C | expanded range: richer vocabulary and more complex syntax |
 
-## How a replay works
+**Gate.** The rewrite keeps every player number of the original (the speaker may become "I", the addressee "you"), role labels,
+speech IDs, the action and target, polarity and the original's reasons (two yes/no questions go to gpt-5.6-luna). Level B must
+also keep the original's vocabulary, repetition and syntax range. A rewrite that fails is regenerated once at temperature 0.7, and
+if it fails again the speaker's original text is delivered and logged.
 
-The baseline game is played once per seed with checkpoints at every day start. A replay
-loads one day-start checkpoint and plays that day again (discussion, vote, night). In
-`flip_self` the rewriter sits on one player for the whole day, so every public utterance
-of that player is rewritten to the assigned level before other agents read it; the
-history before the checkpoint is untouched. In `flip_others` the rewriter sits on every
-other player. The `nl` replay repeats the day with no rewriter and is the control every
-treated replay is paired with; a second `nl` replay of the same checkpoint measures the
-model's run-to-run variation on every outcome. A player who is dead at the day start has no
-speech to rewrite, so the runner skips that player's `flip_self` and `flip_others` replays.
-B is an independent paraphrase control at the original range; A and C are the restricted and
-expanded levels.
-
-Each rewrite goes through the semantic gate (surface checks, inverse predicate parser,
-English fidelity judge with quoted alignments) with corrective retries. A rewrite that
-still fails falls back to the untouched original utterance and is logged with
-`fallback_to_original: true`; the assigned replay continues. The primary analysis follows
-the assignment for completed replays and reports exposure rates. Per-protocol analysis uses
-replays whose logs match every treated utterance and record a successful rewrite for each.
-Each rewrite is written to
-`rewrites.jsonl` inside the replay directory; the executed player's last words are rewritten
-and logged too, and the analysis reports them separately because the replay result records
-only the discussion. A replay the runner restarts rewrites that file, and the analysis reads
-the rows of the finished pass.
-
-## Outcomes
-
-For a treated speaker S in `flip_self`, per (game, day): votes received by S, whether S
-was executed, whether the wolves or the seer targeted S that night, and the mean
-reliability score the village players alive after the night assign to S in their post-day
-memory update (wolves know the roles, so their scores are not trust). Contrasts are A, B and C each
-minus identity, A minus B and C minus B, paired on the same checkpoint
-and speaker. For `flip_others`, the outcomes describe S's own behaviour when everyone
-else speaks at the treated level: whether S changed vote target, a village S's mean
-reliability toward the others alive after the night, and whether S changed a role-specific target.
-
-The co-primary outcomes are the trust assigned to the treated speaker and the votes the
-speaker receives (A minus B), Holm-corrected; the other outcomes are secondary or
-exploratory. Differences are averaged over days within each speaker, speakers within each
-game, and games, with equal weights at each step. Intervals are game bootstraps and p-values
-sign-flip tests over games.
-
-## Run
-
-Thirty seeds (201–230), one 7-player baseline game each. On the cluster,
-`experiments/language_validation/hpc/flip_qwen35_27b.slurm` is a 30-task array: each task
-starts the model server, writes the shared manifest and runs one seed. Locally, one seed:
+## Running
 
 ```bash
-python -m lurkingwolf.eval --config experiments/language_flip/config.yaml --seed 201 \
-    --url "$LLM_BASE_URL" --model Qwen/Qwen3.5-27B --max-concurrency 8
+python -m experiments.language_flip.code.run flip --first 1 --last 2 --workers 6
+python -m experiments.language_flip.code.analysis export     # games/ -> data/*.csv
+python -m experiments.language_flip.code.analysis effects    # data/player_days.csv -> results.md
 ```
 
-After the last seed:
+Replays are written to `games/flip_experiments/language/<seed>/day<N>/<mode>__<level>__<player>/`.
 
-```bash
-python -m experiments.language_flip.code.analyze
-python -m experiments.language_flip.code.figures
-```
+## Results
 
-The listener validation of what the other players heard uses the replays themselves:
-`code/export_passages.py` pairs each treated speaker's delivered discussion turns in a replay
-with their source text, and `experiments/language_validation/validation probe` compares
-them blind (`low:original`, `neutral:original`, `high:original`, both constructs). On the
-cluster, `experiments/language_validation/hpc/listener_qwen35_27b.slurm` runs it with the
-served Qwen model as the listener; another listener adds its own rows later.
+Thirty seeds, 1,445 replays, 289 player-days with controls. Each level is reported as its difference from the control replay, and
+A and C also against B, in percentage points of skill targets, vote targets and reliability scores that differ from the baseline
+phase, with 95% intervals that resample whole seeds. `results.md` has every column, with and without `pe01`.
 
-`PROFICIENCY_MODEL_CONFIG` names the manifest with the `generator` and `judge` handles the
-rewriter uses; `SUBTLEX` (in `.env` locally, exported by the cluster script) is the
-word-frequency file for B's candidate selection; the environment needs the proficiency extra
-and `en_core_web_sm`.
+| contrast | skill targets (pp) | vote targets (pp) | scores others give the self player (village assessors, pts) |
+| --- | --: | --: | --: |
+| A - control | +1.7 [-1.0, +4.4] | +2.1 [-0.7, +4.8] | +0.03 [-0.02, +0.09] |
+| B - control | -1.0 [-3.6, +1.7] | -2.1 [-4.5, +0.2] | +0.04 [-0.02, +0.08] |
+| C - control | +2.5 [+0.2, +5.2] | +1.8 [-0.8, +4.6] | +0.02 [-0.03, +0.07] |
+| A - B | +2.7 [-0.4, +6.0] | +4.2 [+1.3, +7.3] | -0.01 [-0.05, +0.03] |
+| C - B | +3.4 [+0.6, +6.6] | +3.9 [+1.2, +6.5] | -0.01 [-0.07, +0.04] |
+
+Changing the range in either direction, relative to a neutral paraphrase, raises the share of other players' vote targets that
+change by about four points; the self player's trust scores do not move.
+
+**Delivery.** Of 3,615 rewrites the original wording was delivered when both attempts failed the checks for 1.2% (A), 0.7% (B) and
+1.0% (C); at most 8.7% on any seed and level. `data/seed_level_summary.csv` has the counts.
+
+## Files
+
+| file | contents |
+| --- | --- |
+| `data/replays.csv` | one row per replay |
+| `data/rewrites.csv` | one row per rewrite: level, predicate, attempts, failure reasons, original and delivered text |
+| `data/seed_level_summary.csv` | per seed and level: rewrites, first-attempt failures, rescues by the retry, originals delivered, cost |
+| `data/player_days.csv` | control and level values of the seven measures per (seed, day, self player) |
+| `results.md` | the tables above for all columns |
