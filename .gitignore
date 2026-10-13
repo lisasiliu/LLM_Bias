@@ -282,3 +282,7 @@ experiments/language_validation/data/runs/*/validation/calibration/shards/
 experiments/language_validation/data/runs/*/logs/
 
 experiments/politeness_experiment/data/run_log.jsonl
+
+# Local test suites for the language experiments; kept on disk, not in the branch
+/experiments/language_flip/tests/
+/experiments/language_validation/tests/
