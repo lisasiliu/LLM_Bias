@@ -29,9 +29,9 @@ from components.judges.blind_politeness_classifier import (
     LABELS, PROMPT_VERSION, BlindPolitenessClassifier, system_prompt)
 from components.judges.majority_vote import FAILED, NO_MAJORITY, majority
 from experiments.politeness_flip.code import analyze as pa
-from experiments.proficiency_flip.code import analyze as flip
-from experiments.proficiency_flip.code.analyze import _logged_text
-from experiments.proficiency_validation.rewrite.runtime import ValidationModel, fmt, now_iso
+from experiments.language_flip.code import analyze as flip
+from experiments.language_flip.code.analyze import _logged_text
+from experiments.language_validation.rewrite.runtime import ValidationModel, fmt, now_iso
 
 DATA = pa.RUN_DIR
 PASSES = DATA / "manipulation_passes.jsonl"

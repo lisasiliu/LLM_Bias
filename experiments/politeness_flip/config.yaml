@@ -1,4 +1,4 @@
-# RQ2: a speaker-level politeness cue in LURK flip replays, mirroring experiments/proficiency_flip.
+# RQ2: a speaker-level politeness cue in LURK flip replays, mirroring experiments/language_flip.
 #
 # For every seed the runner plays one untreated 7-player NL baseline with day-start checkpoints,
 # then replays each day from its checkpoint:

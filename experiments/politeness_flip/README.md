@@ -68,13 +68,13 @@ games. `flip_others` rewrites about five times as many utterances as `flip_self`
 in proportion would leave the treated speakers who carry the primary analysis thinly covered. Passes are
 appended and never overwritten, so a second classifier adds its own rows and the report shows
 them side by side. On the cluster,
-`experiments/proficiency_validation/hpc/politeness_check_qwen35_27b.slurm` runs both steps
+`experiments/language_validation/hpc/politeness_check_qwen35_27b.slurm` runs both steps
 with the served model.
 
 ## Run
 
 Thirty seeds (201–230). On the cluster,
-`experiments/proficiency_validation/hpc/politeness_flip_qwen35_27b.slurm` is a 30-task array
+`experiments/language_validation/hpc/politeness_flip_qwen35_27b.slurm` is a 30-task array
 submitted with `--dependency=aftercorr:<proficiency array job id>` so each seed starts once
 its baseline exists. After the last seed:
 

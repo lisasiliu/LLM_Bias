@@ -237,7 +237,7 @@ research/validation_runs/latest/
 # and its provenance are committed under experiments/politeness_validation/data/.
 games_fresh/
 # Local raw games for proficiency validation. Curated source records and reports
-# belong in experiments/proficiency_validation/data/.
+# belong in experiments/language_validation/data/.
 /experiments/validation/
 __pycache__/
 *.pyc
@@ -252,16 +252,16 @@ experiments/politeness_validation/data/original_48/
 games/
 
 # Cluster job scripts and per-cluster settings for the proficiency pilot; kept local for now.
-/experiments/proficiency_validation/hpc/
+/experiments/language_validation/hpc/
 
 # Resume artifacts of interrupted proficiency runs (the manifest records completed outputs)
 *.partial
 
 # Flip replay results: the game trees, the run artifacts and the figures stay local.
 # The cluster holds the full trees, including the LLM call logs and the checkpoints.
-/experiments/proficiency_flip/games/
-/experiments/proficiency_flip/games_raters_unexposed/
-/experiments/proficiency_flip/data/runs/
+/experiments/language_flip/games/
+/experiments/language_flip/games_raters_unexposed/
+/experiments/language_flip/data/runs/
 /experiments/politeness_flip/games/
 /experiments/politeness_flip/games_raters_unexposed/
 /experiments/politeness_flip/data/runs/
@@ -270,17 +270,17 @@ experiments/*/figures/
 !experiments/natural_politeness/figures/
 # Everything the cluster produced and everything built from it: the summaries and the
 # validation report are rebuilt by analyze.py and the validation CLI from the recorded runs.
-/experiments/proficiency_flip/summary.md
+/experiments/language_flip/summary.md
 /experiments/politeness_flip/summary.md
-/experiments/proficiency_validation/data/runs/
-/experiments/proficiency_validation/data/automatic_validation.jsonl
-/experiments/proficiency_validation/data/provenance.json
-/experiments/proficiency_validation/VALIDATION.md
+/experiments/language_validation/data/runs/
+/experiments/language_validation/data/automatic_validation.jsonl
+/experiments/language_validation/data/provenance.json
+/experiments/language_validation/VALIDATION.md
 # Per-call token and spend records of the paid judges
-experiments/proficiency_validation/data/api_usage.jsonl
+experiments/language_validation/data/api_usage.jsonl
 
 # Judge-calibration items are repeated verbatim inside judged.jsonl
-experiments/proficiency_validation/data/runs/*/validation/calibration/items.jsonl
-experiments/proficiency_validation/data/runs/*/rewrite/shards/
-experiments/proficiency_validation/data/runs/*/validation/calibration/shards/
-experiments/proficiency_validation/data/runs/*/logs/
+experiments/language_validation/data/runs/*/validation/calibration/items.jsonl
+experiments/language_validation/data/runs/*/rewrite/shards/
+experiments/language_validation/data/runs/*/validation/calibration/shards/
+experiments/language_validation/data/runs/*/logs/

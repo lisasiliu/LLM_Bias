@@ -1,7 +1,7 @@
 # Data export: politeness pe01-pe20 (and language pe01-pe17)
 
 Everything here is derived from the replay outputs in `games/flip_experiments/` (not in git). All rates are shares in [0, 1].
-Language files are in `experiments/proficiency_flip/data/export/`.
+Language files are in `experiments/language_flip/data/export/`.
 
 ## Design in one paragraph
 Each baseline game `peNN` (7 players, DeepSeek) was replayed from each day-start checkpoint (day 1, 2, 3 where it exists) for every

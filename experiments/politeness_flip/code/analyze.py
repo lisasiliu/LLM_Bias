@@ -5,7 +5,7 @@
 Reads every ``games/run_*/nl_vs_politeness/`` tree written by ``lurkingwolf.eval``: the
 baseline game, the two identity (``nl``) replays and the ``flip_self`` / ``flip_others``
 replays for the four Brown & Levinson strategies. Outcomes, pairing, aggregation and the
-exposure checks are the proficiency flip's (``experiments.proficiency_flip.code.analyze``);
+exposure checks are the proficiency flip's (``experiments.language_flip.code.analyze``);
 the design differs in its conditions.
 
 Every strategy rewrites the utterance, so a contrast between two strategies isolates
@@ -20,9 +20,9 @@ from collections import Counter
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence
 
-from experiments.proficiency_validation.rewrite.runtime import fmt, now_iso
-from experiments.proficiency_flip.code import analyze as flip
-from experiments.proficiency_flip.code.analyze import (
+from experiments.language_validation.rewrite.runtime import fmt, now_iso
+from experiments.language_flip.code import analyze as flip
+from experiments.language_flip.code.analyze import (
     ALL_SPEAKER_OUTCOMES, CO_PRIMARY as PROFICIENCY_CO_PRIMARY, OWN_OUTCOMES, RESPONSE_OUTCOMES,
     SPEAKER_OUTCOMES, availability, beyond_repeat, equivalence, game_weighted, holm,
     EQUIVALENCE_BOUNDS, TARGETING, joint_sign_flip, paired_differences)
@@ -30,7 +30,7 @@ from experiments.proficiency_flip.code.analyze import (
 EXPERIMENT_DIR = Path(__file__).resolve().parent.parent
 GAMES_DIR = EXPERIMENT_DIR / "games"
 COMPARISON = "nl_vs_politeness"
-RUN = "qwen35_27b"                      # one directory per run, as in experiments/proficiency_validation
+RUN = "qwen35_27b"                      # one directory per run, as in experiments/language_validation
 RUN_DIR = EXPERIMENT_DIR / "data" / "runs" / RUN
 SUMMARY_JSON = RUN_DIR / "politeness_summary.json"
 SUMMARY_MD = EXPERIMENT_DIR / "summary.md"
@@ -117,7 +117,7 @@ def _seed_range(seeds: Sequence[str]) -> str:
 
 def findings(s: dict) -> List[str]:
     """The result in prose, every number taken from this summary so the two cannot disagree."""
-    from experiments.proficiency_flip.code.analyze import _effect
+    from experiments.language_flip.code.analyze import _effect
     games = len(s.get("games") or [])
     ref = s.get("reference_condition", REFERENCE)
     key = f"negative_politeness_vs_{ref}"

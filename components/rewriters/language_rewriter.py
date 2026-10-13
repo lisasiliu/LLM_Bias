@@ -1,6 +1,6 @@
 """Linguistic-proficiency-cue Stage-3 rewriter for LURK Werewolf.
 
-Conditions (experiments/proficiency_validation/README.md, Construct and conditions):
+Conditions (experiments/language_validation/README.md, Construct and conditions):
 
     low      the treatment: a RESTRICTED linguistic range -- basic, repetitive
              vocabulary and narrow, simple syntax -- that stays grammatical,
@@ -18,7 +18,7 @@ The rewriter shares the politeness rewriter's context parser and prompt.json
 predicate-definition lookup, so both treatments run under one predicate
 contract.  It knows nothing about the semantic gate: gating, corrective retries
 and the ``treatment_unavailable`` policy live in
-``experiments.proficiency_validation.rewrite.gate.GatedRewriter``.
+``experiments.language_validation.rewrite.gate.GatedRewriter``.
 
 The neutral condition generates several candidate paraphrases in ONE call (so
 temperature 0 still yields distinct candidates). It is generated independently

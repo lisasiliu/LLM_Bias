@@ -23,7 +23,7 @@ from matplotlib.ticker import FuncFormatter
 from components.helpers import read_jsonl
 from components.judges.blind_politeness_classifier import LABELS
 from experiments.politeness_flip.code import analyze as pa
-from experiments.proficiency_flip.code import figures as pf
+from experiments.language_flip.code import figures as pf
 
 FIG_DIR = pa.EXPERIMENT_DIR / "figures"
 STRATEGY_LABELS = {"bald_on_record": "Bald\non record", "positive_politeness": "Positive\npoliteness",
