@@ -55,7 +55,7 @@ after the phase. The blind judge (gpt-5.6-luna) labels every delivered text to c
 ```bash
 python -m experiments.politeness_experiment.code.run play --seed pe21     # a new baseline
 python -m experiments.politeness_experiment.code.run flip --first 1 --last 2 --workers 6
-python -m experiments.politeness_experiment.code.analysis check|judge|metrics
+python -m experiments.politeness_experiment.code.analysis export|effects|judge
 ```
 
 Each replay writes `result.json`, `cost.json` and `touched.jsonl` (one row per treated utterance:

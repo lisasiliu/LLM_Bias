@@ -284,3 +284,5 @@ experiments/language_validation/data/runs/*/validation/calibration/items.jsonl
 experiments/language_validation/data/runs/*/rewrite/shards/
 experiments/language_validation/data/runs/*/validation/calibration/shards/
 experiments/language_validation/data/runs/*/logs/
+
+experiments/politeness_experiment/data/run_log.jsonl

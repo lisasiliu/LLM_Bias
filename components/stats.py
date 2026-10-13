@@ -267,3 +267,17 @@ def bradley_terry_bootstrap(comparisons_by_cluster: Mapping[str, Sequence[Tuple[
             "p_a_beats_b": bt_win_probability(point, a, b),
             "n_clusters": len(keys), "n_comparisons": len(all_comps),
             "prior_pseudo_wins": prior, "n_boot": len(draws)}
+
+
+def paired_contrast(rows: Sequence[Mapping], a: str, b: str, measure: str, **kw) -> dict:
+    """Mean of (a - b) over player-days, with a bootstrap CI that resamples whole seeds.
+
+    ``rows`` are player-day dicts with a ``seed`` and one ``<condition>__<measure>`` column per condition
+    (blank when the condition was not run). Player-days missing either condition are skipped."""
+    clusters: Dict[str, List[float]] = {}
+    for r in rows:
+        x, y = r.get(f"{a}__{measure}"), r.get(f"{b}__{measure}")
+        if x not in ("", None) and y not in ("", None):
+            clusters.setdefault(r["seed"], []).append(float(x) - float(y))
+    return cluster_bootstrap(clusters, **kw)
+

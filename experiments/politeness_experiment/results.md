@@ -1,48 +1,26 @@
-# E3: setting minus control (no change)
+# Politeness settings minus control
 
-Share of skill targets, vote targets and reliability scores that differ from the baseline phase, setting minus the control replay. Paired by player-day (repetitions averaged), pooled over player-days; 95% intervals resample seeds (2000 draws). Values in percentage points.
+Share of skill targets, vote targets and reliability scores that differ from the baseline phase, and the size of the reliability changes, for each setting minus the control replay. Paired by player-day (repetitions averaged) and pooled over player-days; 95% intervals resample whole seeds (2000 draws).
 
-## all seeds: 20 seeds, 186 player-days
+## all seeds: 23 seeds, 200 player-days
 
-| setting | skill targets | vote targets | reliability scores |
-|---|--:|--:|--:|
-| all_bald | +2.0 [+0.1, +4.3] (n=186) | -0.9 [-3.3, +1.7] (n=186) | +0.7 [+0.2, +1.3] (n=186) |
-| all_positive | +1.8 [-1.6, +5.8] (n=186) | -2.2 [-4.9, +0.1] (n=186) | +0.3 [-0.5, +1.0] (n=186) |
-| trust_positive | +2.6 [-0.1, +5.9] (n=186) | -1.8 [-3.7, +0.3] (n=186) | +0.4 [-0.4, +1.2] (n=186) |
-| trust_bald | +1.7 [-1.1, +5.2] (n=186) | -1.3 [-3.4, +0.6] (n=186) | -0.2 [-0.9, +0.5] (n=186) |
+| setting | skill targets (pp) | vote targets (pp) | reliability scores moved (pp) | mean absolute point change (pts) | scores moving 2+ pts (pp) | scores others give the self player, all assessors (pts) | same, village assessors only (pts) |
+|---|--:|--:|--:|--:|--:|--:|--:|
+| all_bald | +1.71 [-0.39, +3.87] | +0.71 [-1.97, +3.22] | +0.52 [+0.01, +1.09] | +0.00 [-0.01, +0.01] | -0.16 [-0.67, +0.41] | -0.00 [-0.05, +0.06] | +0.01 [-0.06, +0.08] |
+| all_positive | +2.33 [-1.30, +6.95] | -1.96 [-4.12, +0.11] | +0.06 [-0.60, +0.65] | +0.01 [-0.01, +0.02] | +0.24 [-0.35, +0.81] | -0.07 [-0.13, -0.00] | -0.10 [-0.17, -0.02] |
+| trust_positive | +2.67 [+0.16, +5.54] | -1.25 [-3.42, +0.77] | +0.45 [-0.37, +1.17] | +0.01 [-0.01, +0.02] | +0.15 [-0.41, +0.65] | -0.04 [-0.08, +0.01] | -0.05 [-0.11, +0.01] |
+| trust_bald | +1.42 [-1.38, +4.75] | -1.66 [-3.64, +0.40] | -0.28 [-0.90, +0.35] | -0.01 [-0.02, +0.00] | -0.24 [-0.66, +0.16] | -0.00 [-0.05, +0.05] | -0.00 [-0.06, +0.07] |
 
-Control level (share differing from the baseline): skill 10.0%, vote 15.8%, reliability 29.4%
+Control level: skill targets 10.50, vote targets 16.40, reliability scores moved 30.73, mean absolute point change 0.59, scores moving 2+ pts 9.03, scores others give the self player, all assessors 0.01, same, village assessors only -0.03
 
-Reliability churn, setting minus control (score points on the 1-10 scale; the 2+ share in percentage points):
+## without pe01: 22 seeds, 189 player-days
 
-| setting | mean absolute point change | share of scores moving 2+ points | change in scores others give the self player (all assessors) | same, village assessors only |
-|---|--:|--:|--:|--:|
-| all_bald | +0.01 [+0.00, +0.02] | -0.02 [-0.49, +0.58] | -0.02 [-0.08, +0.03] | -0.03 [-0.09, +0.03] |
-| all_positive | +0.01 [-0.01, +0.02] | +0.25 [-0.47, +1.02] | -0.08 [-0.13, -0.02] | -0.10 [-0.17, -0.03] |
-| trust_positive | +0.01 [-0.00, +0.03] | +0.28 [-0.20, +0.77] | -0.06 [-0.11, -0.01] | -0.07 [-0.12, -0.01] |
-| trust_bald | -0.00 [-0.02, +0.01] | -0.06 [-0.55, +0.37] | -0.02 [-0.07, +0.03] | -0.02 [-0.08, +0.05] |
+| setting | skill targets (pp) | vote targets (pp) | reliability scores moved (pp) | mean absolute point change (pts) | scores moving 2+ pts (pp) | scores others give the self player, all assessors (pts) | same, village assessors only (pts) |
+|---|--:|--:|--:|--:|--:|--:|--:|
+| all_bald | +1.72 [-0.50, +3.95] | +0.64 [-2.21, +3.19] | +0.50 [-0.04, +1.07] | +0.00 [-0.01, +0.01] | -0.10 [-0.63, +0.52] | +0.00 [-0.05, +0.06] | +0.01 [-0.07, +0.08] |
+| all_positive | +2.38 [-1.48, +7.14] | -1.76 [-4.16, +0.44] | +0.07 [-0.62, +0.73] | +0.01 [-0.01, +0.02] | +0.23 [-0.37, +0.89] | -0.07 [-0.13, -0.00] | -0.10 [-0.18, -0.01] |
+| trust_positive | +2.73 [-0.00, +5.61] | -1.28 [-3.42, +0.77] | +0.32 [-0.48, +1.02] | +0.01 [-0.01, +0.02] | +0.15 [-0.49, +0.70] | -0.04 [-0.09, +0.01] | -0.05 [-0.11, +0.01] |
+| trust_bald | +1.50 [-1.43, +4.74] | -1.46 [-3.52, +0.63] | -0.27 [-0.92, +0.44] | -0.01 [-0.02, +0.00] | -0.33 [-0.72, +0.05] | -0.00 [-0.05, +0.05] | +0.00 [-0.06, +0.07] |
 
-Control level: mean absolute change 0.59 points, 8.9% of scores move 2+ points, scores others give the self player change -0.01 (village assessors -0.04).
-
-## without pe01: 19 seeds, 175 player-days
-
-| setting | skill targets | vote targets | reliability scores |
-|---|--:|--:|--:|
-| all_bald | +2.0 [+0.0, +4.4] (n=175) | -1.1 [-3.5, +1.4] (n=175) | +0.7 [+0.1, +1.3] (n=175) |
-| all_positive | +1.9 [-1.8, +5.7] (n=175) | -2.1 [-4.6, +0.5] (n=175) | +0.3 [-0.5, +1.0] (n=175) |
-| trust_positive | +2.7 [-0.2, +6.0] (n=175) | -1.8 [-3.8, +0.2] (n=175) | +0.3 [-0.5, +1.1] (n=175) |
-| trust_bald | +1.9 [-1.2, +5.4] (n=175) | -1.1 [-3.4, +1.0] (n=175) | -0.2 [-0.9, +0.6] (n=175) |
-
-Control level (share differing from the baseline): skill 10.7%, vote 16.2%, reliability 29.2%
-
-Reliability churn, setting minus control (score points on the 1-10 scale; the 2+ share in percentage points):
-
-| setting | mean absolute point change | share of scores moving 2+ points | change in scores others give the self player (all assessors) | same, village assessors only |
-|---|--:|--:|--:|--:|
-| all_bald | +0.01 [+0.00, +0.02] | +0.06 [-0.42, +0.61] | -0.02 [-0.08, +0.03] | -0.03 [-0.10, +0.04] |
-| all_positive | +0.01 [-0.01, +0.03] | +0.25 [-0.48, +1.05] | -0.08 [-0.13, -0.02] | -0.10 [-0.18, -0.02] |
-| trust_positive | +0.01 [-0.00, +0.02] | +0.30 [-0.20, +0.81] | -0.06 [-0.11, -0.01] | -0.07 [-0.13, -0.01] |
-| trust_bald | -0.01 [-0.02, +0.01] | -0.15 [-0.62, +0.27] | -0.02 [-0.07, +0.03] | -0.02 [-0.08, +0.04] |
-
-Control level: mean absolute change 0.58 points, 8.6% of scores move 2+ points, scores others give the self player change -0.01 (village assessors -0.06).
+Control level: skill targets 11.11, vote targets 16.83, reliability scores moved 30.56, mean absolute point change 0.59, scores moving 2+ pts 8.68, scores others give the self player, all assessors 0.01, same, village assessors only -0.04
 
