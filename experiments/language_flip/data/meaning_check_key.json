@@ -1,0 +1,513 @@
+{
+ "lg_001": {
+  "level": "A",
+  "seed": "pe07",
+  "source_id": "pe07:flip_self__A__P1:1",
+  "predicate": "question(D2, P1, P4, s40)",
+  "judge": "fail",
+  "reasons": [
+   "proposition_changed:1:The original says P4 is accusing P2 of the conduct, while the rewrite says P4 claims P2 actually did it; the embedded speech act and commitment strength change.",
+   "not_preserved:content_preserved",
+   "not_preserved:commitment_preserved",
+   "not_preserved:act_force_preserved"
+  ]
+ },
+ "lg_002": {
+  "level": "A",
+  "seed": "pe04",
+  "source_id": "pe04:flip_self__A__P6:1",
+  "predicate": "claim_role(D1, P6, seer)",
+  "judge": "fail",
+  "reasons": [
+   "proposition_changed:1:Coming forward conveys publicly stepping forward with the claim; saying it conveys only uttering it.",
+   "not_preserved:content_preserved",
+   "not_preserved:content_preserved:The rewrite omits the proposition that the speaker is coming forward publicly now and replaces it with merely saying it now."
+  ]
+ },
+ "lg_003": {
+  "level": "C",
+  "seed": "pe11",
+  "source_id": "pe11:flip_self__C__P5:1",
+  "predicate": "estimate(D2, P5, P6, seer)",
+  "judge": "fail",
+  "reasons": [
+   "proposition_changed:1:\"Sitting with\" and \"resting with,\" \"most likely\" and \"most probable,\" and \"exactly\" and \"precisely\" match, but \"wants\" expresses desire while \"needs\" expresses necessity.",
+   "not_preserved:content_preserved",
+   "not_preserved:commitment_preserved",
+   "not_preserved:content_preserved:The village's desire for the badge's location was changed to a claim of necessity."
+  ]
+ },
+ "lg_004": {
+  "level": "A",
+  "seed": "pe05",
+  "source_id": "pe05:flip_self__A__P2:2",
+  "predicate": "estimate(D2, P2, P5, werewolf)",
+  "judge": "fail",
+  "reasons": [
+   "proposition_changed:1:\"Publish\" states public disclosure, whereas \"tell us\" specifies informing this audience.",
+   "proposition_changed:3:The original uses simple conjunction, while the rewrite explicitly presents the second clause as a contrast.",
+   "not_preserved:content_preserved",
+   "not_preserved:content_preserved:The rewrite changes public publication into communication specifically to \"us\"."
+  ]
+ },
+ "lg_005": {
+  "level": "C",
+  "seed": "pe11",
+  "source_id": "pe11:flip_self__C__P4:4",
+  "predicate": "address_role(D2, P4, seer, hold)",
+  "judge": "fail",
+  "reasons": [
+   "proposition_changed:3:The rewrite adds an actuality qualification, distinguishing the real seer from a possible claimant or apparent seer.",
+   "not_preserved:content_preserved",
+   "not_preserved:commitment_preserved",
+   "not_preserved:content_preserved:The rewrite adds that the addressee is genuinely the seer, an actuality qualification absent from the original."
+  ]
+ },
+ "lg_006": {
+  "level": "A",
+  "seed": "pe02",
+  "source_id": "pe02:flip_self__A__P5:5",
+  "predicate": "recommend_action(D1, P5, P1, question, P6)",
+  "judge": "fail",
+  "reasons": [
+   "proposition_changed:3:\"Demanded\" presents a stronger, more forceful directive than \"told me to.\"",
+   "not_preserved:content_preserved",
+   "not_preserved:act_force_preserved",
+   "not_preserved:politeness_preserved"
+  ]
+ },
+ "lg_007": {
+  "level": "C",
+  "seed": "pe10",
+  "source_id": "pe10:flip_self__C__P3:8",
+  "predicate": "dissociate(D1, P3, P2)",
+  "judge": "fail",
+  "reasons": [
+   "proposition_changed:1:The rewrite adds that the wolves are the agents killing the speaker, whereas the original only states that the speaker will die.",
+   "not_preserved:content_preserved",
+   "not_preserved:commitment_preserved",
+   "not_preserved:content_preserved:The rewrite changes an unspecified death into an explicit claim that the wolves are killing the speaker."
+  ]
+ },
+ "lg_008": {
+  "level": "A",
+  "seed": "pe07",
+  "source_id": "pe07:flip_self__A__P1:3",
+  "predicate": "address_role(D1, P1, seer, hold)",
+  "judge": "fail",
+  "reasons": [
+   "proposition_changed:2:The rewrite specifies that the six are 'us', adding a speaker-inclusive group reference absent from the original.",
+   "not_preserved:content_preserved",
+   "not_preserved:speaker_perspective_preserved",
+   "not_preserved:content_preserved:The rewrite adds that the six include the speaker's group ('us'), which the original does not state."
+  ]
+ },
+ "lg_009": {
+  "level": "C",
+  "seed": "pe01",
+  "source_id": "pe01:flip_self__C__P5:1",
+  "predicate": "question(D2, P5, P6, s41)",
+  "judge": "fail",
+  "reasons": [
+   "proposition_changed:2:The rewrite asks for whom the speaker suspects, rather than whom the speaker thinks are the wolves.",
+   "proposition_changed:3:\"Is not\" is categorical, while \"is hardly\" expresses a less categorical evaluation.",
+   "not_preserved:content_preserved",
+   "not_preserved:commitment_preserved"
+  ]
+ },
+ "lg_010": {
+  "level": "C",
+  "seed": "pe04",
+  "source_id": "pe04:flip_self__C__P1:5",
+  "predicate": "address_role(D2, P1, seer, hold)",
+  "judge": "fail",
+  "reasons": [
+   "proposition_changed:0:\"is telling you\" attributes a directive to P4, while \"wants you\" attributes only a desire.",
+   "not_preserved:content_preserved",
+   "not_preserved:commitment_preserved",
+   "not_preserved:act_force_preserved"
+  ]
+ },
+ "lg_011": {
+  "level": "A",
+  "seed": "pe04",
+  "source_id": "pe04:flip_self__A__P6:1",
+  "predicate": "claim_role(D2, P6, seer)",
+  "judge": "fail",
+  "reasons": [
+   "proposition_changed:2:The rewrite omits \"directly,\" removing the qualification that the results settle the fight directly.",
+   "not_preserved:content_preserved",
+   "not_preserved:content_preserved:The qualification \"directly\" is deleted, changing the stated manner or strength of how the results settle the fight."
+  ]
+ },
+ "lg_012": {
+  "level": "C",
+  "seed": "pe08",
+  "source_id": "pe08:flip_self__C__P6:4",
+  "predicate": "address_role(D1, P6, guard, hold)",
+  "judge": "fail",
+  "reasons": [
+   "proposition_changed:1:\"Gone\" is less specific than \"dead,\" and the causal connector is reformulated.",
+   "proposition_changed:2:\"Nobody having claimed anything\" is broader than no claims being on the table; \"working blind\" is stronger than \"guessing,\" and \"so\" changes the relation from coordination within the reason to an explicit consequence.",
+   "proposition_changed:3:The explicit recipient \"them\" is omitted, while \"only\" adds an exclusivity qualification; \"down\" is an added wording element.",
+   "not_preserved:content_preserved"
+  ]
+ },
+ "lg_013": {
+  "level": "A",
+  "seed": "pe06",
+  "source_id": "pe06:flip_self__A__P5:2",
+  "predicate": "recommend_action(D1, P5, P6, pressure, P7)",
+  "judge": "fail",
+  "reasons": [
+   "proposition_changed:0:The rewrite makes P6's sheriff status an explicit assertion and adds a causal so; the original presents it as a role qualification for the pressure.",
+   "proposition_changed:1:\"Concrete suspect\" is not identical to \"one real suspect\"; the rewrite changes the qualification.",
+   "proposition_changed:2:The rewrite omits the explicit because relation and changes exactly one request to one of those asks, which does not exclude additional asks.",
+   "not_preserved:content_preserved"
+  ]
+ },
+ "lg_014": {
+  "level": "A",
+  "seed": "pe11",
+  "source_id": "pe11:flip_self__A__P2:3",
+  "predicate": "recommend_action(D1, P2, P6, vote_execute, P1)",
+  "judge": "fail",
+  "reasons": [
+   "proposition_changed:1:\"Opposite standards\" asserts a stronger contradiction than merely \"different rules.\"",
+   "proposition_changed:2:\"Concrete contradiction on the board\" identifies a specific contradiction present in the game, while \"real contradiction we have\" changes that qualification and perspective.",
+   "not_preserved:content_preserved",
+   "not_preserved:commitment_preserved"
+  ]
+ },
+ "lg_015": {
+  "level": "A",
+  "seed": "pe11",
+  "source_id": "pe11:flip_self__A__P4:1",
+  "predicate": "estimate(D2, P4, P5, werewolf)",
+  "judge": "fail",
+  "reasons": [
+   "proposition_changed:0:The original specifies P5's only concrete output; the rewrite broadly says P5 said little and omits the concrete-output qualification.",
+   "proposition_changed:1:The praise clauses are paraphrased acceptably, but asking for a target is changed to asking who to vote for.",
+   "proposition_changed:2:\"Hedges\" is changed to the broader and different description \"soft things.\"",
+   "proposition_changed:3:\"Pattern of\" is presented as \"looks like,\" reducing the stated commitment; \"the room\" is changed to \"us,\" changing the target group."
+  ]
+ },
+ "lg_016": {
+  "level": "C",
+  "seed": "pe04",
+  "source_id": "pe04:flip_self__C__P2:1",
+  "predicate": "question(D2, P2, P1, s40)",
+  "judge": "fail",
+  "reasons": [
+   "proposition_changed:2:The rewrite preserves the evidence claim but omits the explicit because relation connecting it to the demand for an explanation.",
+   "not_preserved:content_preserved",
+   "not_preserved:content_preserved:The explicit causal connection between the evidence and the demand for an explanation is deleted."
+  ]
+ },
+ "lg_017": {
+  "level": "C",
+  "seed": "pe04",
+  "source_id": "pe04:flip_self__C__P1:4",
+  "predicate": "recommend_action(D2, P1, P6, vote_execute, P4)",
+  "judge": "fail",
+  "reasons": [
+   "proposition_changed:1:\"Conveniently\" adds an implication that P4's overlooking is advantageous or possibly deliberate.",
+   "proposition_changed:3:The rewrite specifies that the village's commitment is to an execution; the original leaves the object of \"commits\" unstated.",
+   "not_preserved:content_preserved",
+   "not_preserved:commitment_preserved"
+  ]
+ },
+ "lg_018": {
+  "level": "A",
+  "seed": "pe09",
+  "source_id": "pe09:flip_self__A__P5:6",
+  "predicate": "claim_role(D1, P5, seer)",
+  "judge": "fail",
+  "reasons": [
+   "proposition_changed:1:The rewrite adds an explicit inferential relation with \u201cSo\u201d; the original em dash does not explicitly assert that the last act follows as a conclusion.",
+   "not_preserved:content_preserved",
+   "not_preserved:content_preserved:\u201cSo\u201d adds an explicit conclusion or consequence not explicitly asserted in the original."
+  ]
+ },
+ "lg_019": {
+  "level": "A",
+  "seed": "pe06",
+  "source_id": "pe06:flip_self__A__P7:2",
+  "predicate": "address_role(D1, P7, seer, reveal)",
+  "judge": "fail",
+  "reasons": [
+   "proposition_changed:2:The rewrite changes the logical structure: it presents P1 being dead and the lack of information as conjunctive reasons, then uses \u201cso\u201d to connect the lack of information to the hidden seer. The original states that P1's death caused the lack of information and coordinates that reason with the hidden-seer consequence.",
+   "not_preserved:content_preserved",
+   "not_preserved:content_preserved:The causal and conjunctive relations among P1's death, the lack of information, and the hidden seer are reorganized rather than preserved exactly."
+  ]
+ },
+ "lg_020": {
+  "level": "C",
+  "seed": "pe03",
+  "source_id": "pe03:flip_self__C__P7:2",
+  "predicate": "estimate(D1, P7, P4, werewolf)",
+  "judge": "fail",
+  "reasons": [
+   "proposition_changed:0:\"Nudges\" conveys gentler pressure than \"pushes,\" changing the described force of P4's s17.",
+   "proposition_changed:2:\"Far more\" expresses a stronger comparative assessment than \"more like\"; the rewrite also expresses it with \"strikes me\" rather than \"reads ... to me,\" though both retain a personal assessment.",
+   "not_preserved:content_preserved",
+   "not_preserved:commitment_preserved"
+  ]
+ },
+ "lg_021": {
+  "level": "C",
+  "seed": "pe09",
+  "source_id": "pe09:flip_self__C__P1:1",
+  "predicate": "estimate(D1, P1, P7, werewolf)",
+  "judge": "fail",
+  "reasons": [
+   "proposition_changed:2:The original calls it the safest possible wolf posture; the rewrite says it is a posture a wolf would want to adopt, which is a different claim and relation.",
+   "proposition_changed:3:The request is retained, but \"and\" becomes a causal \"so\", and \"I'd like\" softens the original \"I want\".",
+   "not_preserved:content_preserved",
+   "not_preserved:commitment_preserved"
+  ]
+ },
+ "lg_022": {
+  "level": "C",
+  "seed": "pe07",
+  "source_id": "pe07:flip_self__C__P4:1",
+  "predicate": "estimate(D2, P4, P6, seer)",
+  "judge": "fail",
+  "reasons": [
+   "proposition_changed:3:The original attributes possession of real information to the seer; the rewrite says the seer was using real information as a basis, which is a different proposition.",
+   "proposition_changed:4:\"I'd like\" presents the desire more softly and courteously than \"I want.\"",
+   "not_preserved:content_preserved",
+   "not_preserved:commitment_preserved"
+  ]
+ },
+ "lg_023": {
+  "level": "C",
+  "seed": "pe05",
+  "source_id": "pe05:flip_self__C__P5:2",
+  "predicate": "recommend_action(D1, P5, P6, vote_execute, P7)",
+  "judge": "fail",
+  "reasons": [
+   "proposition_changed:1:The rewrite adds a separate imperative asking P6 to inspect the evidence.",
+   "proposition_changed:2:The substantive assessment matches, but the rewrite adds the emphasis marker \"actually\" and changes the original explanatory construction into the object of an added imperative.",
+   "proposition_changed:3:The rewrite adds that the badge is a sheriff's badge and changes the singular \"1.5 vote\" to plural \"1.5 votes\".",
+   "not_preserved:content_preserved"
+  ]
+ },
+ "lg_024": {
+  "level": "A",
+  "seed": "pe04",
+  "source_id": "pe04:flip_self__A__P6:5",
+  "predicate": "recommend_action(D2, P6, P6, pass_badge, P4)",
+  "judge": "fail",
+  "reasons": [
+   "proposition_changed:2:\"Tracked\" asserts alignment with the evidence, while \"was about\" only states a topic.",
+   "proposition_changed:3:\"Confirmed privately\" asserts confirmation and private disclosure; \"checked myself\" omits privacy and weakens the evidential claim.",
+   "not_preserved:content_preserved",
+   "not_preserved:commitment_preserved"
+  ]
+ },
+ "lg_025": {
+  "level": "C",
+  "seed": "pe08",
+  "source_id": "pe08:flip_self__C__P4:3",
+  "predicate": "disagree(D1, P4, s24)",
+  "judge": "fail",
+  "reasons": [
+   "proposition_changed:3:The rewrite adds the temporal qualification \"now\".",
+   "proposition_changed:5:Not treating a read as neutral rejects its impartiality; not taking it at face value rejects uncritical acceptance. These are different assessments.",
+   "not_preserved:content_preserved",
+   "not_preserved:commitment_preserved"
+  ]
+ },
+ "lg_026": {
+  "level": "C",
+  "seed": "pe05",
+  "source_id": "pe05:flip_self__C__P7:2",
+  "predicate": "estimate(D2, P7, P2, villager)",
+  "judge": "fail",
+  "reasons": [
+   "proposition_changed:2:The rewrite adds emphatic exactness, strengthening the characterization.",
+   "not_preserved:content_preserved",
+   "not_preserved:commitment_preserved",
+   "not_preserved:content_preserved:The rewrite adds a qualification that the play is exactly, rather than merely characteristically, that type of low-information play."
+  ]
+ },
+ "lg_027": {
+  "level": "A",
+  "seed": "pe07",
+  "source_id": "pe07:flip_self__A__P4:2",
+  "predicate": "recommend_action(D1, P4, P6, pressure, P2)",
+  "judge": "fail",
+  "reasons": [
+   "proposition_changed:1:The rewrite changes a process-related disagreement into a disagreement characterized as small and about rules.",
+   "proposition_changed:4:Concrete describes a specific or tangible lead, whereas real describes a genuine lead.",
+   "not_preserved:content_preserved",
+   "not_preserved:content_preserved:The rewrite adds the characterization 'small' and changes 'procedural disagreement' to 'disagreement about rules'."
+  ]
+ },
+ "lg_028": {
+  "level": "C",
+  "seed": "pe11",
+  "source_id": "pe11:flip_self__C__P6:4",
+  "predicate": "recommend_action(D1, P6, P6, vote_execute, P3)",
+  "judge": "fail",
+  "reasons": [
+   "proposition_changed:0:A recommendation for P6 to execute P3 becomes an assertion that the speaker is personally voting for P3; the execution action and recommendation force are not preserved.",
+   "proposition_changed:2:The rewrite adds the stronger qualification \"exactly\" and specifies \"of anyone,\" while also changing the description from P3's pattern to what P3 did.",
+   "not_preserved:content_preserved",
+   "not_preserved:commitment_preserved"
+  ]
+ },
+ "lg_029": {
+  "level": "A",
+  "seed": "pe10",
+  "source_id": "pe10:flip_self__A__P1:3",
+  "predicate": "address_role(D1, P1, seer, hold)",
+  "judge": "fail",
+  "reasons": [
+   "proposition_changed:1:A wolf_camp result is replaced by a result showing a wolf, changing the specified result.",
+   "proposition_changed:2:No revealed role describes the revelation status, while we did not learn their role describes the speaker's or group's knowledge.",
+   "not_preserved:content_preserved",
+   "not_preserved:commitment_preserved"
+  ]
+ },
+ "lg_030": {
+  "level": "C",
+  "seed": "pe04",
+  "source_id": "pe04:flip_self__C__P4:1",
+  "predicate": "fluff(D1, P4)",
+  "judge": "fail",
+  "reasons": [
+   "proposition_changed:0:The rewrite omits the temporal qualification \u201cyet\u201d; the causal relation is otherwise preserved.",
+   "proposition_changed:1:The rewrite expresses wanting P6's plan but omits the specific action of hearing it.",
+   "not_preserved:content_preserved",
+   "not_preserved:content_preserved:The rewrite deletes the qualification that no one has spoken up to the current point in the turn."
+  ]
+ },
+ "lg_031": {
+  "level": "A",
+  "seed": "pe11",
+  "source_id": "pe11:flip_self__A__P6:3",
+  "predicate": "disagree(D1, P6, s25)",
+  "judge": "fail",
+  "reasons": [
+   "proposition_changed:0:The rewrite adds the speaker's disagreement but does not state what P3's s25 says or does.",
+   "proposition_changed:1:The rewrite omits the attribution to P3's s25 and deletes the qualification \"exactly\".",
+   "proposition_changed:2:The rewrite adds a contrast marker and \"just,\" changing the logical and emphatic presentation.",
+   "proposition_changed:4:The rewrite adds \"but\" and \"just,\" introducing contrast and extra emphasis."
+  ]
+ },
+ "lg_032": {
+  "level": "C",
+  "seed": "pe02",
+  "source_id": "pe02:flip_self__C__P5:3",
+  "predicate": "question(D1, P5, P1, s18)",
+  "judge": "fail",
+  "reasons": [
+   "proposition_changed:1:\"Pressed\" implies stronger or more persistent urging than \"asked.\"",
+   "not_preserved:content_preserved",
+   "not_preserved:politeness_preserved",
+   "not_preserved:interpersonal_register_preserved"
+  ]
+ },
+ "lg_033": {
+  "level": "A",
+  "seed": "pe11",
+  "source_id": "pe11:flip_self__A__P7:1",
+  "predicate": "fluff(D1, P7)",
+  "judge": "fail",
+  "reasons": [
+   "proposition_changed:2:The rewrite changes committing to a vote into choosing whom to vote for, which does not necessarily express the same commitment or action.",
+   "not_preserved:content_preserved",
+   "not_preserved:content_preserved:The original specifies committing to a vote; the rewrite specifies selecting a vote target, a potentially weaker or different action."
+  ]
+ },
+ "lg_034": {
+  "level": "A",
+  "seed": "pe02",
+  "source_id": "pe02:flip_self__A__P7:6",
+  "predicate": "claim_role(D1, P7, seer)",
+  "judge": "fail",
+  "reasons": [
+   "proposition_changed:2:\"Hear me out\" asks the addressee to listen through the speaker's explanation, while \"listen to me\" does not preserve that complete-hearing qualification and is more direct.",
+   "not_preserved:content_preserved",
+   "not_preserved:act_force_preserved",
+   "not_preserved:politeness_preserved"
+  ]
+ },
+ "lg_035": {
+  "level": "A",
+  "seed": "pe11",
+  "source_id": "pe11:flip_self__A__P1:1",
+  "predicate": "recommend_action(D2, P1, P2, vote_execute, P4)",
+  "judge": "fail",
+  "reasons": [
+   "proposition_changed:0:The rewrite explicitly specifies execution, while the original only says to put the vote on P4.",
+   "proposition_changed:1:The original attributes a proposal to P2; the rewrite only attributes a statement.",
+   "proposition_changed:2:The rewrite adds the exclusivity qualification \u201cjust.\u201d",
+   "proposition_changed:4:The rewrite omits \u201cexactly\u201d and changes the target from the broader \u201croom\u201d to \u201cus.\u201d"
+  ]
+ },
+ "lg_036": {
+  "level": "C",
+  "seed": "pe10",
+  "source_id": "pe10:flip_self__C__P3:2",
+  "predicate": "agree(D1, P3, s25)",
+  "judge": "fail",
+  "reasons": [
+   "not_preserved:politeness_preserved",
+   "not_preserved:politeness_preserved:The rewrite uses a more softened and courteous request formulation than the original."
+  ]
+ },
+ "lg_037": {
+  "level": "A",
+  "seed": "pe08",
+  "source_id": "pe08:flip_self__A__P7:1",
+  "predicate": "fluff(D1, P7)",
+  "judge": "fail",
+  "reasons": [
+   "proposition_changed:4:The rewrite narrows the requested target from anyone P6 suspects to someone P6 thinks is a wolf, and adds an explicit consequence connector in \"So\".",
+   "not_preserved:content_preserved",
+   "not_preserved:content_preserved:A general suspicion became the narrower claim that the person is a wolf.",
+   "not_preserved:content_preserved:The rewrite explicitly presents the request as a consequence with \"So\"; the original uses only a semicolon."
+  ]
+ },
+ "lg_038": {
+  "level": "C",
+  "seed": "pe04",
+  "source_id": "pe04:flip_self__C__P4:3",
+  "predicate": "recommend_action(D1, P4, P6, question, P3)",
+  "judge": "fail",
+  "reasons": [
+   "proposition_changed:1:The explicit causal connector is deleted.",
+   "not_preserved:content_preserved",
+   "not_preserved:content_preserved:The rewrite removes the explicit causal relation connecting the recommendation to its reason, presenting the reason as a separate sentence instead."
+  ]
+ },
+ "lg_039": {
+  "level": "C",
+  "seed": "pe02",
+  "source_id": "pe02:flip_self__C__P6:2",
+  "predicate": "question(D1, P6, P7, s24)",
+  "judge": "fail",
+  "reasons": [
+   "proposition_changed:0:The rewrite explicitly refers to P7's Seer claim; the original only conditionally states P7's Seer identity.",
+   "proposition_changed:3:The rewrite specifically says the player's alignment would provide the information; the original only says the player would have provided information.",
+   "not_preserved:content_preserved",
+   "not_preserved:commitment_preserved"
+  ]
+ },
+ "lg_040": {
+  "level": "A",
+  "seed": "pe06",
+  "source_id": "pe06:flip_self__A__P6:4",
+  "predicate": "recommend_action(D2, P6, P5, vote_execute, P4)",
+  "judge": "fail",
+  "reasons": [
+   "proposition_changed:0:The rewrite omits that the vote history was the sole basis; \"on their own\" preserves independence among the players, not the exclusive evidential basis.",
+   "proposition_changed:1:\"Confirms\" presents the divination as validation of the prior conclusion, while \"shows the same thing\" states matching evidence without the same confirmatory force.",
+   "proposition_changed:3:\"Lock\" conveys firmly committing the vote, whereas \"put\" only states placing it; \"as well\" and \"too\" are equivalent.",
+   "not_preserved:content_preserved"
+  ]
+ }
+}

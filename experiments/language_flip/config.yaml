@@ -1,0 +1,61 @@
+# RQ1: a speaker-level linguistic-range cue in LURK flip replays.
+#
+# For every seed the runner plays one untreated 7-player NL baseline with day-start
+# checkpoints, then replays each day from its checkpoint:
+#   nl           identity control: same checkpoint, no rewriter; a second identity replay
+#                (repeat_index 1) measures the model's run-to-run variation on every outcome
+#   flip_self    the gated proficiency rewriter on ONE player's speech for the whole day,
+#                rotated through all players (speaker-directed treatment, the primary analysis)
+#   flip_others  the rewriter on everyone except that player (secondary: how the untreated
+#                player behaves when everyone around them speaks at the treated level)
+# Conditions: A (restricted range), B (paraphrase control at the original range) and C (expanded range);
+# internal ids low, neutral, high.
+# Every rewrite passes the semantic gate; a rewrite that still fails after its retries falls back
+# to the untouched original utterance, is logged with fallback_to_original=true, and the assigned
+# replay continues. The primary analysis follows the assignment. Per-protocol analysis uses
+# complete rewrite logs matching the treated utterances, with every rewrite successful.
+#
+# Qwen3.5-27B plays, generates and judges; the confirmatory protocol in
+# experiments/language_validation/README.md names the independent model families.
+name: language_flip
+n_players: 7
+seeds: [201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230]
+model: Qwen/Qwen3.5-27B
+temperature: 0.0
+max_tokens: 300
+max_rounds: 20
+rewriter_module: experiments.language_validation.rewrite.gate
+
+comparisons:
+  nl_vs_proficiency:
+    baseline: nl
+    replays:
+      - mode: nl
+      - mode: nl
+        repeat_index: 1
+      - mode: flip_self
+        rewriter: gated_proficiency
+        rewriter_params: {base: low, gate: judge, generator_handle: generator, on_unavailable: original}
+        inject_at: day_start
+      - mode: flip_self
+        rewriter: gated_proficiency
+        rewriter_params: {base: neutral, gate: judge, generator_handle: generator, on_unavailable: original}
+        inject_at: day_start
+      - mode: flip_self
+        rewriter: gated_proficiency
+        rewriter_params: {base: high, gate: judge, generator_handle: generator, on_unavailable: original}
+        inject_at: day_start
+      - mode: flip_others
+        rewriter: gated_proficiency
+        rewriter_params: {base: low, gate: judge, generator_handle: generator, on_unavailable: original}
+        inject_at: day_start
+      - mode: flip_others
+        rewriter: gated_proficiency
+        rewriter_params: {base: neutral, gate: judge, generator_handle: generator, on_unavailable: original}
+        inject_at: day_start
+      - mode: flip_others
+        rewriter: gated_proficiency
+        rewriter_params: {base: high, gate: judge, generator_handle: generator, on_unavailable: original}
+        inject_at: day_start
+
+metrics: [skill, vote, reliability, fairness]
