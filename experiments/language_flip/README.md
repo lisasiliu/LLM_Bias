@@ -86,10 +86,6 @@ them blind (`low:original`, `neutral:original`, `high:original`, both constructs
 cluster, `experiments/language_validation/hpc/listener_qwen35_27b.slurm` runs it with the
 served Qwen model as the listener; another listener adds its own rows later.
 
-The politeness flip (`experiments/politeness_flip/`) replays the same baseline games: its
-cluster script copies each seed's baseline and checkpoints from this experiment before its
-replays, so both experiments treat the same days.
-
 `PROFICIENCY_MODEL_CONFIG` names the manifest with the `generator` and `judge` handles the
 rewriter uses; `SUBTLEX` (in `.env` locally, exported by the cluster script) is the
 word-frequency file for B's candidate selection; the environment needs the proficiency extra

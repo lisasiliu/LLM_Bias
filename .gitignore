@@ -262,16 +262,12 @@ games/
 /experiments/language_flip/games/
 /experiments/language_flip/games_raters_unexposed/
 /experiments/language_flip/data/runs/
-/experiments/politeness_flip/games/
-/experiments/politeness_flip/games_raters_unexposed/
-/experiments/politeness_flip/data/runs/
 # Figures are regenerated from the recorded games by each experiment's figures.py
 experiments/*/figures/
 !experiments/natural_politeness/figures/
 # Everything the cluster produced and everything built from it: the summaries and the
 # validation report are rebuilt by analyze.py and the validation CLI from the recorded runs.
 /experiments/language_flip/summary.md
-/experiments/politeness_flip/summary.md
 /experiments/language_validation/data/runs/
 /experiments/language_validation/data/automatic_validation.jsonl
 /experiments/language_validation/data/provenance.json
